@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce6a11b899b0b9548ad469d3f5d9e4b8, type: 3}
+  m_Name: PetData 1
+  m_EditorClassIdentifier: 
+  petId: pet_002
+  petName: una
+  rarity: 1
+  type: 1
+  icon: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
+  prefab: {fileID: 0}
+  maxLevel: 50
+  expCurve:
+    serializedVersion: 2
+    m_Curve: []
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  maxAffection: 100
+  baseStats:
+    atkBonus: 10
+    hpBonus: 5
+    expBonus: 0
+    goldBonus: 0
+  skills: []
+  evolvesTo: {fileID: 11400000}
+  evolveRequiredLevel: 30
+  evolveRequiredAffection: 80
+  evolveMaterialId: 
+  evolveMaterialQty: 10
+  description: 
