@@ -1,0 +1,27 @@
+
+zhiyinshou.png
+size: 126,126
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+shou
+  rotate: false
+  xy: 2, 40
+  size: 77, 84
+  orig: 95, 146
+  offset: 0, 62
+  index: -1
+zhi1
+  rotate: false
+  xy: 2, 2
+  size: 36, 36
+  orig: 36, 36
+  offset: 0, 0
+  index: -1
+zhi2
+  rotate: true
+  xy: 40, 4
+  size: 34, 38
+  orig: 34, 38
+  offset: 0, 0
+  index: -1

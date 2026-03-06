@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!78 &1
+TagManager:
+  serializedVersion: 2
+  tags:
+  - ClickEvent
+  - DragEvent
+  - ClickEvent_ShopItem
+  - LODHeight
+  - LODMiddle
+  - LODLow
+  - Maze3d_Ground
+  - Maze3d_Map
+  - Localization_Dynamic
+  layers:
+  - Default
+  - TransparentFX
+  - Ignore Raycast
+  - 
+  - Water
+  - UI
+  - 
+  - 
+  - UIOut
+  - UISpl
+  - UITip
+  - UIShare
+  - Maze3d_HeightPlane
+  - Maze3d_Ground
+  - Maze3d_Item
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  m_SortingLayers:
+  - name: Default
+    uniqueID: 0
+    locked: 0
+  - name: WarSceneMoving
+    uniqueID: 2516789623
+    locked: 0
+  - name: UI
+    uniqueID: 571865825
+    locked: 0
+  - name: UICover
+    uniqueID: 2858391445
+    locked: 0
+  - name: UITip
+    uniqueID: 1676623557
+    locked: 0
+  - name: UIClickEfect
+    uniqueID: 129167341
+    locked: 0
+  - name: Layer7
+    uniqueID: 980899529
+    locked: 0
+  - name: Layer8
+    uniqueID: 662521947
+    locked: 0
+  - name: Layer9
+    uniqueID: 2524646005
+    locked: 0
+  - name: Layer10
+    uniqueID: 2306594549
+    locked: 0

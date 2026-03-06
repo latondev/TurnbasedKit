@@ -1,0 +1,182 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!687078895 &687078895
+SpriteAtlas:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: NewFunc
+  m_EditorData:
+    serializedVersion: 2
+    textureSettings:
+      serializedVersion: 2
+      anisoLevel: 1
+      compressionQuality: 50
+      maxTextureSize: 2048
+      textureCompression: 0
+      filterMode: 1
+      generateMipMaps: 0
+      readable: 0
+      crunchedCompression: 0
+      sRGB: 1
+    platformSettings: []
+    packingSettings:
+      serializedVersion: 2
+      padding: 2
+      blockOffset: 1
+      allowAlphaSplitting: 0
+      enableRotation: 1
+      enableTightPacking: 1
+    variantMultiplier: 1
+    packables:
+    - {fileID: 21300000, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300000, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300002, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300004, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300006, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300002, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300008, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300004, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300010, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300012, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300006, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300008, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300014, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300010, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300012, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300014, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300016, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300016, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300018, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300020, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300022, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300024, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300026, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300018, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300020, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300028, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300022, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300024, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300030, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300032, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300034, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300026, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300036, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300028, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300030, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300032, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300038, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300040, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300034, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300036, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300042, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300038, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300040, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300042, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+    - {fileID: 21300044, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300046, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300048, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    - {fileID: 21300050, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+    bindAsDefault: 1
+  m_MasterAtlas: {fileID: 0}
+  m_PackedSprites:
+  - {fileID: 21300000, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300000, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300002, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300004, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300006, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300002, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300008, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300004, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300010, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300012, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300006, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300008, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300014, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300010, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300012, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300014, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300016, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300016, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300018, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300020, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300022, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300024, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300026, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300018, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300020, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300028, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300022, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300024, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300030, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300032, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300034, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300026, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300036, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300028, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300030, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300032, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300038, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300040, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300034, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300036, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300042, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300038, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300040, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300042, guid: 118eae64d8c180d42b9b9b8aa6d9e7d7, type: 3}
+  - {fileID: 21300044, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300046, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300048, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  - {fileID: 21300050, guid: 5f1f9c28b578dca41b309195410391c3, type: 3}
+  m_PackedSpriteNamesToIndex:
+  - icon_yindao_city_cangJieDreamland
+  - icon_yindao_city_yanmengjing
+  - icon_yindao_city_shenbing
+  - icon_yindao_city_xunbao
+  - icon_yindao_city_xingyou
+  - icon_yindao_city_wujinshilian_zhongzu
+  - icon_yindao_city_zhenbaofang
+  - icon_yindao_city_xianlingyiji
+  - icon_yindao_city_bangpai
+  - icon_yindao_city_zhongxingdian
+  - icon_yindao_city_shenlong
+  - icon_yindao_city_wujinshilian
+  - icon_yindao_city_shanhaiyishou
+  - icon_yindao_city_jingjie
+  - icon_yindao_city_xingyun
+  - icon_yindao_city_jifenjingjichang
+  - icon_yindao_city_pingdingbahuang
+  - icon_yindao_city_qujing
+  - icon_yindao_city_shentong
+  - icon_yindao_city_jingjichang
+  - icon_yindao_city_zhenfa
+  - icon_yindao_city_saishichengjiu
+  - icon_yindao_city_xunlongtanchu
+  - icon_yindao_city_fengzi
+  - icon_yindao_city_zhuxian_zdtz
+  - icon_yindao_city_nvwaci
+  - icon_yindao_city_liudaolunhui
+  - icon_yindao_city_daoxin
+  - icon_yindao_city_shenquefengwuzhi
+  - icon_yindao_city_xianyuxingshou
+  - icon_yindao_city_fabao
+  - icon_yindao_city_youmingguifu
+  - icon_yindao_city_faxiang
+  - icon_yindao_city_yingwuge
+  - icon_yindao_city_linglongta_zdtz
+  - icon_yindao_city_shilianzhijing
+  - icon_yindao_city_lilian
+  - icon_yindao_city_shenmodian
+  - icon_yindao_city_lunhuidian
+  - icon_yindao_city_xunxiange
+  - icon_yindao_city_lingpo
+  - icon_yindao_city_pixiu
+  - icon_yindao_city_gongdebei
+  - icon_yindao_city_cangjingge
+  - icon_yindao_city_xianjie
+  - icon_yindao_city_xiuxian
+  - icon_yindao_city_julingxianzhen
+  - icon_yindao_city_jiucengyaota
+  m_Tag: NewFunc
+  m_IsVariant: 0

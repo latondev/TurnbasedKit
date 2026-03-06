@@ -1,0 +1,97 @@
+
+wusheng.png
+size: 2048,2048
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+huo
+  rotate: false
+  xy: 2, 492
+  size: 1024, 1171
+  orig: 1024, 1171
+  offset: 0, 0
+  index: -1
+huoyan
+  rotate: false
+  xy: 1312, 1484
+  size: 202, 179
+  orig: 209, 221
+  offset: 7, 42
+  index: -1
+lian1
+  rotate: true
+  xy: 627, 81
+  size: 409, 1140
+  orig: 409, 1140
+  offset: 0, 0
+  index: -1
+lian2
+  rotate: false
+  xy: 2, 2
+  size: 623, 488
+  orig: 623, 488
+  offset: 0, 0
+  index: -1
+lianshou
+  rotate: false
+  xy: 1028, 838
+  size: 205, 224
+  orig: 205, 224
+  offset: 0, 0
+  index: -1
+quantao
+  rotate: true
+  xy: 1028, 1064
+  size: 215, 233
+  orig: 220, 238
+  offset: 2, 3
+  index: -1
+qun
+  rotate: true
+  xy: 1263, 1010
+  size: 269, 180
+  orig: 269, 180
+  offset: 0, 0
+  index: -1
+tou
+  rotate: true
+  xy: 1502, 1405
+  size: 77, 93
+  orig: 80, 96
+  offset: 2, 1
+  index: -1
+toufa
+  rotate: true
+  xy: 1235, 853
+  size: 155, 162
+  orig: 155, 226
+  offset: 0, 1
+  index: -1
+tui
+  rotate: false
+  xy: 1028, 1281
+  size: 282, 382
+  orig: 282, 382
+  offset: 0, 0
+  index: -1
+xiong
+  rotate: true
+  xy: 1312, 1305
+  size: 177, 188
+  orig: 177, 188
+  offset: 0, 0
+  index: -1
+yaodai
+  rotate: false
+  xy: 1516, 1595
+  size: 134, 68
+  orig: 138, 71
+  offset: 2, 2
+  index: -1
+zuoshou
+  rotate: true
+  xy: 1399, 912
+  size: 96, 110
+  orig: 96, 110
+  offset: 0, 0
+  index: -1

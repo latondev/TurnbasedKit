@@ -1,0 +1,41 @@
+
+songniyiduoxiaohonghua.png
+size: 256,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+1
+  rotate: true
+  xy: 119, 8
+  size: 157, 25
+  orig: 157, 25
+  offset: 0, 0
+  index: -1
+hua1
+  rotate: false
+  xy: 2, 46
+  size: 116, 119
+  orig: 116, 119
+  offset: 0, 0
+  index: -1
+hua2
+  rotate: false
+  xy: 2, 3
+  size: 106, 41
+  orig: 106, 41
+  offset: 0, 0
+  index: -1
+hua3
+  rotate: false
+  xy: 2, 150
+  size: 9, 12
+  orig: 9, 12
+  offset: 0, 0
+  index: -1
+hua4
+  rotate: false
+  xy: 2, 145
+  size: 10, 3
+  orig: 10, 3
+  offset: 0, 0
+  index: -1

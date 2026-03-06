@@ -1,0 +1,79 @@
+---
+type: "agent_requested"
+---
+
+# Asset Import Pipeline
+
+## Overview
+Acts as a "gatekeeper" for the project. Automatically applies compression settings, naming conventions, and validation rules when assets are imported. Prevents "4K Texture Bloat" and ensures mobile compatibility.
+
+## When to Use
+- Use to enforce "Android/iOS" compression standards automatically.
+- Use to disable "Import Materials" on FBX files (prevent mess).
+- Use to force "Mono" on 3D sound effects.
+- Use to validate asset naming conventions.
+- Use to detect duplicates.
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   IMPORT PIPELINE                           │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  FILE SYSTEM              ASSET POSTPROCESSOR (Editor)      │
+│  ┌────────────────┐      ┌───────────────────────────┐      │
+│  │ "Hero.fbx"     │─────▶│ OnPreprocessModel()       │      │
+│  │ "Grass.png"    │      │ - Scale Factor: 1.0       │      │
+│  └────────────────┘      │ - Import Materials: False │      │
+│                          └─────────────┬─────────────┘      │
+│                                        │                    │
+│                                        ▼                    │
+│                           ┌───────────────────────────┐     │
+│                           │ OnPostprocessTexture()    │     │
+│                           │ - Android: ASTC 6x6       │     │
+│                           │ - iOS: ASTC 6x6           │     │
+│                           │ - PC: BC7                 │     │
+│                           └───────────────────────────┘     │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Best Practices
+- ✅ Segregate rules by folder (e.g., `_UI/` vs `_3D/`).
+- ✅ Use `AssetPostprocessor` (native Unity API).
+- ✅ Detect Normal Maps by suffix (`_Normal`, `_N`) and set TextureType automatically.
+- ✅ Log warnings if an asset exceeds size limits (e.g., > 2048px).
+- ❌ **NEVER** modify source assets; only import settings.
+- ❌ **NEVER** apply heavy compression to UI sprites (artifacts).
+
+## Few-Shot Examples
+
+### Example 1: Texture Rules
+**User**: "Compress all textures for mobile."
+
+**Agent**:
+```csharp
+void OnPreprocessTexture()
+{
+    TextureImporter importer = (TextureImporter)assetImporter;
+    importer.textureCompression = TextureImporterCompression.Compressed;
+    // Set platform specific overrides...
+}
+```
+
+### Example 2: Model Cleanup
+**User**: "Don't import materials from FBX."
+
+**Agent**:
+```csharp
+void OnPreprocessModel()
+{
+    ModelImporter modelImporter = (ModelImporter)assetImporter;
+    modelImporter.materialImportMode = ModelImporterMaterialImportMode.None;
+}
+```
+
+## Related Skills
+- `@mobile-optimization` - Defines the compression standards
+- `@custom-editor-scripting` - Editor API

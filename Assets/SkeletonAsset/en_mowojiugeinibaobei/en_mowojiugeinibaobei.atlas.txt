@@ -1,0 +1,27 @@
+
+en_mowojiugeinibaobei.png
+size: 256,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+1
+  rotate: false
+  xy: 80, 3
+  size: 44, 31
+  orig: 44, 31
+  offset: 0, 0
+  index: -1
+2
+  rotate: false
+  xy: 2, 16
+  size: 111, 109
+  orig: 111, 109
+  offset: 0, 0
+  index: -1
+zi
+  rotate: true
+  xy: 114, 54
+  size: 71, 20
+  orig: 71, 20
+  offset: 0, 0
+  index: -1

@@ -1,0 +1,41 @@
+{
+"skeleton": {
+	"hash": "pESNvMt16oS3E51SbTl9t37wsL8",
+	"spine": "3.8.86",
+	"x": -32,
+	"y": 5.68,
+	"width": 64,
+	"height": 64,
+	"images": "E:/新神仙道/JT",
+	"audio": ""
+},
+"bones": [
+	{ "name": "root" }
+],
+"slots": [
+	{ "name": "1", "bone": "root", "attachment": "1" }
+],
+"skins": [
+	{
+		"name": "default",
+		"attachments": {
+			"1": {
+				"1": { "y": 37.68, "width": 64, "height": 64 }
+			}
+		}
+	}
+],
+"animations": {
+	"animation": {
+		"bones": {
+			"root": {
+				"translate": [
+					{},
+					{ "time": 0.5, "y": -14.26 },
+					{ "time": 1 }
+				]
+			}
+		}
+	}
+}
+}

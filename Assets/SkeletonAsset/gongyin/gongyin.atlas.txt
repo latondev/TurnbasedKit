@@ -1,0 +1,55 @@
+
+gongyin.png
+size: 256,128
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+gongying_0
+  rotate: false
+  xy: 104, 10
+  size: 28, 51
+  orig: 28, 51
+  offset: 0, 0
+  index: -1
+gongying_1
+  rotate: false
+  xy: 103, 66
+  size: 14, 16
+  orig: 16, 18
+  offset: 1, 1
+  index: -1
+gongying_2
+  rotate: false
+  xy: 134, 20
+  size: 14, 15
+  orig: 16, 17
+  offset: 1, 1
+  index: -1
+gongying_3
+  rotate: false
+  xy: 134, 37
+  size: 18, 24
+  orig: 22, 28
+  offset: 1, 3
+  index: -1
+gongying_4
+  rotate: false
+  xy: 139, 63
+  size: 12, 17
+  orig: 15, 21
+  offset: 2, 1
+  index: -1
+gongying_7
+  rotate: true
+  xy: 120, 63
+  size: 50, 17
+  orig: 50, 17
+  offset: 0, 0
+  index: -1
+gongying_8
+  rotate: false
+  xy: 2, 3
+  size: 117, 118
+  orig: 117, 118
+  offset: 0, 0
+  index: -1

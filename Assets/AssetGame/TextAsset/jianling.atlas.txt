@@ -1,0 +1,118 @@
+
+jianling.png
+size: 1024,1024
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+hulu
+  rotate: false
+  xy: 922, 354
+  size: 97, 75
+  orig: 103, 80
+  offset: 4, 2
+  index: -1
+hulupiaodai1
+  rotate: false
+  xy: 324, 337
+  size: 167, 29
+  orig: 167, 29
+  offset: 0, 0
+  index: -1
+hulupiaodai2
+  rotate: true
+  xy: 845, 93
+  size: 76, 36
+  orig: 79, 40
+  offset: 2, 2
+  index: -1
+jian
+  rotate: false
+  xy: 2, 368
+  size: 494, 213
+  orig: 494, 213
+  offset: 0, 0
+  index: -1
+jianbang
+  rotate: true
+  xy: 922, 431
+  size: 46, 98
+  orig: 52, 106
+  offset: 3, 4
+  index: -1
+qiliu1
+  rotate: true
+  xy: 324, 147
+  size: 188, 158
+  orig: 188, 158
+  offset: 0, 0
+  index: -1
+qiliu2
+  rotate: false
+  xy: 2, 143
+  size: 320, 223
+  orig: 320, 223
+  offset: 0, 0
+  index: -1
+qiliu3
+  rotate: true
+  xy: 922, 221
+  size: 131, 95
+  orig: 131, 95
+  offset: 0, 0
+  index: -1
+tou
+  rotate: false
+  xy: 749, 77
+  size: 94, 92
+  orig: 96, 95
+  offset: 1, 2
+  index: -1
+toufa1
+  rotate: false
+  xy: 922, 479
+  size: 100, 102
+  orig: 100, 102
+  offset: 0, 0
+  index: -1
+toufa2
+  rotate: true
+  xy: 891, 36
+  size: 183, 103
+  orig: 183, 103
+  offset: 0, 0
+  index: -1
+tui
+  rotate: false
+  xy: 498, 307
+  size: 422, 274
+  orig: 422, 274
+  offset: 0, 0
+  index: -1
+xiong
+  rotate: true
+  xy: 324, 2
+  size: 143, 147
+  orig: 149, 151
+  offset: 3, 1
+  index: -1
+yao
+  rotate: false
+  xy: 484, 88
+  size: 263, 217
+  orig: 263, 217
+  offset: 0, 0
+  index: -1
+youshou
+  rotate: false
+  xy: 473, 5
+  size: 91, 81
+  orig: 96, 85
+  offset: 3, 2
+  index: -1
+zuoshou
+  rotate: true
+  xy: 749, 171
+  size: 134, 140
+  orig: 134, 140
+  offset: 0, 0
+  index: -1

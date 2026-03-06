@@ -1,0 +1,41 @@
+
+maigeleileizhanimen.png
+size: 128,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+leilei_0
+  rotate: true
+  xy: 88, 42
+  size: 145, 21
+  orig: 145, 21
+  offset: 0, 0
+  index: -1
+leilei_1
+  rotate: false
+  xy: 2, 71
+  size: 16, 22
+  orig: 16, 22
+  offset: 0, 0
+  index: -1
+leilei_2
+  rotate: true
+  xy: 88, 2
+  size: 38, 36
+  orig: 38, 36
+  offset: 0, 0
+  index: -1
+leilei_3
+  rotate: true
+  xy: 2, 6
+  size: 88, 84
+  orig: 92, 84
+  offset: 4, 0
+  index: -1
+leilei_4
+  rotate: false
+  xy: 2, 95
+  size: 84, 92
+  orig: 84, 92
+  offset: 0, 0
+  index: -1

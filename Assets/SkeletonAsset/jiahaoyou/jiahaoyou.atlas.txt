@@ -1,0 +1,62 @@
+
+jiahaoyou.png
+size: 256,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+jiahaoyou_0
+  rotate: false
+  xy: 2, 3
+  size: 79, 26
+  orig: 79, 26
+  offset: 0, 0
+  index: -1
+jiahaoyou_1
+  rotate: false
+  xy: 83, 5
+  size: 19, 20
+  orig: 19, 20
+  offset: 0, 0
+  index: -1
+jiahaoyou_2
+  rotate: false
+  xy: 27, 123
+  size: 16, 17
+  orig: 18, 19
+  offset: 1, 1
+  index: -1
+jiahaoyou_3
+  rotate: false
+  xy: 104, 5
+  size: 17, 20
+  orig: 19, 22
+  offset: 1, 1
+  index: -1
+jiahaoyou_4
+  rotate: false
+  xy: 119, 85
+  size: 17, 17
+  orig: 19, 19
+  offset: 1, 1
+  index: -1
+jiahaoyou_5
+  rotate: false
+  xy: 101, 120
+  size: 17, 18
+  orig: 21, 24
+  offset: 1, 5
+  index: -1
+jiahaoyou_6
+  rotate: false
+  xy: 2, 127
+  size: 12, 13
+  orig: 20, 18
+  offset: 7, 1
+  index: -1
+jiahaoyou_7
+  rotate: false
+  xy: 2, 27
+  size: 125, 114
+  orig: 126, 114
+  offset: 0, 0
+  index: -1

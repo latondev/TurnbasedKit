@@ -1,0 +1,32 @@
+---
+type: "agent_requested"
+---
+
+# UI Toolkit Architect
+
+## Goal
+
+## When to Use
+- Use when defining contracts between systems
+- Use when implementing dependency injection
+- Use when creating testable code
+- Use when menu systems
+- Use when UI navigation
+To create modern, scalable user interfaces using Unity's **UI Toolkit**. We strictly separate structure (UXML), style (USS), and logic (C# Controller/ViewModel).
+
+## Architecture: MVVM (Model-View-ViewModel)
+- **View (UXML/USS)**: The layout and look.
+- **Controller (MonoBehaviour)**: Binds the View elements to the ViewModel events.
+- **ViewModel (Pure C#)**: Holds the state (e.g., `Score`, `Health`) and Commands.
+
+## Procedure
+1.  **Generate Assets**: Create `{Name}.uxml` and `{Name}.uss` in `Assets/UI/{Name}/`.
+2.  **Generate Logic**: Create `{Name}Controller.cs` attached to a `UIDocument`.
+3.  **Link**: Ensure the Controller knows how to find the buttons defined in UXML (Query by name).
+
+## Few-Shot Example
+User: "Create a Pause Menu."
+Agent:
+1.  Creates `PauseMenu.uxml` with "Resume" and "Quit" buttons.
+2.  Creates `PauseMenu.uss` with styling.
+3.  Creates `PauseMenuController.cs` that binds `root.Q<Button>("Resume")` to `Time.timeScale = 1`.

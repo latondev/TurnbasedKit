@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 6
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: wenli_ff_02_uv3
+  m_Shader: {fileID: 4800000, guid: dc60003472bc0dd448b9ac73038a8d6d, type: 3}
+  m_ShaderKeywords:
+  m_LightmapFlags: 0
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+      _Mask:
+        m_Texture: {fileID: 2800000, guid: f33100908a7e801459d4f6b766b356d4, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+      _Tex_2:
+        m_Texture: {fileID: 2800000, guid: 2930ac8777d1c7147beb146b9f4c319c, type: 3}
+        m_Scale: {x: 2, y: 1}
+        m_Offset: {x: 0, y: 0}
+      _TextureSample0:
+        m_Texture: {fileID: 2800000, guid: 358757e9844ad0b4db275a601e193aaa, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+      _texcoord:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Floats:
+      _Opacity: 1
+      _ScrollX: 0
+      _ScrollY: 3
+      _U2_Speed: 0
+      _U_Speed: 0
+      _V2_Speed: 10
+      _V_Speed: 20
+      __dirty: 0
+    m_Colors:
+      _Color: {r: 1, g: 1, b: 1, a: 1}
