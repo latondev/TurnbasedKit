@@ -12,10 +12,12 @@ using UnityEngine;
 [System.Serializable]
 public class SpineFileInfo
 {
-    public string Name;
+    public string Name;           // Tên đầy đủ bao gồm suffix (vd: leizhenzi_0)
+    public string BaseName;       // Tên gốc không có suffix (vd: leizhenzi)
     public string PathFileAtlas;
     public string PathFileSkel;
     public string PathFileImage;
+    public bool IsMultiPack;      // Có phải multi-pack không
 }
 
 public enum SaveLocation
@@ -122,31 +124,40 @@ public class SpineFindAndSetup : MonoBehaviour
 
         Debug.Log($"🔍 Đã cache {imageCache.Count} images");
 
-        // Quét file .skel.bytes
+        // Quét file .skel.bytes hoặc .json (Spine export có thể là .skel.bytes, .skel_0.bytes, hoặc .json)
         string[] guids = AssetDatabase.FindAssets("t:TextAsset", new[] { folderTxtPath });
 
         foreach (string guid in guids)
         {
             string skelPath = AssetDatabase.GUIDToAssetPath(guid);
-            if (!skelPath.EndsWith(".skel.bytes")) continue;
 
-            string fileName = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(skelPath));
+            // Bỏ qua .meta files và chỉ lấy skel/json files
+            if (skelPath.EndsWith(".meta")) continue;
+            if (!IsSpineSkeletonFile(skelPath)) continue;
 
-            // 🔹 Tìm atlas - dùng LINQ để tối ưu
-            string atlasPath = FindAtlasInDirectory(skelPath, fileName);
+            // Trích tên file đầy đủ và base name
+            var (fullName, baseName, isMultiPack) = GetSpineFileNames(skelPath);
 
-            // 🔹 Tìm image - dùng cache thay vì FindAssets
-            string imagePath = imageCache.TryGetValue(fileName, out var img) ? img : null;
+            // Skip nếu đã có base name này rồi (chỉ lấy cái đầu tiên)
+            if (_allSpineFiles.ContainsKey(baseName)) continue;
+
+            // Tim atlas - ho tro multi-pack (name_atlas_0.txt)
+            string atlasPath = FindAtlasInDirectory(skelPath, fullName, baseName);
+
+            // Tim image - ho tro multi-pack
+            string imagePath = FindImageForSpine(imageCache, fullName, baseName, isMultiPack);
 
             var info = new SpineFileInfo()
             {
-                Name = fileName,
+                Name = fullName,
+                BaseName = baseName,
+                IsMultiPack = isMultiPack,
                 PathFileSkel = skelPath,
                 PathFileAtlas = atlasPath,
                 PathFileImage = imagePath
             };
 
-            _allSpineFiles[fileName] = info;
+            _allSpineFiles[baseName] = info;
         }
 
         Debug.Log($"Tìm thấy {_allSpineFiles.Count} Spine files!");
@@ -154,7 +165,63 @@ public class SpineFindAndSetup : MonoBehaviour
     }
 
     // 🔹 Tách hàm riêng để tái sử dụng và dùng LINQ tối ưu
-    private string FindAtlasInDirectory(string skelPath, string fileName)
+
+    // Kiểm tra xem file có phải là Spine skeleton file không
+    private bool IsSpineSkeletonFile(string path)
+    {
+        string lower = path.ToLower();
+        // Hỗ trợ .skel.bytes, .skel_0.bytes, .skel_1.bytes, ... (bất kỳ số nào)
+        // Hỗ trợ .json, .json_0, .json_1, ... (multi-pack JSON)
+        return lower.EndsWith(".skel.bytes") ||
+               System.Text.RegularExpressions.Regex.IsMatch(lower, @"\.skel_\d+\.bytes$") ||
+               lower.EndsWith(".json") ||
+               System.Text.RegularExpressions.Regex.IsMatch(lower, @"_\d+\.json$");
+    }
+
+    // Tra ve: (ten day du, ten base, co phai multi-pack hay khong)
+    private (string fullName, string baseName, bool isMultiPack) GetSpineFileNames(string path)
+    {
+        string fileName = Path.GetFileName(path);
+        string lower = fileName.ToLower();
+
+        // Kiem tra multi-pack: .skel_0.bytes, .skel_1.bytes, ...
+        var matchSkel = System.Text.RegularExpressions.Regex.Match(lower, @"^(.+)\.skel_(\d+)\.bytes$");
+        if (matchSkel.Success)
+        {
+            string baseName = matchSkel.Groups[1].Value;
+            string suffix = "_" + matchSkel.Groups[2].Value;
+            return (baseName + suffix, baseName, true);
+        }
+
+        // .skel.bytes (khong co so)
+        if (lower.EndsWith(".skel.bytes"))
+        {
+            string baseName = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(path));
+            return (baseName, baseName, false);
+        }
+
+        // JSON multi-pack: .json_0, .json_1, ...
+        var matchJson = System.Text.RegularExpressions.Regex.Match(lower, @"^(.+)_(\d+)\.json$");
+        if (matchJson.Success)
+        {
+            string baseName = matchJson.Groups[1].Value;
+            string suffix = "_" + matchJson.Groups[2].Value;
+            return (baseName + suffix, baseName, true);
+        }
+
+        // .json (packed format, khong co so)
+        if (lower.EndsWith(".json"))
+        {
+            string baseName = Path.GetFileNameWithoutExtension(path);
+            return (baseName, baseName, false);
+        }
+
+        // Default
+        return (fileName, fileName, false);
+    }
+
+    // Tim atlas - ho tro multi-pack (name_0.atlas.txt, name.atlas.txt)
+    private string FindAtlasInDirectory(string skelPath, string fullName, string baseName)
     {
         string dirPath = Path.GetDirectoryName(skelPath);
         if (string.IsNullOrEmpty(dirPath)) return null;
@@ -162,19 +229,51 @@ public class SpineFindAndSetup : MonoBehaviour
         string fullDirPath = Path.Combine(Directory.GetCurrentDirectory(), dirPath);
         if (!Directory.Exists(fullDirPath)) return null;
 
-        // Dùng LINQ để lọc - nhanh hơn foreach
+        // Thu tim theo fullName truoc (multi-pack: leizhenzi_0.atlas.txt)
         var atlasFile = Directory.GetFiles(fullDirPath)
-            .Where(f =>
+            .FirstOrDefault(f =>
             {
-                string candidateName = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(f));
-                return candidateName == fileName &&
-                       (f.EndsWith(".atlas") || f.EndsWith(".atlas.txt") || f.EndsWith(".atlas.json"));
-            })
-            .FirstOrDefault();
+                string lower = f.ToLower();
+                // Kiem tra: leizhenzi_0.atlas hoac leizhenzi_0.atlas.txt
+                string nameNoExt = Path.GetFileNameWithoutExtension(f);
+                return (nameNoExt == fullName || nameNoExt == fullName + ".atlas") &&
+                       (lower.EndsWith(".atlas") || lower.EndsWith(".atlas.txt") || lower.EndsWith(".atlas.json"));
+            });
+
+        // Neu khong tim thay, tim theo baseName (leizhenzi.atlas)
+        if (atlasFile == null)
+        {
+            atlasFile = Directory.GetFiles(fullDirPath)
+                .FirstOrDefault(f =>
+                {
+                    string lower = f.ToLower();
+                    string nameNoExt = Path.GetFileNameWithoutExtension(f);
+                    return (nameNoExt == baseName || nameNoExt == baseName + ".atlas") &&
+                           (lower.EndsWith(".atlas") || lower.EndsWith(".atlas.txt") || lower.EndsWith(".atlas.json"));
+                });
+        }
 
         return atlasFile != null
             ? atlasFile.Replace("\\", "/").Replace(Application.dataPath, "Assets")
             : null;
+    }
+
+    // Tim image - image luon la baseName (khong co _0)
+    private string FindImageForSpine(Dictionary<string, string> imageCache, string fullName, string baseName, bool isMultiPack)
+    {
+        // Luon tim theo baseName (bo qua _0): leizhenzi.png
+        if (imageCache.TryGetValue(baseName, out var img1))
+        {
+            return img1;
+        }
+
+        // Thu tim baseName + _Atlas: leizhenzi_Atlas
+        if (imageCache.TryGetValue(baseName + "_Atlas", out var img2))
+        {
+            return img2;
+        }
+
+        return null;
     }
 
     public void CreateFolderRoot()
