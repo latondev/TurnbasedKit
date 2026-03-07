@@ -1,5 +1,12 @@
 {
   "dependencies": {
+    "com.latondev.stats-system": {
+      "version": "https://github.com/latondev/StatsSystem.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "84c7be95057f2e855f6dbf08ebc3d93462ae07cc"
+    },
     "com.unity.ai.navigation": {
       "version": "2.0.9",
       "depth": 0,
