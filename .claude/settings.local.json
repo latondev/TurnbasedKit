@@ -1,6 +1,7 @@
 {
   "permissions": {
     "allow": [
+      "Bash(claude mcp add --scope local --transport http unityMCP http://localhost:8080/mcp)"
       "Skill(git-commit-helper)",
       "Skill(git-commit-helper:*)"
     ]

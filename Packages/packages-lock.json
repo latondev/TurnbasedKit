@@ -1,21 +1,5 @@
 {
   "dependencies": {
-    "com.latondev.stats-system": {
-      "version": "https://github.com/latondev/StatsSystem.git",
-      "depth": 0,
-      "source": "git",
-      "dependencies": {},
-      "hash": "84c7be95057f2e855f6dbf08ebc3d93462ae07cc"
-    },
-    "com.unity.ai.navigation": {
-      "version": "2.0.9",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "com.unity.modules.ai": "1.0.0"
-      },
-      "url": "https://packages.unity.com"
-    },
     "com.unity.editorcoroutines": {
       "version": "1.0.0",
       "depth": 1,
@@ -44,7 +28,7 @@
     },
     "com.unity.ide.rider": {
       "version": "3.0.38",
-      "depth": 0,
+      "depth": 1,
       "source": "registry",
       "dependencies": {
         "com.unity.ext.nunit": "1.0.6"
@@ -53,20 +37,12 @@
     },
     "com.unity.ide.visualstudio": {
       "version": "2.0.23",
-      "depth": 0,
+      "depth": 1,
       "source": "registry",
       "dependencies": {
         "com.unity.test-framework": "1.1.9"
       },
       "url": "https://packages.unity.com"
-    },
-    "com.unity.multiplayer.center": {
-      "version": "1.0.0",
-      "depth": 0,
-      "source": "builtin",
-      "dependencies": {
-        "com.unity.modules.uielements": "1.0.0"
-      }
     },
     "com.unity.performance.profile-analyzer": {
       "version": "1.2.3",
@@ -76,7 +52,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.postprocessing": {
-      "version": "3.5.0",
+      "version": "3.2.2",
       "depth": 0,
       "source": "registry",
       "dependencies": {
@@ -111,6 +87,14 @@
       },
       "url": "https://packages.unity.com"
     },
+    "com.unity.textmeshpro": {
+      "version": "5.0.0",
+      "depth": 0,
+      "source": "builtin",
+      "dependencies": {
+        "com.unity.ugui": "2.0.0"
+      }
+    },
     "com.unity.ugui": {
       "version": "2.0.0",
       "depth": 0,
@@ -119,12 +103,6 @@
         "com.unity.modules.ui": "1.0.0",
         "com.unity.modules.imgui": "1.0.0"
       }
-    },
-    "com.unity.modules.accessibility": {
-      "version": "1.0.0",
-      "depth": 0,
-      "source": "builtin",
-      "dependencies": {}
     },
     "com.unity.modules.ai": {
       "version": "1.0.0",

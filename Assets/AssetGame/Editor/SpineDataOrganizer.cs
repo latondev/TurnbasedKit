@@ -68,7 +68,7 @@ public class SpineDataOrganizer
         return true;
     }
 
-    [MenuItem("Assets/Copy to Battle", false, 19)]
+    //[MenuItem("Assets/Copy to Battle", false, 19)]
     private static void CopyToBattle()
     {
         string sourcePath = GetSelectedFolderPath();
