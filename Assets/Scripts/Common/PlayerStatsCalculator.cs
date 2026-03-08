@@ -5,7 +5,7 @@ using GameSystems.Pet;
 namespace GameSystems.Common
 {
     /// <summary>
-    /// Calculator để tổng hợp stats từ Equipment + Formation + Pet
+    /// Calculator để tổng hợp stats từ Equipment + Formation + Pet + GameState
     /// </summary>
     public class PlayerStatsCalculator : MonoBehaviour
     {
@@ -13,6 +13,7 @@ namespace GameSystems.Common
         [SerializeField] private GameSystems.Equipment.EquipmentController equipment;
         [SerializeField] private GameSystems.Formation.FormationController formation;
         [SerializeField] private GameSystems.Pet.PetManager pet;
+        [SerializeField] private GameStateManager gameState;
 
         // Singleton pattern
         public static PlayerStatsCalculator Instance { get; private set; }
@@ -40,6 +41,15 @@ namespace GameSystems.Common
                 result.BaseCritRate = equipStats.CritRate;
                 result.BaseCritDamage = equipStats.CritDamage;
                 result.BaseSpeed = equipStats.Speed;
+            }
+
+            // 1.5. Lấy bonus stats từ GameState (level ups)
+            if (gameState != null)
+            {
+                result.BaseAttack += gameState.BonusAttack;
+                result.BaseDefense += gameState.BonusDefense;
+                result.BaseHealth += gameState.BonusHealth;
+                result.BaseSpeed += gameState.BonusSpeed;
             }
 
             // 2. Lấy multipliers từ Formation (%)
@@ -110,6 +120,13 @@ namespace GameSystems.Common
             {
                 var equipStats = equipment.GetTotalStatsWithSetBonuses();
                 Debug.Log($"<color=yellow>📦 Equipment:</color> ATK:{equipStats.Attack} DEF:{equipStats.Defense} HP:{equipStats.Health}");
+            }
+
+            // GameState (Level bonuses)
+            if (gameState != null)
+            {
+                Debug.Log($"<color=yellow>⭐ GameState:</color> Lv.{gameState.PlayerLevel}");
+                Debug.Log($"  Bonus: ATK:+{gameState.BonusAttack} DEF:+{gameState.BonusDefense} HP:+{gameState.BonusHealth} SPD:+{gameState.BonusSpeed}");
             }
 
             // Formation

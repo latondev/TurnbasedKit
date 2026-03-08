@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using GameSystems.Common;
+using GameSystems.Skills;
 
 namespace GameSystems.AutoBattle
 {
@@ -23,6 +24,7 @@ namespace GameSystems.AutoBattle
 
         [Header("Player Stats Sources")]
         [SerializeField] private PlayerStatsCalculator statsCalculator;
+        [SerializeField] private GameSystems.Skills.SkillController skillController;
 
         [Header("Battle State")]
         [SerializeField] private BattleState currentState = BattleState.Idle;
@@ -52,6 +54,7 @@ namespace GameSystems.AutoBattle
         public int VictoriesCount => victoriesCount;
         public int DefeatsCount => defeatsCount;
         public PlayerStatsCalculator StatsCalculator => statsCalculator;
+        public GameSystems.Skills.SkillController SkillController => skillController;
 
         // Events
         public event Action<BattleState> OnBattleStateChanged;
@@ -81,8 +84,44 @@ namespace GameSystems.AutoBattle
 
         private static readonly string[] MeleeNames = { "Knight", "Warrior", "Berserker", "Paladin", "Samurai" };
         private static readonly string[] RangedNames = { "Archer", "Mage", "Gunner", "Sniper", "Wizard" };
-        private static readonly string[] MeleeSkills = { "Whirlwind Slash", "Shield Bash", "Power Strike", "Dragon Fist", "Thunder Cleave" };
-        private static readonly string[] RangedSkills = { "Fire Arrow", "Ice Blast", "Lightning Bolt", "Meteor Shot", "Poison Cloud" };
+
+        /// <summary>
+        /// Gets a random skill from SkillController, falls back to default if not available
+        /// </summary>
+        private SkillData GetRandomSkill()
+        {
+            // Try to get from SkillController
+            if (skillController != null && skillController.SkillData != null)
+            {
+                var unlockedSkills = skillController.SkillData.GetUnlockedSkills();
+                if (unlockedSkills.Count > 0)
+                {
+                    return unlockedSkills[UnityEngine.Random.Range(0, unlockedSkills.Count)];
+                }
+            }
+
+            // Fallback: create a basic skill if no controller
+            return new SkillData(
+                "default_attack",
+                "Power Strike",
+                "A basic attack skill",
+                SkillCategory.Active,
+                SkillElement.Physical,
+                20, 3f, 100f
+            );
+        }
+
+        /// <summary>
+        /// Get all unlocked skills from SkillController for team setup
+        /// </summary>
+        public List<SkillData> GetUnlockedSkills()
+        {
+            if (skillController != null && skillController.SkillData != null)
+            {
+                return skillController.SkillData.GetUnlockedSkills();
+            }
+            return new List<SkillData>();
+        }
 
         private void GenerateRandomTeam(List<BattleUnit> team, UnitType type, string prefix)
         {
@@ -91,29 +130,36 @@ namespace GameSystems.AutoBattle
             {
                 bool isMelee = UnityEngine.Random.value > 0.4f; // 60% melee, 40% ranged
                 AttackRange range = isMelee ? AttackRange.Melee : AttackRange.Ranged;
-                
+
                 string[] namePool = isMelee ? MeleeNames : RangedNames;
-                string[] skillPool = isMelee ? MeleeSkills : RangedSkills;
                 string unitName = namePool[UnityEngine.Random.Range(0, namePool.Length)];
-                string skillName = skillPool[UnityEngine.Random.Range(0, skillPool.Length)];
-                
+
                 int hp = UnityEngine.Random.Range(1500, 4000);
                 int atk = isMelee ? UnityEngine.Random.Range(100, 200) : UnityEngine.Random.Range(120, 250);
                 int def = isMelee ? UnityEngine.Random.Range(40, 80) : UnityEngine.Random.Range(10, 40);
                 int spd = isMelee ? UnityEngine.Random.Range(50, 90) : UnityEngine.Random.Range(70, 120);
-                int skillMult = isMelee ? UnityEngine.Random.Range(2, 4) : UnityEngine.Random.Range(2, 5);
-                int skillCd = UnityEngine.Random.Range(2, 5);
-                
+
+                // Get skill from SkillController (or fallback)
+                SkillData skill = GetRandomSkill();
+                int skillCd = skill != null ? Mathf.RoundToInt(skill.BaseCooldown) : 3;
+
                 var unit = new BattleUnit(
                     $"{prefix.ToLower()}_{i}",
                     $"{unitName}",
                     type, range,
                     hp, atk, def, spd,
-                    skillName, skillMult, skillCd
+                    skill?.SkillName ?? "Power Strike", 2, skillCd
                 );
+
+                // Assign SkillData if available
+                if (skill != null)
+                {
+                    unit.EquipSkill(skill);
+                }
+
                 team.Add(unit);
-                
-                LogDebug($"  [{prefix}] {unitName} ({range}) HP:{hp} ATK:{atk} DEF:{def} SPD:{spd} Skill:{skillName}");
+
+                LogDebug($"  [{prefix}] {unitName} ({range}) HP:{hp} ATK:{atk} DEF:{def} SPD:{spd} Skill:{skill?.SkillName ?? "None"}");
             }
         }
 

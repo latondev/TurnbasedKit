@@ -1,0 +1,140 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7bb3a5b06f061848922f4e612c1b0bd, type: 3}
+  m_Name: 4_Shawujin
+  m_EditorClassIdentifier: 
+  id: 4
+  nameHero: Shawujin
+  type: 0
+  bgCardAvatar: {fileID: 21300094, guid: f9481e894aa74a14b598c2e6d7b89472, type: 3}
+  cardRewardAvatar: {fileID: 21300000, guid: 13b0c07685f84ff5a393e7944c34aa04, type: 3}
+  cardFullAvatar: {fileID: 21300000, guid: a825bddb96a8694468315a24063f736c, type: 3}
+  rarity: 3
+  iconAvatar: {fileID: 21300042, guid: 089b46dcbaf040f4b94433b2189b6b69, type: 3}
+  fullAvatar: {fileID: 21300094, guid: f9481e894aa74a14b598c2e6d7b89472, type: 3}
+  prefabCharacterView: {fileID: 824545481034970335, guid: f8d85f40ca4f1804eac8e9588c94764c, type: 3}
+  prefabUI: {fileID: 6878042199206356558, guid: 82d63f57f500f444cbd38e76c1ae0c08, type: 3}
+  prefabFormationUI: {fileID: 2230230729918509711, guid: 9cdebf3984600c9419d1ab68d9bd68f0, type: 3}
+  level: 1
+  isUnlock: 0
+  data:
+    hp: 1100
+    mp: 35
+    atk: 104
+    pdef: 3
+    mdef: 7
+    speed: 0
+    crit: 0
+    critRes: 0
+    hitRate: 0
+    dodgeRate: 0
+    dmgIncr: 0
+    dmgRes: 0
+    critDmg: 0
+    fatedBond: 
+    clanStats: 
+    antiDivine: 0
+    resDivine: 0
+    antiBuddha: 0
+    resBuddha: 0
+    antiSorcerer: 0
+    resSorcerer: 0
+    antiDemon: 0
+    resDemon: 0
+    acc: 1
+    eva: 1
+  skillBasic:
+    iconSkill: {fileID: 21300440, guid: 369da5fb700f41f9b14db6e0ddbc5b5a, type: 3}
+    nameSkill: Staff Smash
+    descriptionSkill: 'Attacks an enemy, dealing 100%
+
+      Physical Damage.'
+    skillConfig:
+      numberTarget: 1
+      bonusDmg:
+        dmgType: 0
+        percentBonusDamage: 1
+      percentBonusCrit: 0
+      percentBonusAccuracy: 0
+      location: 1
+      typeSkill: 0
+      actionTypeSkill: 0
+      hitEffect: []
+  skillUltimate:
+    iconSkill: {fileID: 21300132, guid: 369da5fb700f41f9b14db6e0ddbc5b5a, type: 3}
+    nameSkill: Arhat's Glare
+    descriptionSkill: 'Attacks an enemy, dealing 210%/220%/240% Physical Damage,
+      and inflicts [Quicksand] on target for 2 turns.
+
+      [Quicksand]: When target
+      is hit by a Basic Attack, deals additional True Damage equal to 10% of their
+      max HP. Max True Damage dealt cannot exceed 15% of Sha Wujing''s max HP. This
+      effect cannot be dodged.'
+    skillConfig:
+      numberTarget: 1
+      bonusDmg:
+        dmgType: 0
+        percentBonusDamage: 2.1
+      percentBonusCrit: 0
+      percentBonusAccuracy: 0
+      location: 0
+      typeSkill: 0
+      actionTypeSkill: 0
+      hitEffect:
+      - percentChanceEffect: 1
+        effectType: 2
+        typeUnit: 1
+        percentEffect:
+          percentBonus: 0.1
+          typeUnit: 1
+          percentdmgAffectedEffect: 0
+          duration: 0
+        percentEffectLimit:
+          percentBonus: 0.15
+          typeUnit: 2
+          percentdmgAffectedEffect: 0
+          duration: 0
+        healthState: 0
+  skillPassive:
+    iconSkill: {fileID: 21300008, guid: 369da5fb700f41f9b14db6e0ddbc5b5a, type: 3}
+    nameSkill: Soul Annihilation
+    descriptionSkill: 'Increases Final Damage by
+
+      10%/16%.'
+    skillConfig:
+      numberTarget: 0
+      bonusDmg:
+        dmgType: 0
+        percentBonusDamage: 0
+      percentBonusCrit: 0
+      percentBonusAccuracy: 0
+      location: 0
+      typeSkill: 0
+      actionTypeSkill: 0
+      hitEffect: []
+  skillAwaken:
+    iconSkill: {fileID: 21300438, guid: 369da5fb700f41f9b14db6e0ddbc5b5a, type: 3}
+    nameSkill: Upholder of Morality
+    descriptionSkill: When Sha Wujing or an ally Hero attacks a target affected by
+      [Quicksand], Sha Wujing has a 30% chance to perform a follow-up attack, dealing
+      70% Physical Damage.
+    skillConfig:
+      numberTarget: 0
+      bonusDmg:
+        dmgType: 0
+        percentBonusDamage: 0
+      percentBonusCrit: 0
+      percentBonusAccuracy: 0
+      location: 0
+      typeSkill: 0
+      actionTypeSkill: 0
+      hitEffect: []

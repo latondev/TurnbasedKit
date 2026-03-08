@@ -1,6 +1,7 @@
 # CLAUDE.md - Project Standards
 
 ## Overview
+Luôn trả lời bằng tiếng việt
 TurnbasedKit là Unity game project với turn-based combat, sử dụng C# và Spine 2D animations.
 
 ---
@@ -11,7 +12,9 @@ TurnbasedKit là Unity game project với turn-based combat, sử dụng C# và 
 - **Classes/Types**: PascalCase (`AutoBattleController`, `BattleUnit`)
 - **Methods**: PascalCase (`StartBattle`, `CalculateTotalStats`)
 - **Properties**: PascalCase (`CurrentHP`, `FinalAttack`)
-- **Variables/Fields**: camelCase (`playerUnits`, `currentTurn`)
+- **Variables/Fields**:
+  - Private/Protected: `_camelCase` (`_playerUnits`, `_currentTurn`)
+  - Public: `camelCase` (`playerUnits`, `currentTurn`)
 - **Constants**: PascalCase (`MaxTurns`, `DefaultManaCost`)
 - **Enums**: PascalCase (`BattleState`, `ActionType`)
 

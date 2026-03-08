@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using GameSystems;
 
 namespace GameSystems.Skills
 {
@@ -125,40 +126,84 @@ namespace GameSystems.Skills
         }
 
         /// <summary>
-        /// Checks if skill can be cast
+        /// Checks if skill can be cast (uses TimeManager if available)
         /// </summary>
         public bool CanCast(int currentMana)
         {
-            return isUnlocked && !isOnCooldown && currentMana >= manaCost;
+            if (!isUnlocked) return false;
+
+            // Check mana
+            if (currentMana < manaCost) return false;
+
+            // Use TimeManager for cooldown check if available
+            if (TimeManager.Instance != null)
+            {
+                return TimeManager.Instance.CooldownReady(skillId);
+            }
+
+            // Fallback to manual cooldown
+            return !isOnCooldown;
         }
 
         /// <summary>
-        /// Casts the skill
+        /// Casts the skill (uses TimeManager if available)
         /// </summary>
         public void Cast()
         {
-            if (!isUnlocked || isOnCooldown)
+            if (!isUnlocked)
             {
-                Debug.Log($"<color=red>Cannot cast {skillName}!</color>");
+                Debug.Log($"<color=red>Cannot cast {skillName} - not unlocked!</color>");
                 return;
             }
 
-            isOnCooldown = true;
-            currentCooldown = baseCooldown;
-            totalCasts++;
+            // Check cooldown using TimeManager if available
+            if (TimeManager.Instance != null)
+            {
+                if (!TimeManager.Instance.CooldownReady(skillId))
+                {
+                    float remaining = TimeManager.Instance.CooldownRemaining(skillId);
+                    Debug.Log($"<color=orange>Skill on cooldown: {remaining:F1}s remaining</color>");
+                    return;
+                }
 
+                // Start cooldown in TimeManager
+                TimeManager.Instance.StartCooldown(skillId, baseCooldown);
+            }
+            else
+            {
+                // Fallback to manual cooldown
+                if (isOnCooldown)
+                {
+                    Debug.Log($"<color=orange>Skill on cooldown: {currentCooldown:F1}s remaining</color>");
+                    return;
+                }
+                isOnCooldown = true;
+                currentCooldown = baseCooldown;
+            }
+
+            totalCasts++;
             Debug.Log($"<color=cyan>✨ CAST:</color> {skillName} (Damage: {GetTotalDamage():F0})");
         }
 
         /// <summary>
-        /// Updates cooldown
+        /// Updates cooldown (uses TimeManager if available)
         /// </summary>
         public void UpdateCooldown(float deltaTime)
         {
+            // If using TimeManager, sync local state with TimeManager
+            if (TimeManager.Instance != null)
+            {
+                float remaining = TimeManager.Instance.CooldownRemaining(skillId);
+                currentCooldown = remaining;
+                isOnCooldown = remaining > 0f;
+                return;
+            }
+
+            // Fallback: manual cooldown
             if (isOnCooldown)
             {
                 currentCooldown -= deltaTime;
-                
+
                 if (currentCooldown <= 0f)
                 {
                     currentCooldown = 0f;
@@ -169,13 +214,43 @@ namespace GameSystems.Skills
         }
 
         /// <summary>
-        /// Resets cooldown immediately
+        /// Resets cooldown immediately (uses TimeManager if available)
         /// </summary>
         public void ResetCooldown()
         {
+            if (TimeManager.Instance != null)
+            {
+                // Force cooldown to ready in TimeManager by starting with 0 duration
+                TimeManager.Instance.StartCooldown(skillId, 0f);
+            }
+
             currentCooldown = 0f;
             isOnCooldown = false;
             Debug.Log($"<color=cyan>Cooldown reset:</color> {skillName}");
+        }
+
+        /// <summary>
+        /// Gets remaining cooldown time
+        /// </summary>
+        public float GetRemainingCooldown()
+        {
+            if (TimeManager.Instance != null)
+            {
+                return TimeManager.Instance.CooldownRemaining(skillId);
+            }
+            return currentCooldown;
+        }
+
+        /// <summary>
+        /// Gets cooldown progress (0 = just started, 1 = ready)
+        /// </summary>
+        public float GetCooldownProgress()
+        {
+            if (TimeManager.Instance != null)
+            {
+                return TimeManager.Instance.CooldownProgress01(skillId);
+            }
+            return GetCooldownPercentage();
         }
 
         /// <summary>

@@ -1,0 +1,225 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7bb3a5b06f061848922f4e612c1b0bd, type: 3}
+  m_Name: 1_Enemy1
+  m_EditorClassIdentifier: 
+  id: 1
+  nameHero: Enemy1
+  type: 1
+  bgCardAvatar: {fileID: 0}
+  cardAvatar: {fileID: 0}
+  rarity: 2
+  iconAvatar: {fileID: 21300096, guid: 089b46dcbaf040f4b94433b2189b6b69, type: 3}
+  fullAvatar: {fileID: 0}
+  prefabCharacterView: {fileID: 7913868471084340468, guid: 7e89df167e4afb74d9bb9398252054d7, type: 3}
+  prefabUI: {fileID: 0}
+  prefabFormationUI: {fileID: 0}
+  level: 1
+  isUnlock: 0
+  data:
+    hp: 1200
+    mp: 0
+    atk: 22
+    pdef: 4
+    mdef: 3
+    speed: 0
+    crit: 0
+    critRes: 0
+    hitRate: 0
+    dodgeRate: 0
+    dmgIncr: 0
+    dmgRes: 0
+    critDmg: 0
+    fatedBond: 0
+    clanStats: 0
+    antiDivine: 0
+    resDivine: 0
+    antiBuddha: 0
+    resBuddha: 0
+    antiSorcerer: 0
+    resSorcerer: 0
+    antiDemon: 0
+    resDemon: 0
+    acc: 1
+    eva: 1
+  skillBasic:
+    iconSkill: {fileID: 0}
+    nameSkill: 
+    descriptionSkill: 
+    skillConfig:
+      numberTarget: 1
+      bonusDmg:
+        dmgType: 0
+        percentBonusDamage: 1
+      percentBonusCrit: 0
+      percentBonusAccuracy: 0
+      location: 1
+      typeSkill: 0
+      actionTypeSkill: 0
+      hitEffect: []
+  skillUltimate:
+    iconSkill: {fileID: 0}
+    nameSkill: 
+    descriptionSkill: 
+    skillConfig:
+      numberTarget: 0
+      bonusDmg:
+        dmgType: 0
+        percentBonusDamage: 0
+      percentBonusCrit: 0
+      percentBonusAccuracy: 0
+      location: 0
+      typeSkill: 1
+      actionTypeSkill: 0
+      hitEffect: []
+  skillPassive:
+    iconSkill: {fileID: 0}
+    nameSkill: 
+    descriptionSkill: 
+    skillConfig:
+      numberTarget: 0
+      bonusDmg:
+        dmgType: 0
+        percentBonusDamage: 0
+      percentBonusCrit: 0
+      percentBonusAccuracy: 0
+      location: 0
+      typeSkill: 0
+      actionTypeSkill: 0
+      hitEffect:
+      - percentChanceEffect: 1
+        effectType: 0
+        typeUnit: 0
+        percentEffect:
+          percentBonus: 0
+          typeUnit: 0
+          percentdmgAffectedEffect: 0
+          duration: 0
+        percentEffectLimit:
+          percentBonus: 0
+          typeUnit: 0
+          percentdmgAffectedEffect: 0
+          duration: 0
+        healthState: 0
+      - percentChanceEffect: 1
+        effectType: 0
+        typeUnit: 0
+        percentEffect:
+          percentBonus: 0
+          typeUnit: 0
+          percentdmgAffectedEffect: 0
+          duration: 0
+        percentEffectLimit:
+          percentBonus: 0
+          typeUnit: 0
+          percentdmgAffectedEffect: 0
+          duration: 0
+        healthState: 0
+      - percentChanceEffect: 1
+        effectType: 0
+        typeUnit: 0
+        percentEffect:
+          percentBonus: 0
+          typeUnit: 0
+          percentdmgAffectedEffect: 0
+          duration: 0
+        percentEffectLimit:
+          percentBonus: 0
+          typeUnit: 0
+          percentdmgAffectedEffect: 0
+          duration: 0
+        healthState: 0
+      - percentChanceEffect: 1
+        effectType: 0
+        typeUnit: 0
+        percentEffect:
+          percentBonus: 0
+          typeUnit: 0
+          percentdmgAffectedEffect: 0
+          duration: 0
+        percentEffectLimit:
+          percentBonus: 0
+          typeUnit: 0
+          percentdmgAffectedEffect: 0
+          duration: 0
+        healthState: 0
+  skillAwaken:
+    iconSkill: {fileID: 0}
+    nameSkill: 
+    descriptionSkill: 
+    skillConfig:
+      numberTarget: 0
+      bonusDmg:
+        dmgType: 0
+        percentBonusDamage: 0
+      percentBonusCrit: 0
+      percentBonusAccuracy: 0
+      location: 0
+      typeSkill: 0
+      actionTypeSkill: 0
+      hitEffect:
+      - percentChanceEffect: 1
+        effectType: 0
+        typeUnit: 0
+        percentEffect:
+          percentBonus: 0
+          typeUnit: 0
+          percentdmgAffectedEffect: 0
+          duration: 0
+        percentEffectLimit:
+          percentBonus: 0
+          typeUnit: 0
+          percentdmgAffectedEffect: 0
+          duration: 0
+        healthState: 0
+      - percentChanceEffect: 1
+        effectType: 0
+        typeUnit: 0
+        percentEffect:
+          percentBonus: 0
+          typeUnit: 0
+          percentdmgAffectedEffect: 0
+          duration: 0
+        percentEffectLimit:
+          percentBonus: 0
+          typeUnit: 0
+          percentdmgAffectedEffect: 0
+          duration: 0
+        healthState: 0
+      - percentChanceEffect: 1
+        effectType: 0
+        typeUnit: 0
+        percentEffect:
+          percentBonus: 0
+          typeUnit: 0
+          percentdmgAffectedEffect: 0
+          duration: 0
+        percentEffectLimit:
+          percentBonus: 0
+          typeUnit: 0
+          percentdmgAffectedEffect: 0
+          duration: 0
+        healthState: 0
+      - percentChanceEffect: 1
+        effectType: 0
+        typeUnit: 0
+        percentEffect:
+          percentBonus: 0
+          typeUnit: 0
+          percentdmgAffectedEffect: 0
+          duration: 0
+        percentEffectLimit:
+          percentBonus: 0
+          typeUnit: 0
+          percentdmgAffectedEffect: 0
+          duration: 0
+        healthState: 0
