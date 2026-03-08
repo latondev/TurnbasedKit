@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using GameSystems.Skills;
+using GameSystems.Common;
 
 namespace GameSystems.AutoBattle
 {
@@ -15,12 +17,18 @@ namespace GameSystems.AutoBattle
         [SerializeField] private UnitType unitType;
         [SerializeField] private AttackRange attackRange;
         [SerializeField] private bool isAlive;
-        
-        [Header("Skill")]
+
+        [Header("Skill System")]
+        [SerializeField] private SkillData equippedSkill;
         [SerializeField] private int skillDamageMultiplier;
         [SerializeField] private int skillCooldown;
         [SerializeField] private int currentCooldown;
         [SerializeField] private string skillName;
+
+        [Header("Mana")]
+        [SerializeField] private int currentMana;
+        [SerializeField] private int maxMana;
+        [SerializeField] private int manaRegen;
 
         [Header("Base Stats")]
         [SerializeField] private int baseHP;
@@ -33,6 +41,10 @@ namespace GameSystems.AutoBattle
         [SerializeField] private int equipmentAttack;
         [SerializeField] private int equipmentDefense;
         [SerializeField] private int equipmentSpeed;
+        [SerializeField] private int equipmentMana;
+
+        [Header("Player Stats (Unified)")]
+        [SerializeField] private PlayerStats playerStats;
         
         [Header("Skill Bonuses")]
         [SerializeField] private int skillAttackBonus;
@@ -73,6 +85,13 @@ namespace GameSystems.AutoBattle
         public string SkillName => skillName;
         public bool IsSkillReady => currentCooldown <= 0;
         public int CurrentCooldown => currentCooldown;
+        public SkillData EquippedSkill => equippedSkill;
+
+        // Mana properties
+        public int CurrentMana => currentMana;
+        public int MaxMana => maxMana;
+        public bool HasMana => currentMana > 0;
+        public PlayerStats PlayerStats => playerStats;
 
         public BattleUnit(string id, string name, UnitType type, AttackRange range, int hp, int atk, int def, int spd,
             string skillName = "Power Strike", int skillDmgMult = 2, int skillCd = 3)
@@ -86,12 +105,20 @@ namespace GameSystems.AutoBattle
             this.baseAttack = atk;
             this.baseDefense = def;
             this.baseSpeed = spd;
-            
+
             this.equipmentHP = 0;
             this.equipmentAttack = 0;
             this.equipmentDefense = 0;
             this.equipmentSpeed = 0;
-            
+            this.equipmentMana = 0;
+
+            // Mana initialization
+            this.maxMana = 100;
+            this.currentMana = maxMana;
+            this.manaRegen = 5;
+
+            this.playerStats = new PlayerStats();
+
             this.skillAttackBonus = 0;
             this.skillDefenseBonus = 0;
             this.critRate = 0.05f;
@@ -110,22 +137,51 @@ namespace GameSystems.AutoBattle
         }
 
         /// <summary>
-        /// Calculates final stats from base + equipment + skills
+        /// Calculates final stats from base + equipment + skills + player stats (unified)
         /// </summary>
         public void CalculateFinalStats()
         {
-            maxHP = baseHP + equipmentHP;
-            finalAttack = baseAttack + equipmentAttack + skillAttackBonus;
-            finalDefense = baseDefense + equipmentDefense + skillDefenseBonus;
-            finalSpeed = baseSpeed + equipmentSpeed;
-            
+            // Apply PlayerStats multipliers if available
+            if (playerStats != null)
+            {
+                maxHP = Mathf.RoundToInt((baseHP + equipmentHP) * playerStats.HealthMultiplier);
+                finalAttack = Mathf.RoundToInt((baseAttack + equipmentAttack + skillAttackBonus) * playerStats.AttackMultiplier);
+                finalDefense = Mathf.RoundToInt((baseDefense + equipmentDefense + skillDefenseBonus) * playerStats.DefenseMultiplier);
+                finalSpeed = Mathf.RoundToInt((baseSpeed + equipmentSpeed) * playerStats.SpeedMultiplier);
+                maxMana = Mathf.RoundToInt((maxMana + equipmentMana) * playerStats.ManaMultiplier);
+
+                // Apply crit multipliers
+                critRate = Mathf.Clamp01(playerStats.BaseCritRate * playerStats.CritRateMultiplier);
+                critDamage = playerStats.BaseCritDamage * playerStats.CritDamageMultiplier;
+            }
+            else
+            {
+                // Fallback: original calculation without multipliers
+                maxHP = baseHP + equipmentHP;
+                finalAttack = baseAttack + equipmentAttack + skillAttackBonus;
+                finalDefense = baseDefense + equipmentDefense + skillDefenseBonus;
+                finalSpeed = baseSpeed + equipmentSpeed;
+            }
+
             // Ensure minimum values
             maxHP = Mathf.Max(1, maxHP);
             finalAttack = Mathf.Max(1, finalAttack);
             finalDefense = Mathf.Max(0, finalDefense);
             finalSpeed = Mathf.Max(1, finalSpeed);
-            
+            maxMana = Mathf.Max(1, maxMana);
+
             currentHP = Mathf.Min(currentHP, maxHP);
+            currentMana = Mathf.Min(currentMana, maxMana);
+        }
+
+        /// <summary>
+        /// Applies unified PlayerStats from Equipment + Formation + Pet
+        /// </summary>
+        public void ApplyPlayerStats(PlayerStats stats)
+        {
+            this.playerStats = stats;
+            CalculateFinalStats();
+            LogAction($"Applied PlayerStats: {stats}");
         }
 
         /// <summary>
@@ -151,9 +207,112 @@ namespace GameSystems.AutoBattle
             skillDefenseBonus = defBonus;
             critRate = crit;
             critDamage = critDmg;
-            
+
             CalculateFinalStats();
             LogAction($"Applied skill bonuses: +{atkBonus}ATK +{defBonus}DEF {crit*100:F0}%CRIT");
+        }
+
+        /// <summary>
+        /// Equips a skill to this unit (before battle)
+        /// </summary>
+        public void EquipSkill(SkillData skill)
+        {
+            this.equippedSkill = skill;
+            if (skill != null)
+            {
+                this.skillName = skill.SkillName;
+                this.skillCooldown = Mathf.RoundToInt(skill.BaseCooldown);
+                LogAction($"Equipped skill: {skill.SkillName}");
+            }
+        }
+
+        /// <summary>
+        /// Checks if skill can be cast (has skill + enough mana + not on cooldown)
+        /// </summary>
+        public bool CanCastSkill()
+        {
+            // Need a skill equipped
+            if (equippedSkill == null) return false;
+
+            // Check cooldown (from SkillData or local cooldown)
+            if (currentCooldown > 0) return false;
+
+            // Check mana
+            int manaCost = equippedSkill != null ? equippedSkill.GetScaledManaCost() : 0;
+            if (currentMana < manaCost) return false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// Casts the equipped skill on target
+        /// </summary>
+        public int CastSkill(BattleUnit target)
+        {
+            if (!isAlive) return 0;
+            if (equippedSkill == null)
+            {
+                LogAction("<color=red>No skill equipped!</color>");
+                return 0;
+            }
+
+            int manaCost = equippedSkill.GetScaledManaCost();
+
+            // Check mana
+            if (currentMana < manaCost)
+            {
+                LogAction($"<color=red>Not enough mana! Need {manaCost}, have {currentMana}</color>");
+                return 0;
+            }
+
+            // Check cooldown
+            if (currentCooldown > 0)
+            {
+                LogAction($"<color=orange>Skill on cooldown: {currentCooldown} turns</color>");
+                return 0;
+            }
+
+            // Deduct mana
+            currentMana -= manaCost;
+
+            // Use skill - set cooldown
+            turnsTaken++;
+            currentCooldown = skillCooldown;
+
+            // Calculate damage using SkillData
+            float skillDamage = equippedSkill.GetTotalDamage();
+            int baseDamage = Mathf.Max(1, Mathf.RoundToInt(skillDamage) - (target.finalDefense / 2));
+
+            // Skills have higher crit chance
+            bool isCrit = UnityEngine.Random.value < (critRate * 2f);
+            int finalDamage = isCrit ? Mathf.RoundToInt(baseDamage * critDamage) : baseDamage;
+
+            int actualDamage = target.TakeDamage(finalDamage);
+            damageDealt += actualDamage;
+
+            string critText = isCrit ? " [CRIT!]" : "";
+            LogAction($"💥 Used [{equippedSkill.SkillName}] on {target.unitName} for {actualDamage} damage{critText}");
+            target.LogAction($"Hit by [{equippedSkill.SkillName}] from {unitName} for {actualDamage}{critText}");
+
+            return actualDamage;
+        }
+
+        /// <summary>
+        /// Regenerates mana at end of turn
+        /// </summary>
+        public void RegenerateMana()
+        {
+            if (!isAlive) return;
+            currentMana = Mathf.Min(currentMana + manaRegen, maxMana);
+        }
+
+        /// <summary>
+        /// Sets mana values directly
+        /// </summary>
+        public void SetMana(int current, int max)
+        {
+            this.maxMana = max;
+            this.currentMana = Mathf.Min(current, max);
         }
 
         /// <summary>
@@ -267,14 +426,15 @@ namespace GameSystems.AutoBattle
         public void Reset()
         {
             currentHP = maxHP;
+            currentMana = maxMana;
             isAlive = true;
             damageDealt = 0;
             damageTaken = 0;
             turnsTaken = 0;
             currentCooldown = 0;
             actionsLog.Clear();
-            
-            LogAction($"{unitName} [{attackRange}] ready for battle!");
+
+            LogAction($"{unitName} [{attackRange}] ready for battle! HP:{currentHP}/{maxHP} MP:{currentMana}/{maxMana}");
         }
 
         private void LogAction(string action)

@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using GameSystems.Common;
 
 namespace GameSystems.AutoBattle
 {
@@ -19,6 +20,9 @@ namespace GameSystems.AutoBattle
         [Header("Battle Units")]
         [SerializeField] private List<BattleUnit> playerUnits = new List<BattleUnit>();
         [SerializeField] private List<BattleUnit> enemyUnits = new List<BattleUnit>();
+
+        [Header("Player Stats Sources")]
+        [SerializeField] private PlayerStatsCalculator statsCalculator;
 
         [Header("Battle State")]
         [SerializeField] private BattleState currentState = BattleState.Idle;
@@ -47,6 +51,7 @@ namespace GameSystems.AutoBattle
         public int TotalBattles => totalBattles;
         public int VictoriesCount => victoriesCount;
         public int DefeatsCount => defeatsCount;
+        public PlayerStatsCalculator StatsCalculator => statsCalculator;
 
         // Events
         public event Action<BattleState> OnBattleStateChanged;
@@ -155,10 +160,34 @@ namespace GameSystems.AutoBattle
         }
 
         /// <summary>
-        /// Initializes battle
+        /// Initializes battle - applies player stats from Equipment + Formation + Pet
         /// </summary>
         private void InitializeBattle()
         {
+            // Apply unified player stats if calculator is available
+            if (statsCalculator != null)
+            {
+                var playerStats = statsCalculator.CalculateTotalStats();
+                LogDebug($"<color=green>Applied PlayerStats: {playerStats}");
+
+                foreach (var unit in playerUnits)
+                {
+                    unit.ApplyPlayerStats(playerStats);
+                }
+
+                // Enemies get a base stat bonus (optional)
+                var enemyStats = new PlayerStats();
+                enemyStats.BaseAttack = 50;
+                enemyStats.BaseDefense = 20;
+                enemyStats.BaseHealth = 1000;
+                enemyStats.BaseSpeed = 60;
+
+                foreach (var unit in enemyUnits)
+                {
+                    unit.ApplyPlayerStats(enemyStats);
+                }
+            }
+
             // Reset all units
             foreach (var unit in playerUnits)
             {
@@ -174,7 +203,7 @@ namespace GameSystems.AutoBattle
 
             // Setup turn order based on speed
             turnQueue = new Queue<BattleUnit>(GetTurnOrder());
-            
+
             currentTurn = 0;
             turnHistory.Clear();
             totalBattles++;
@@ -182,6 +211,13 @@ namespace GameSystems.AutoBattle
             LogDebug("<color=cyan>═══════ Battle Started ═══════</color>");
             LogDebug($"Player Units: {playerUnits.Count}");
             LogDebug($"Enemy Units: {enemyUnits.Count}");
+
+            // Log player stats
+            if (playerUnits.Count > 0)
+            {
+                var u = playerUnits[0];
+                LogDebug($"Player stats: HP:{u.MaxHP} ATK:{u.FinalAttack} DEF:{u.FinalDefense} SPD:{u.FinalSpeed}");
+            }
         }
 
         /// <summary>
@@ -271,12 +307,12 @@ namespace GameSystems.AutoBattle
         }
 
         /// <summary>
-        /// AI decision making
+        /// AI decision making - uses new skill system with mana
         /// </summary>
         private BattleAction DecideAction(BattleUnit unit)
         {
             // Get valid targets
-            List<BattleUnit> targets = unit.Type == UnitType.Player || unit.Type == UnitType.Ally 
+            List<BattleUnit> targets = unit.Type == UnitType.Player || unit.Type == UnitType.Ally
                 ? GetAliveUnits(enemyUnits)
                 : GetAliveUnits(playerUnits);
 
@@ -286,17 +322,19 @@ namespace GameSystems.AutoBattle
             // Pick target: prioritize lowest HP
             BattleUnit target = targets.OrderBy(t => t.CurrentHP).First();
 
-            // Use skill if ready (30% chance to use even if ready, to mix it up)
-            if (unit.IsSkillReady && UnityEngine.Random.value < 0.6f)
+            // Try to use skill if available (with mana check)
+            // Skill is prioritized - if can cast, 60% chance to cast
+            if (unit.CanCastSkill() && UnityEngine.Random.value < 0.6f)
             {
                 return new BattleAction(unit, target, ActionType.Skill);
             }
 
+            // Otherwise, normal attack
             return new BattleAction(unit, target, ActionType.Attack);
         }
 
         /// <summary>
-        /// Executes battle action
+        /// Executes battle action - updated to use new skill system with mana
         /// </summary>
         private void ExecuteAction(BattleAction action)
         {
@@ -309,7 +347,8 @@ namespace GameSystems.AutoBattle
                     break;
 
                 case ActionType.Skill:
-                    int skillDamage = action.actor.SkillAttack(action.target);
+                    // Use new CastSkill method with mana management
+                    int skillDamage = action.actor.CastSkill(action.target);
                     action.value = skillDamage;
                     action.isCritical = skillDamage > action.actor.FinalAttack * 2;
                     break;
@@ -324,7 +363,11 @@ namespace GameSystems.AutoBattle
                     break;
             }
 
+            // Regenerate mana after action
+            action.actor.RegenerateMana();
+
             LogDebug($"  {action.description}");
+            LogDebug($"    [Mana: {action.actor.CurrentMana}/{action.actor.MaxMana}]");
         }
 
         #endregion
