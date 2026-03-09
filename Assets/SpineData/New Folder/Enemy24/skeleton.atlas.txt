@@ -1,0 +1,97 @@
+
+skeleton.png
+size: 512,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+Layer 1
+  rotate: true
+  xy: 279, 345
+  size: 159, 157
+  orig: 159, 157
+  offset: 0, 0
+  index: -1
+Layer 15 copy 2
+  rotate: true
+  xy: 278, 68
+  size: 74, 38
+  orig: 74, 38
+  offset: 0, 0
+  index: -1
+Layer 15 copy 3
+  rotate: true
+  xy: 360, 140
+  size: 68, 60
+  orig: 68, 60
+  offset: 0, 0
+  index: -1
+Layer 2
+  rotate: true
+  xy: 79, 83
+  size: 116, 64
+  orig: 116, 64
+  offset: 0, 0
+  index: -1
+Layer 3
+  rotate: false
+  xy: 2, 201
+  size: 151, 183
+  orig: 151, 183
+  offset: 0, 0
+  index: -1
+Layer 3 copy
+  rotate: false
+  xy: 2, 2
+  size: 75, 197
+  orig: 75, 197
+  offset: 0, 0
+  index: -1
+Layer 4
+  rotate: true
+  xy: 278, 144
+  size: 64, 80
+  orig: 64, 80
+  offset: 0, 0
+  index: -1
+Layer 4 copy
+  rotate: true
+  xy: 410, 270
+  size: 73, 50
+  orig: 73, 50
+  offset: 0, 0
+  index: -1
+Layer 5
+  rotate: true
+  xy: 278, 210
+  size: 133, 130
+  orig: 133, 130
+  offset: 0, 0
+  index: -1
+Layer 6
+  rotate: false
+  xy: 2, 386
+  size: 275, 118
+  orig: 275, 118
+  offset: 0, 0
+  index: -1
+Layer 6 copy
+  rotate: true
+  xy: 155, 130
+  size: 254, 121
+  orig: 254, 121
+  offset: 0, 0
+  index: -1
+bong
+  rotate: true
+  xy: 318, 101
+  size: 41, 23
+  orig: 41, 23
+  offset: 0, 0
+  index: -1
+vca
+  rotate: true
+  xy: 410, 227
+  size: 41, 43
+  orig: 41, 43
+  offset: 0, 0
+  index: -1

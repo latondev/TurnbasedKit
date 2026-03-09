@@ -1,0 +1,125 @@
+
+skeleton.png
+size: 1198,368
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+blood_04_0002
+  rotate: true
+  xy: 1143, 41
+  size: 105, 53
+  orig: 140, 63
+  offset: 16, 1
+  index: -1
+blood_04_0003
+  rotate: false
+  xy: 899, 133
+  size: 120, 60
+  orig: 140, 63
+  offset: 10, 2
+  index: -1
+blood_04_0005
+  rotate: false
+  xy: 384, 4
+  size: 140, 48
+  orig: 140, 63
+  offset: 0, 4
+  index: -1
+blood_04_0006
+  rotate: false
+  xy: 526, 5
+  size: 140, 47
+  orig: 140, 63
+  offset: 0, 5
+  index: -1
+body
+  rotate: false
+  xy: 2, 6
+  size: 380, 360
+  orig: 380, 360
+  offset: 0, 0
+  index: -1
+eye
+  rotate: false
+  xy: 1069, 290
+  size: 90, 76
+  orig: 90, 76
+  offset: 0, 0
+  index: -1
+hand back
+  rotate: false
+  xy: 899, 195
+  size: 168, 171
+  orig: 168, 171
+  offset: 0, 0
+  index: -1
+hand front 1
+  rotate: true
+  xy: 668, 11
+  size: 74, 141
+  orig: 74, 141
+  offset: 0, 0
+  index: -1
+hand front 2
+  rotate: false
+  xy: 811, 2
+  size: 134, 125
+  orig: 134, 135
+  offset: 0, 0
+  index: -1
+head
+  rotate: true
+  xy: 599, 87
+  size: 279, 142
+  orig: 279, 157
+  offset: 0, 15
+  index: -1
+item body 1
+  rotate: true
+  xy: 1069, 201
+  size: 87, 67
+  orig: 89, 69
+  offset: 1, 1
+  index: -1
+item body 2
+  rotate: false
+  xy: 1051, 42
+  size: 90, 104
+  orig: 92, 106
+  offset: 1, 1
+  index: -1
+item head
+  rotate: true
+  xy: 947, 28
+  size: 103, 102
+  orig: 105, 104
+  offset: 1, 1
+  index: -1
+mire
+  rotate: true
+  xy: 1138, 208
+  size: 80, 54
+  orig: 80, 54
+  offset: 0, 0
+  index: -1
+mouth
+  rotate: false
+  xy: 384, 54
+  size: 213, 312
+  orig: 213, 312
+  offset: 0, 0
+  index: -1
+mud
+  rotate: false
+  xy: 743, 129
+  size: 154, 237
+  orig: 154, 244
+  offset: 0, 0
+  index: -1
+shadow
+  rotate: false
+  xy: 1021, 148
+  size: 134, 45
+  orig: 136, 47
+  offset: 1, 1
+  index: -1

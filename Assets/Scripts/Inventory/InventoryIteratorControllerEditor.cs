@@ -164,7 +164,7 @@ public class InventoryIteratorControllerEditor : Editor
                 normal = { textColor = new Color(0.8f, 0.8f, 0.8f) }
             };
             EditorGUILayout.LabelField(
-                $"{controller.InventoryData.Collection.Count} / {controller.MaxSlots} slots", 
+                $"{controller.InventoryData.Items.Count} / {controller.MaxSlots} slots", 
                 slotsStyle
             );
         }
@@ -188,7 +188,7 @@ public class InventoryIteratorControllerEditor : Editor
         // Total items
         EditorGUILayout.BeginHorizontal();
         EditorGUILayout.LabelField("📦 Total Items:", GUILayout.Width(140));
-        EditorGUILayout.LabelField($"{controller.InventoryData.Collection.Count}/{controller.MaxSlots}", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField($"{controller.InventoryData.Items.Count}/{controller.MaxSlots}", EditorStyles.boldLabel);
         EditorGUILayout.EndHorizontal();
 
         // Total value
@@ -429,12 +429,12 @@ public class InventoryIteratorControllerEditor : Editor
     {
         EditorGUILayout.BeginHorizontal();
         showInventory = EditorGUILayout.Foldout(showInventory, 
-            $"Inventory ({controller.InventoryData.Collection.Count} items)", true, headerStyle);
+            $"Inventory ({controller.InventoryData.Items.Count} items)", true, headerStyle);
         EditorGUILayout.EndHorizontal();
 
         if (!showInventory) return;
 
-        if (controller.InventoryData.Collection.Count == 0)
+        if (controller.InventoryData.Items.Count == 0)
         {
             EditorGUILayout.HelpBox("Inventory is empty", MessageType.Info);
             return;
@@ -444,9 +444,9 @@ public class InventoryIteratorControllerEditor : Editor
 
         inventoryScrollPos = EditorGUILayout.BeginScrollView(inventoryScrollPos, GUILayout.MaxHeight(400));
 
-        for (int i = 0; i < controller.InventoryData.Collection.Count; i++)
+        for (int i = 0; i < controller.InventoryData.Items.Count; i++)
         {
-            DrawInventoryItem(controller.InventoryData.Collection[i], i, i == currentIndex);
+            DrawInventoryItem(controller.InventoryData.Items[i], i, i == currentIndex);
         }
 
         EditorGUILayout.EndScrollView();

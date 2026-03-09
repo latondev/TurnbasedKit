@@ -7,31 +7,37 @@ using GameSystems.Common;
 namespace GameSystems.Equipment
 {
     /// <summary>
-    /// Base iterator data for Equipment - extends GenericIteratorData
+    /// Equipment collection with query methods - uses ItemCollection base
     /// </summary>
     [Serializable]
-    public class EquipmentIteratorData : GenericIteratorData<EquipmentItem>
+    public class EquipmentIteratorData : ItemCollection<EquipmentItem>
     {
         /// <summary>
         /// Gets next equipped item
         /// </summary>
         public EquipmentItem NextEquipped()
         {
-            if (CurrentIterator == null) return default;
+            if (IsEmpty) return null;
 
-            int startIndex = CurrentIterator.CurrentIndex;
+            int startIndex = CurrentIndex;
+            int loopCount = 0;
+            int maxLoops = Items.Count;
 
-            while (HasNext())
+            while (loopCount < maxLoops)
             {
-                EquipmentItem item = Next();
-                if (item != null && item.IsEquipped)
-                    return item;
+                if (MoveNext())
+                {
+                    EquipmentItem item = Current;
+                    if (item != null && item.IsEquipped)
+                        return item;
 
-                if (CurrentIterator.CurrentIndex == startIndex)
-                    break;
+                    if (CurrentIndex == startIndex)
+                        break;
+                }
+                loopCount++;
             }
 
-            return default;
+            return null;
         }
 
         /// <summary>
@@ -39,21 +45,27 @@ namespace GameSystems.Equipment
         /// </summary>
         public EquipmentItem NextOfSlot(EquipmentSlot slot)
         {
-            if (CurrentIterator == null) return default;
+            if (IsEmpty) return null;
 
-            int startIndex = CurrentIterator.CurrentIndex;
+            int startIndex = CurrentIndex;
+            int loopCount = 0;
+            int maxLoops = Items.Count;
 
-            while (HasNext())
+            while (loopCount < maxLoops)
             {
-                EquipmentItem item = Next();
-                if (item != null && item.Slot == slot)
-                    return item;
+                if (MoveNext())
+                {
+                    EquipmentItem item = Current;
+                    if (item != null && item.Slot == slot)
+                        return item;
 
-                if (CurrentIterator.CurrentIndex == startIndex)
-                    break;
+                    if (CurrentIndex == startIndex)
+                        break;
+                }
+                loopCount++;
             }
 
-            return default;
+            return null;
         }
 
         /// <summary>
@@ -61,21 +73,27 @@ namespace GameSystems.Equipment
         /// </summary>
         public EquipmentItem NextOfRarity(EquipmentRarity rarity)
         {
-            if (CurrentIterator == null) return default;
+            if (IsEmpty) return null;
 
-            int startIndex = CurrentIterator.CurrentIndex;
+            int startIndex = CurrentIndex;
+            int loopCount = 0;
+            int maxLoops = Items.Count;
 
-            while (HasNext())
+            while (loopCount < maxLoops)
             {
-                EquipmentItem item = Next();
-                if (item != null && item.Rarity == rarity)
-                    return item;
+                if (MoveNext())
+                {
+                    EquipmentItem item = Current;
+                    if (item != null && item.Rarity == rarity)
+                        return item;
 
-                if (CurrentIterator.CurrentIndex == startIndex)
-                    break;
+                    if (CurrentIndex == startIndex)
+                        break;
+                }
+                loopCount++;
             }
 
-            return default;
+            return null;
         }
 
         /// <summary>
@@ -83,7 +101,7 @@ namespace GameSystems.Equipment
         /// </summary>
         public List<EquipmentItem> GetItemsBySlot(EquipmentSlot slot)
         {
-            return Collection.Where(item => item.Slot == slot).ToList();
+            return Items.Where(item => item.Slot == slot).ToList();
         }
 
         /// <summary>
@@ -91,7 +109,7 @@ namespace GameSystems.Equipment
         /// </summary>
         public List<EquipmentItem> GetItemsByRarity(EquipmentRarity rarity)
         {
-            return Collection.Where(item => item.Rarity == rarity).ToList();
+            return Items.Where(item => item.Rarity == rarity).ToList();
         }
 
         /// <summary>
@@ -99,7 +117,7 @@ namespace GameSystems.Equipment
         /// </summary>
         public List<EquipmentItem> GetEquippedItems()
         {
-            return Collection.Where(item => item.IsEquipped).ToList();
+            return Items.Where(item => item.IsEquipped).ToList();
         }
 
         /// <summary>
@@ -107,7 +125,7 @@ namespace GameSystems.Equipment
         /// </summary>
         public List<EquipmentItem> GetItemsBySet(string setName)
         {
-            return Collection.Where(item => item.SetName == setName).ToList();
+            return Items.Where(item => item.SetName == setName).ToList();
         }
 
         /// <summary>
@@ -136,7 +154,7 @@ namespace GameSystems.Equipment
         /// </summary>
         public EquipmentItem GetEquippedItemInSlot(EquipmentSlot slot)
         {
-            return Collection.FirstOrDefault(item => item.Slot == slot && item.IsEquipped);
+            return Items.FirstOrDefault(item => item.Slot == slot && item.IsEquipped);
         }
 
         /// <summary>
@@ -165,7 +183,7 @@ namespace GameSystems.Equipment
         /// </summary>
         public void SortByPowerScore()
         {
-            Collection.Sort((a, b) => b.GetPowerScore().CompareTo(a.GetPowerScore()));
+            Items.Sort((a, b) => b.GetPowerScore().CompareTo(a.GetPowerScore()));
             Initialize();
         }
 
@@ -174,7 +192,7 @@ namespace GameSystems.Equipment
         /// </summary>
         public void SortByRarity()
         {
-            Collection.Sort((a, b) => b.Rarity.CompareTo(a.Rarity));
+            Items.Sort((a, b) => b.Rarity.CompareTo(a.Rarity));
             Initialize();
         }
 
@@ -183,7 +201,7 @@ namespace GameSystems.Equipment
         /// </summary>
         public void SortByEnhancement()
         {
-            Collection.Sort((a, b) => b.EnhancementLevel.CompareTo(a.EnhancementLevel));
+            Items.Sort((a, b) => b.EnhancementLevel.CompareTo(a.EnhancementLevel));
             Initialize();
         }
 
@@ -192,7 +210,7 @@ namespace GameSystems.Equipment
         /// </summary>
         public void SortBySlot()
         {
-            Collection.Sort((a, b) => a.Slot.CompareTo(b.Slot));
+            Items.Sort((a, b) => a.Slot.CompareTo(b.Slot));
             Initialize();
         }
     }

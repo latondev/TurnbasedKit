@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using GameSystems.Stats;
 
 namespace GameSystems.Battle
 {
@@ -18,7 +19,7 @@ namespace GameSystems.Battle
 
     /// <summary>
     /// Character turnbase unit - represents a character in battle
-    /// Requires: CharacterTurnbaseData, AbilityController, StatusController, HealthController
+    /// Uses HealthController with StatsSystem for stats management
     /// </summary>
     public class CharacterTurnbase : MonoBehaviour
     {
@@ -61,7 +62,19 @@ namespace GameSystems.Battle
         public SkillConfig SkillPassive => _abilityController != null ? _abilityController.SkillPassive : null;
 
         public StatData Stat => _characterData != null ? _characterData.Stat : null;
-        public float Speed => _characterData != null && _characterData.Stat != null ? _characterData.Stat.speed : 0;
+
+        // Combat stats from StatsSystem via HealthController
+        public float Speed => _healthController != null && _healthController.StatController != null
+            ? _healthController.StatController.GetStatValue("speed")
+            : 0;
+
+        public float Atk => _healthController != null && _healthController.StatController != null
+            ? _healthController.StatController.GetStatValue("attack")
+            : 0;
+
+        public float Def => _healthController != null && _healthController.StatController != null
+            ? _healthController.StatController.GetStatValue("defense")
+            : 0;
 
         private void OnValidate()
         {
@@ -92,7 +105,14 @@ namespace GameSystems.Battle
 
             if (_healthController != null && _characterData != null && _characterData.Stat != null)
             {
-                _healthController.Init(_characterData.Stat.hp, _characterData.Stat.mp);
+                // Use full stats initialization with combat stats
+                _healthController.InitFull(
+                    _characterData.Stat.hp,
+                    _characterData.Stat.mp,
+                    _characterData.Stat.atk,
+                    _characterData.Stat.pdef,
+                    _characterData.Stat.speed
+                );
             }
 
             if (_abilityController != null)
@@ -307,6 +327,58 @@ namespace GameSystems.Battle
                 _characterView.Die();
             }
         }
+
+        #region Buff/Debuff Methods (using StatsSystem)
+
+        /// <summary>
+        /// Apply attack buff to this unit
+        /// </summary>
+        public void ApplyAttackBuff(float percentageBonus, int durationTurns)
+        {
+            _healthController?.ApplyBuff("attack", percentageBonus, durationTurns);
+        }
+
+        /// <summary>
+        /// Apply defense buff to this unit
+        /// </summary>
+        public void ApplyDefenseBuff(float percentageBonus, int durationTurns)
+        {
+            _healthController?.ApplyBuff("defense", percentageBonus, durationTurns);
+        }
+
+        /// <summary>
+        /// Apply speed buff to this unit
+        /// </summary>
+        public void ApplySpeedBuff(float percentageBonus, int durationTurns)
+        {
+            _healthController?.ApplyBuff("speed", percentageBonus, durationTurns);
+        }
+
+        /// <summary>
+        /// Apply attack debuff to this unit
+        /// </summary>
+        public void ApplyAttackDebuff(float percentagePenalty, int durationTurns)
+        {
+            _healthController?.ApplyDebuff("attack", percentagePenalty, durationTurns);
+        }
+
+        /// <summary>
+        /// Apply defense debuff to this unit
+        /// </summary>
+        public void ApplyDefenseDebuff(float percentagePenalty, int durationTurns)
+        {
+            _healthController?.ApplyDebuff("defense", percentagePenalty, durationTurns);
+        }
+
+        /// <summary>
+        /// Clear all buffs/debuffs from this unit
+        /// </summary>
+        public void ClearAllBuffs()
+        {
+            _healthController?.ClearAllBuffs();
+        }
+
+        #endregion
 
         #endregion
     }

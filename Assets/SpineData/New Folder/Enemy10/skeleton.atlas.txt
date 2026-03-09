@@ -1,0 +1,153 @@
+
+skeleton.png
+size: 4096,2048
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+arm back 2
+  rotate: true
+  xy: 2455, 311
+  size: 291, 351
+  orig: 293, 354
+  offset: 1, 2
+  index: -1
+arm bsck 1
+  rotate: true
+  xy: 1837, 1542
+  size: 503, 472
+  orig: 505, 475
+  offset: 1, 2
+  index: -1
+arm front  1
+  rotate: true
+  xy: 2256, 1035
+  size: 505, 468
+  orig: 507, 471
+  offset: 1, 1
+  index: -1
+body
+  rotate: true
+  xy: 2, 8
+  size: 718, 833
+  orig: 718, 833
+  offset: 0, 0
+  index: -1
+eye
+  rotate: false
+  xy: 837, 79
+  size: 320, 157
+  orig: 321, 157
+  offset: 0, 0
+  index: -1
+foot back
+  rotate: false
+  xy: 1676, 102
+  size: 131, 134
+  orig: 133, 136
+  offset: 1, 1
+  index: -1
+foot front
+  rotate: false
+  xy: 1534, 88
+  size: 140, 148
+  orig: 142, 150
+  offset: 1, 1
+  index: -1
+fx 1
+  rotate: false
+  xy: 2415, 19
+  size: 361, 263
+  orig: 363, 265
+  offset: 1, 1
+  index: -1
+fx 2
+  rotate: false
+  xy: 2311, 1553
+  size: 447, 492
+  orig: 449, 494
+  offset: 1, 1
+  index: -1
+fx 3
+  rotate: false
+  xy: 2455, 604
+  size: 398, 429
+  orig: 400, 431
+  offset: 1, 1
+  index: -1
+hand back
+  rotate: false
+  xy: 2778, 38
+  size: 266, 271
+  orig: 268, 273
+  offset: 1, 1
+  index: -1
+hand front 2
+  rotate: true
+  xy: 1162, 906
+  size: 416, 548
+  orig: 418, 550
+  offset: 1, 1
+  index: -1
+hand front 3
+  rotate: true
+  xy: 1712, 910
+  size: 412, 542
+  orig: 412, 542
+  offset: 0, 0
+  index: -1
+head 2
+  rotate: false
+  xy: 1732, 284
+  size: 721, 624
+  orig: 723, 626
+  offset: 1, 1
+  index: -1
+head 3
+  rotate: true
+  xy: 837, 238
+  size: 618, 893
+  orig: 618, 893
+  offset: 0, 0
+  index: -1
+head 4
+  rotate: true
+  xy: 1162, 1324
+  size: 721, 673
+  orig: 723, 675
+  offset: 1, 1
+  index: -1
+leg back
+  rotate: false
+  xy: 1343, 41
+  size: 189, 195
+  orig: 191, 197
+  offset: 1, 1
+  index: -1
+leg front
+  rotate: false
+  xy: 1159, 2
+  size: 182, 234
+  orig: 184, 236
+  offset: 1, 1
+  index: -1
+shadow
+  rotate: false
+  xy: 1809, 11
+  size: 604, 271
+  orig: 606, 273
+  offset: 1, 1
+  index: -1
+sword 2
+  rotate: true
+  xy: 2, 728
+  size: 1317, 676
+  orig: 1329, 678
+  offset: 11, 1
+  index: -1
+sword 3
+  rotate: false
+  xy: 680, 858
+  size: 480, 1187
+  orig: 482, 1190
+  offset: 1, 1
+  index: -1

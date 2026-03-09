@@ -69,7 +69,7 @@ namespace GameSystems.Inventory
             );
             newItem.AddQuantity(quantity - 1);
 
-            inventory.AddItem(newItem);
+            inventory.Add(newItem);
             OnItemPurchased?.Invoke(newItem);
 
             LogDebug($"<color=green>Bought:</color> {item.ItemName} x{quantity} for {totalCost} gold");
@@ -89,7 +89,7 @@ namespace GameSystems.Inventory
             gameState?.AddGold(sellValue);
 
             // Xóa khỏi inventory
-            inventory.InventoryData.Collection.Remove(item);
+            inventory.InventoryData.Items.Remove(item);
 
             OnItemSold?.Invoke(item);
             LogDebug($"<color=yellow>Sold:</color> {item.ItemName} for {sellValue} gold");
@@ -163,7 +163,7 @@ namespace GameSystems.Inventory
         /// </summary>
         public Item GetEquippedItem(EquipmentSlot slot)
         {
-            foreach (var item in inventory.InventoryData.Collection)
+            foreach (var item in inventory.InventoryData.Items)
             {
                 if (item.IsEquipped && IsItemInSlot(item, slot))
                 {
@@ -193,7 +193,7 @@ namespace GameSystems.Inventory
         /// </summary>
         public List<Item> GetAllEquippedItems()
         {
-            return inventory.InventoryData.Collection
+            return inventory.InventoryData.Items
                 .Where(i => i.IsEquipped)
                 .ToList();
         }
@@ -207,7 +207,7 @@ namespace GameSystems.Inventory
         /// </summary>
         public void AddItem(Item item)
         {
-            inventory.AddItem(item);
+            inventory.Add(item);
         }
 
         /// <summary>
@@ -215,7 +215,7 @@ namespace GameSystems.Inventory
         /// </summary>
         public void RemoveItem(Item item)
         {
-            inventory.InventoryData.Collection.Remove(item);
+            inventory.InventoryData.Items.Remove(item);
             LogDebug($"<color=red>Removed:</color> {item.ItemName}");
         }
 
@@ -276,7 +276,7 @@ namespace GameSystems.Inventory
         /// </summary>
         public bool IsInventoryFull()
         {
-            return inventory.InventoryData.Collection.Count >= inventory.MaxSlots;
+            return inventory.InventoryData.Items.Count >= inventory.MaxSlots;
         }
 
         #endregion
@@ -287,7 +287,7 @@ namespace GameSystems.Inventory
         {
             Debug.Log("\n<color=cyan>═══════════ Inventory Summary ═══════════</color>");
 
-            Debug.Log($"<color=yellow>📦 Inventory:</color> {inventory.InventoryData.Collection.Count}/{inventory.MaxSlots}");
+            Debug.Log($"<color=yellow>📦 Inventory:</color> {inventory.InventoryData.Items.Count}/{inventory.MaxSlots}");
             Debug.Log($"Total Value: {GetTotalInventoryValue()} gold");
 
             Debug.Log($"\n<color=yellow>⚔️ Equipped:</color>");

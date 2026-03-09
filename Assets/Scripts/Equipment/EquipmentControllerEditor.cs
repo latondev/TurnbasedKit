@@ -773,7 +773,7 @@ public class EquipmentControllerEditor : Editor
     {
         var setNames = new System.Collections.Generic.HashSet<string>();
         
-        foreach (var item in controller.EquipmentData.Collection)
+        foreach (var item in controller.EquipmentData.Items)
         {
             if (item.IsPartOfSet())
             {
@@ -891,7 +891,7 @@ public class EquipmentControllerEditor : Editor
 
         if (!showEquipment) return;
 
-        if (controller.EquipmentData.Collection.Count == 0)
+        if (controller.EquipmentData.Items.Count == 0)
         {
             EditorGUILayout.HelpBox("No equipment available", MessageType.Info);
             return;
@@ -899,7 +899,7 @@ public class EquipmentControllerEditor : Editor
 
         int currentIndex = controller.EquipmentData.GetCurrentIndex();
 
-        var displayItems = controller.EquipmentData.Collection.AsEnumerable();
+        var displayItems = controller.EquipmentData.Items.AsEnumerable();
         
         if (showEquippedOnly)
             displayItems = displayItems.Where(item => item.IsEquipped);
@@ -929,9 +929,9 @@ public class EquipmentControllerEditor : Editor
 
         equipmentScrollPos = EditorGUILayout.BeginScrollView(equipmentScrollPos, GUILayout.MaxHeight(350));
 
-        for (int i = 0; i < controller.EquipmentData.Collection.Count; i++)
+        for (int i = 0; i < controller.EquipmentData.Items.Count; i++)
         {
-            var item = controller.EquipmentData.Collection[i];
+            var item = controller.EquipmentData.Items[i];
             
             if (showEquippedOnly && !item.IsEquipped) continue;
             if (useSlotFilter && item.Slot != filterSlot) continue;
@@ -950,9 +950,9 @@ public class EquipmentControllerEditor : Editor
         System.Text.StringBuilder sb = new System.Text.StringBuilder();
         sb.Append("All Equipment");
         
-        int totalCount = controller.EquipmentData.Collection.Count;
+        int totalCount = controller.EquipmentData.Items.Count;
         
-        var displayItems = controller.EquipmentData.Collection.AsEnumerable();
+        var displayItems = controller.EquipmentData.Items.AsEnumerable();
         if (showEquippedOnly)
             displayItems = displayItems.Where(item => item.IsEquipped);
         if (useSlotFilter)

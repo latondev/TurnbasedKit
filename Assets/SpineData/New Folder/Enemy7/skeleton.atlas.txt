@@ -1,0 +1,160 @@
+
+skeleton.png
+size: 2575,2164
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+armor
+  rotate: true
+  xy: 2024, 313
+  size: 592, 548
+  orig: 595, 550
+  offset: 1, 1
+  index: -1
+body
+  rotate: true
+  xy: 849, 623
+  size: 677, 699
+  orig: 677, 699
+  offset: 0, 0
+  index: -1
+body wolf
+  rotate: true
+  xy: 2024, 907
+  size: 650, 549
+  orig: 652, 551
+  offset: 1, 1
+  index: -1
+foot back
+  rotate: true
+  xy: 2170, 103
+  size: 208, 269
+  orig: 210, 271
+  offset: 1, 1
+  index: -1
+foot front 1
+  rotate: false
+  xy: 2, 229
+  size: 365, 301
+  orig: 367, 303
+  offset: 1, 1
+  index: -1
+foot front 2
+  rotate: true
+  xy: 369, 165
+  size: 365, 301
+  orig: 367, 303
+  offset: 1, 1
+  index: -1
+hand l1
+  rotate: true
+  xy: 1640, 1311
+  size: 246, 277
+  orig: 248, 280
+  offset: 1, 2
+  index: -1
+hand l2
+  rotate: true
+  xy: 2248, 1836
+  size: 326, 299
+  orig: 328, 301
+  offset: 1, 1
+  index: -1
+hand r2
+  rotate: true
+  xy: 1414, 107
+  size: 297, 432
+  orig: 299, 434
+  offset: 1, 1
+  index: -1
+head
+  rotate: true
+  xy: 2, 1339
+  size: 823, 848
+  orig: 823, 848
+  offset: 0, 0
+  index: -1
+head 1
+  rotate: true
+  xy: 2, 532
+  size: 805, 713
+  orig: 805, 713
+  offset: 0, 0
+  index: -1
+head 2
+  rotate: true
+  xy: 852, 1302
+  size: 860, 786
+  orig: 860, 786
+  offset: 0, 0
+  index: -1
+lb 2
+  rotate: false
+  xy: 717, 1010
+  size: 117, 137
+  orig: 120, 139
+  offset: 1, 1
+  index: -1
+lb1
+  rotate: false
+  xy: 431, 25
+  size: 167, 138
+  orig: 170, 141
+  offset: 2, 1
+  index: -1
+leg back
+  rotate: true
+  xy: 2, 18
+  size: 209, 257
+  orig: 211, 259
+  offset: 1, 1
+  index: -1
+leg front 1
+  rotate: true
+  xy: 2248, 1564
+  size: 270, 285
+  orig: 272, 287
+  offset: 1, 1
+  index: -1
+lf 1
+  rotate: false
+  xy: 717, 1149
+  size: 130, 188
+  orig: 133, 191
+  offset: 2, 2
+  index: -1
+lf 2
+  rotate: true
+  xy: 261, 4
+  size: 159, 168
+  orig: 162, 171
+  offset: 1, 2
+  index: -1
+shadow
+  rotate: true
+  xy: 1550, 406
+  size: 894, 472
+  orig: 896, 474
+  offset: 1, 1
+  index: -1
+shield
+  rotate: false
+  xy: 1640, 1559
+  size: 606, 603
+  orig: 608, 605
+  offset: 1, 1
+  index: -1
+tail wolf
+  rotate: false
+  xy: 1848, 25
+  size: 320, 286
+  orig: 320, 286
+  offset: 0, 0
+  index: -1
+weapon
+  rotate: false
+  xy: 717, 2
+  size: 695, 619
+  orig: 698, 621
+  offset: 2, 1
+  index: -1

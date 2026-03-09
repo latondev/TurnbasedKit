@@ -1,0 +1,76 @@
+
+skeleton.png
+size: 3096,864
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+body wolf
+  rotate: false
+  xy: 2403, 24
+  size: 652, 551
+  orig: 652, 551
+  offset: 0, 0
+  index: -1
+foot back
+  rotate: false
+  xy: 2673, 591
+  size: 210, 271
+  orig: 210, 271
+  offset: 0, 0
+  index: -1
+foot front 1
+  rotate: true
+  xy: 1505, 21
+  size: 367, 303
+  orig: 367, 303
+  offset: 0, 0
+  index: -1
+foot front 2
+  rotate: true
+  xy: 1810, 21
+  size: 367, 303
+  orig: 367, 303
+  offset: 0, 0
+  index: -1
+head 1
+  rotate: true
+  xy: 790, 57
+  size: 805, 713
+  orig: 805, 713
+  offset: 0, 0
+  index: -1
+head 2
+  rotate: true
+  xy: 2, 2
+  size: 860, 786
+  orig: 860, 786
+  offset: 0, 0
+  index: -1
+leg back
+  rotate: false
+  xy: 2885, 605
+  size: 209, 257
+  orig: 211, 259
+  offset: 1, 1
+  index: -1
+leg front 1
+  rotate: false
+  xy: 2401, 577
+  size: 270, 285
+  orig: 272, 287
+  offset: 1, 1
+  index: -1
+shadow
+  rotate: false
+  xy: 1505, 390
+  size: 894, 472
+  orig: 896, 474
+  offset: 1, 1
+  index: -1
+tail wolf
+  rotate: true
+  xy: 2115, 68
+  size: 320, 286
+  orig: 320, 286
+  offset: 0, 0
+  index: -1

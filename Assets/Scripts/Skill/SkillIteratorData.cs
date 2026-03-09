@@ -7,31 +7,37 @@ using GameSystems.Common;
 namespace GameSystems.Skills
 {
     /// <summary>
-    /// Base iterator data for Skills - extends GenericIteratorData
+    /// Skill collection with query methods - uses ItemCollection base
     /// </summary>
     [Serializable]
-    public class SkillIteratorData : GenericIteratorData<SkillData>
+    public class SkillIteratorData : ItemCollection<SkillData>
     {
         /// <summary>
         /// Gets next unlocked skill
         /// </summary>
         public SkillData NextUnlocked()
         {
-            if (CurrentIterator == null) return default;
+            if (IsEmpty) return null;
 
-            int startIndex = CurrentIterator.CurrentIndex;
+            int startIndex = CurrentIndex;
+            int loopCount = 0;
+            int maxLoops = Items.Count;
 
-            while (HasNext())
+            while (loopCount < maxLoops)
             {
-                SkillData skill = Next();
-                if (skill != null && skill.IsUnlocked)
-                    return skill;
+                if (MoveNext())
+                {
+                    SkillData skill = Current;
+                    if (skill != null && skill.IsUnlocked)
+                        return skill;
 
-                if (CurrentIterator.CurrentIndex == startIndex)
-                    break;
+                    if (CurrentIndex == startIndex)
+                        break;
+                }
+                loopCount++;
             }
 
-            return default;
+            return null;
         }
 
         /// <summary>
@@ -39,21 +45,27 @@ namespace GameSystems.Skills
         /// </summary>
         public SkillData NextReady(int currentMana)
         {
-            if (CurrentIterator == null) return default;
+            if (IsEmpty) return null;
 
-            int startIndex = CurrentIterator.CurrentIndex;
+            int startIndex = CurrentIndex;
+            int loopCount = 0;
+            int maxLoops = Items.Count;
 
-            while (HasNext())
+            while (loopCount < maxLoops)
             {
-                SkillData skill = Next();
-                if (skill != null && skill.CanCast(currentMana))
-                    return skill;
+                if (MoveNext())
+                {
+                    SkillData skill = Current;
+                    if (skill != null && skill.CanCast(currentMana))
+                        return skill;
 
-                if (CurrentIterator.CurrentIndex == startIndex)
-                    break;
+                    if (CurrentIndex == startIndex)
+                        break;
+                }
+                loopCount++;
             }
 
-            return default;
+            return null;
         }
 
         /// <summary>
@@ -61,21 +73,27 @@ namespace GameSystems.Skills
         /// </summary>
         public SkillData NextOfCategory(SkillCategory category)
         {
-            if (CurrentIterator == null) return default;
+            if (IsEmpty) return null;
 
-            int startIndex = CurrentIterator.CurrentIndex;
+            int startIndex = CurrentIndex;
+            int loopCount = 0;
+            int maxLoops = Items.Count;
 
-            while (HasNext())
+            while (loopCount < maxLoops)
             {
-                SkillData skill = Next();
-                if (skill != null && skill.Category == category)
-                    return skill;
+                if (MoveNext())
+                {
+                    SkillData skill = Current;
+                    if (skill != null && skill.Category == category)
+                        return skill;
 
-                if (CurrentIterator.CurrentIndex == startIndex)
-                    break;
+                    if (CurrentIndex == startIndex)
+                        break;
+                }
+                loopCount++;
             }
 
-            return default;
+            return null;
         }
 
         /// <summary>
@@ -83,7 +101,7 @@ namespace GameSystems.Skills
         /// </summary>
         public List<SkillData> GetSkillsByCategory(SkillCategory category)
         {
-            return Collection.Where(s => s.Category == category).ToList();
+            return Items.Where(s => s.Category == category).ToList();
         }
 
         /// <summary>
@@ -91,7 +109,7 @@ namespace GameSystems.Skills
         /// </summary>
         public List<SkillData> GetSkillsByElement(SkillElement element)
         {
-            return Collection.Where(s => s.Element == element).ToList();
+            return Items.Where(s => s.Element == element).ToList();
         }
 
         /// <summary>
@@ -99,7 +117,7 @@ namespace GameSystems.Skills
         /// </summary>
         public List<SkillData> GetUnlockedSkills()
         {
-            return Collection.Where(s => s.IsUnlocked).ToList();
+            return Items.Where(s => s.IsUnlocked).ToList();
         }
 
         /// <summary>
@@ -107,7 +125,7 @@ namespace GameSystems.Skills
         /// </summary>
         public List<SkillData> GetReadySkills(int currentMana)
         {
-            return Collection.Where(s => s.CanCast(currentMana)).ToList();
+            return Items.Where(s => s.CanCast(currentMana)).ToList();
         }
 
         /// <summary>
@@ -115,7 +133,7 @@ namespace GameSystems.Skills
         /// </summary>
         public List<SkillData> GetSkillsOnCooldown()
         {
-            return Collection.Where(s => s.IsOnCooldown).ToList();
+            return Items.Where(s => s.IsOnCooldown).ToList();
         }
 
         /// <summary>
@@ -123,7 +141,7 @@ namespace GameSystems.Skills
         /// </summary>
         public void SortByLevel()
         {
-            Collection.Sort((a, b) => b.CurrentLevel.CompareTo(a.CurrentLevel));
+            Items.Sort((a, b) => b.CurrentLevel.CompareTo(a.CurrentLevel));
             Initialize();
         }
 
@@ -132,7 +150,7 @@ namespace GameSystems.Skills
         /// </summary>
         public void SortByDamage()
         {
-            Collection.Sort((a, b) => b.GetTotalDamage().CompareTo(a.GetTotalDamage()));
+            Items.Sort((a, b) => b.GetTotalDamage().CompareTo(a.GetTotalDamage()));
             Initialize();
         }
 
@@ -141,7 +159,7 @@ namespace GameSystems.Skills
         /// </summary>
         public void SortByCooldown()
         {
-            Collection.Sort((a, b) => a.BaseCooldown.CompareTo(b.BaseCooldown));
+            Items.Sort((a, b) => a.BaseCooldown.CompareTo(b.BaseCooldown));
             Initialize();
         }
     }

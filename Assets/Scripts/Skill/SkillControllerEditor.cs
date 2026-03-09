@@ -256,7 +256,7 @@ public class SkillControllerEditor : Editor
         // Total skills
         EditorGUILayout.BeginHorizontal();
         EditorGUILayout.LabelField("📚 Total Skills:", GUILayout.Width(130));
-        EditorGUILayout.LabelField(controller.SkillData.Collection.Count.ToString(), EditorStyles.boldLabel);
+        EditorGUILayout.LabelField(controller.SkillData.Items.Count.ToString(), EditorStyles.boldLabel);
         EditorGUILayout.EndHorizontal();
 
         // Unlocked
@@ -267,7 +267,7 @@ public class SkillControllerEditor : Editor
         {
             normal = { textColor = new Color(0.5f, 1f, 0.5f) }
         };
-        EditorGUILayout.LabelField($"{unlockedCount}/{controller.SkillData.Collection.Count}", unlockedStyle);
+        EditorGUILayout.LabelField($"{unlockedCount}/{controller.SkillData.Items.Count}", unlockedStyle);
         EditorGUILayout.EndHorizontal();
 
         // Ready to cast
@@ -642,12 +642,12 @@ public class SkillControllerEditor : Editor
     {
         EditorGUILayout.BeginHorizontal();
         showSkills = EditorGUILayout.Foldout(showSkills, 
-            $"All Skills ({controller.SkillData.Collection.Count})", true, headerStyle);
+            $"All Skills ({controller.SkillData.Items.Count})", true, headerStyle);
         EditorGUILayout.EndHorizontal();
 
         if (!showSkills) return;
 
-        if (controller.SkillData.Collection.Count == 0)
+        if (controller.SkillData.Items.Count == 0)
         {
             EditorGUILayout.HelpBox("No skills available", MessageType.Info);
             return;
@@ -656,7 +656,7 @@ public class SkillControllerEditor : Editor
         int currentIndex = controller.SkillData.GetCurrentIndex();
 
         // Filter skills
-        var displaySkills = controller.SkillData.Collection.AsEnumerable();
+        var displaySkills = controller.SkillData.Items.AsEnumerable();
         if (showUnlockedOnly)
             displaySkills = displaySkills.Where(s => s.IsUnlocked);
         if (showReadyOnly)
@@ -672,9 +672,9 @@ public class SkillControllerEditor : Editor
 
         skillScrollPos = EditorGUILayout.BeginScrollView(skillScrollPos, GUILayout.MaxHeight(350));
 
-        for (int i = 0; i < controller.SkillData.Collection.Count; i++)
+        for (int i = 0; i < controller.SkillData.Items.Count; i++)
         {
-            var skill = controller.SkillData.Collection[i];
+            var skill = controller.SkillData.Items[i];
             
             // Apply filters
             if (showUnlockedOnly && !skill.IsUnlocked) continue;

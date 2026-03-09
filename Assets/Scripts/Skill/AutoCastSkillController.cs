@@ -92,7 +92,7 @@ namespace GameSystems.Skills
 
         private void SetCurrentSkillAndCast(SkillData skill)
         {
-            var collection = skillController.SkillData.Collection;
+            var collection = skillController.SkillData.Items;
             int index = collection.IndexOf(skill);
             
             if (index < 0) return;
@@ -157,7 +157,7 @@ namespace GameSystems.Skills
             
             if (skillController == null) return;
             
-            foreach (var skill in skillController.SkillData.Collection)
+            foreach (var skill in skillController.SkillData.Items)
             {
                 if (ShouldAutocast(skill))
                 {

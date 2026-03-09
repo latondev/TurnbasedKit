@@ -7,31 +7,37 @@ using GameSystems.Common;
 namespace GameSystems.Inventory
 {
     /// <summary>
-    /// Base iterator data for Inventory - extends GenericIteratorData
+    /// Inventory collection with query methods - uses ItemCollection base
     /// </summary>
     [Serializable]
-    public class InventoryIteratorData : GenericIteratorData<Item>
+    public class InventoryIteratorData : ItemCollection<Item>
     {
         /// <summary>
         /// Gets next item of specific type
         /// </summary>
         public Item NextOfType(ItemType type)
         {
-            if (CurrentIterator == null) return default;
+            if (IsEmpty) return null;
 
-            int startIndex = CurrentIterator.CurrentIndex;
+            int startIndex = CurrentIndex;
+            int loopCount = 0;
+            int maxLoops = Items.Count;
 
-            while (HasNext())
+            while (loopCount < maxLoops)
             {
-                Item item = Next();
-                if (item != null && item.ItemType == type)
-                    return item;
+                if (MoveNext())
+                {
+                    Item item = Current;
+                    if (item != null && item.ItemType == type)
+                        return item;
 
-                if (CurrentIterator.CurrentIndex == startIndex)
-                    break;
+                    if (CurrentIndex == startIndex)
+                        break;
+                }
+                loopCount++;
             }
 
-            return default;
+            return null;
         }
 
         /// <summary>
@@ -39,21 +45,27 @@ namespace GameSystems.Inventory
         /// </summary>
         public Item NextConsumable()
         {
-            if (CurrentIterator == null) return default;
+            if (IsEmpty) return null;
 
-            int startIndex = CurrentIterator.CurrentIndex;
+            int startIndex = CurrentIndex;
+            int loopCount = 0;
+            int maxLoops = Items.Count;
 
-            while (HasNext())
+            while (loopCount < maxLoops)
             {
-                Item item = Next();
-                if (item != null && item.IsConsumable && item.Quantity > 0)
-                    return item;
+                if (MoveNext())
+                {
+                    Item item = Current;
+                    if (item != null && item.IsConsumable && item.Quantity > 0)
+                        return item;
 
-                if (CurrentIterator.CurrentIndex == startIndex)
-                    break;
+                    if (CurrentIndex == startIndex)
+                        break;
+                }
+                loopCount++;
             }
 
-            return default;
+            return null;
         }
 
         /// <summary>
@@ -61,21 +73,27 @@ namespace GameSystems.Inventory
         /// </summary>
         public Item NextEquipped()
         {
-            if (CurrentIterator == null) return default;
+            if (IsEmpty) return null;
 
-            int startIndex = CurrentIterator.CurrentIndex;
+            int startIndex = CurrentIndex;
+            int loopCount = 0;
+            int maxLoops = Items.Count;
 
-            while (HasNext())
+            while (loopCount < maxLoops)
             {
-                Item item = Next();
-                if (item != null && item.IsEquipped)
-                    return item;
+                if (MoveNext())
+                {
+                    Item item = Current;
+                    if (item != null && item.IsEquipped)
+                        return item;
 
-                if (CurrentIterator.CurrentIndex == startIndex)
-                    break;
+                    if (CurrentIndex == startIndex)
+                        break;
+                }
+                loopCount++;
             }
 
-            return default;
+            return null;
         }
 
         /// <summary>
@@ -83,7 +101,7 @@ namespace GameSystems.Inventory
         /// </summary>
         public List<Item> GetItemsByType(ItemType type)
         {
-            return Collection.Where(item => item.ItemType == type).ToList();
+            return Items.Where(item => item.ItemType == type).ToList();
         }
 
         /// <summary>
@@ -91,7 +109,7 @@ namespace GameSystems.Inventory
         /// </summary>
         public List<Item> GetItemsByRarity(ItemRarity rarity)
         {
-            return Collection.Where(item => item.Rarity == rarity).ToList();
+            return Items.Where(item => item.Rarity == rarity).ToList();
         }
 
         /// <summary>
@@ -99,7 +117,7 @@ namespace GameSystems.Inventory
         /// </summary>
         public List<Item> GetConsumables()
         {
-            return Collection.Where(item => item.IsConsumable && item.Quantity > 0).ToList();
+            return Items.Where(item => item.IsConsumable && item.Quantity > 0).ToList();
         }
 
         /// <summary>
@@ -107,7 +125,7 @@ namespace GameSystems.Inventory
         /// </summary>
         public List<Item> GetEquippedItems()
         {
-            return Collection.Where(item => item.IsEquipped).ToList();
+            return Items.Where(item => item.IsEquipped).ToList();
         }
 
         /// <summary>
@@ -115,7 +133,7 @@ namespace GameSystems.Inventory
         /// </summary>
         public int GetTotalValue()
         {
-            return Collection.Sum(item => item.Value * item.Quantity);
+            return Items.Sum(item => item.Value * item.Quantity);
         }
 
         /// <summary>
@@ -123,7 +141,7 @@ namespace GameSystems.Inventory
         /// </summary>
         public void SortByName()
         {
-            Collection.Sort((a, b) => string.Compare(a.ItemName, b.ItemName, StringComparison.Ordinal));
+            Items.Sort((a, b) => string.Compare(a.ItemName, b.ItemName, StringComparison.Ordinal));
             Initialize();
         }
 
@@ -132,25 +150,7 @@ namespace GameSystems.Inventory
         /// </summary>
         public void SortByType()
         {
-            Collection.Sort((a, b) => a.ItemType.CompareTo(b.ItemType));
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sorts inventory by rarity
-        /// </summary>
-        public void SortByRarity()
-        {
-            Collection.Sort((a, b) => b.Rarity.CompareTo(a.Rarity));
-            Initialize();
-        }
-
-        /// <summary>
-        /// Sorts inventory by value
-        /// </summary>
-        public void SortByValue()
-        {
-            Collection.Sort((a, b) => b.Value.CompareTo(a.Value));
+            Items.Sort((a, b) => a.ItemType.CompareTo(b.ItemType));
             Initialize();
         }
     }

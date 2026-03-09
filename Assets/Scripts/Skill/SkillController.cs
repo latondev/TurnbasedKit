@@ -30,7 +30,7 @@ namespace GameSystems.Skills
         }
 
         public SkillIteratorData SkillData => skillData;
-        public SkillData CurrentSkill => skillData.CurrentIterator?.Current;
+        public SkillData CurrentSkill => skillData.Current;
         public int CurrentMana => currentMana;
         public int MaxMana => maxMana;
         public int PlayerLevel => playerLevel;
@@ -43,7 +43,7 @@ namespace GameSystems.Skills
 
         void Start()
         {
-            if (skillData.Collection.Count == 0)
+            if (skillData.IsEmpty)
             {
                 SetupDefaultSkills();
             }
@@ -65,64 +65,64 @@ namespace GameSystems.Skills
         private void SetupDefaultSkills()
         {
             // Fire Skills
-            skillData.AddItem(new SkillData(
+            skillData.Add(new SkillData(
                 "fire_fireball", "Fireball", "Launch a blazing fireball",
                 SkillCategory.Active, SkillElement.Fire, 20, 3f, 50f
             ));
 
-            skillData.AddItem(new SkillData(
+            skillData.Add(new SkillData(
                 "fire_inferno", "Inferno", "Massive fire explosion",
                 SkillCategory.Ultimate, SkillElement.Fire, 80, 30f, 200f
             ));
 
             // Ice Skills
-            skillData.AddItem(new SkillData(
+            skillData.Add(new SkillData(
                 "ice_frost", "Frost Bolt", "Freeze enemies with ice",
                 SkillCategory.Active, SkillElement.Ice, 15, 2.5f, 40f
             ));
 
-            skillData.AddItem(new SkillData(
+            skillData.Add(new SkillData(
                 "ice_blizzard", "Blizzard", "Devastating ice storm",
                 SkillCategory.Ultimate, SkillElement.Ice, 90, 35f, 250f
             ));
 
             // Lightning Skills
-            skillData.AddItem(new SkillData(
+            skillData.Add(new SkillData(
                 "lightning_bolt", "Lightning Bolt", "Strike with lightning",
                 SkillCategory.Active, SkillElement.Lightning, 25, 4f, 60f
             ));
 
-            skillData.AddItem(new SkillData(
+            skillData.Add(new SkillData(
                 "lightning_storm", "Thunder Storm", "Call down lightning",
                 SkillCategory.Ultimate, SkillElement.Lightning, 100, 40f, 300f
             ));
 
             // Healing Skills
-            skillData.AddItem(new SkillData(
+            skillData.Add(new SkillData(
                 "heal_light", "Healing Light", "Restore health",
                 SkillCategory.Healing, SkillElement.Holy, 30, 5f, 80f
             ));
 
             // Buff Skills
-            skillData.AddItem(new SkillData(
+            skillData.Add(new SkillData(
                 "buff_haste", "Haste", "Increase speed",
                 SkillCategory.Buff, SkillElement.Wind, 10, 1f, 0f
             ));
 
-            skillData.AddItem(new SkillData(
+            skillData.Add(new SkillData(
                 "buff_power", "Power Up", "Increase attack",
                 SkillCategory.Buff, SkillElement.Physical, 15, 1.5f, 0f
             ));
 
             // Passive Skills
-            skillData.AddItem(new SkillData(
+            skillData.Add(new SkillData(
                 "passive_mana", "Mana Mastery", "Increase mana regen",
                 SkillCategory.Passive, SkillElement.Holy, 0, 0f, 0f
             ));
 
             // Unlock starter skills
-            skillData.Collection[0].Unlock(); // Fireball
-            skillData.Collection[7].Unlock(); // Haste
+            skillData.Items[0].Unlock(); // Fireball
+            skillData.Items[7].Unlock(); // Haste
         }
 
         #endregion
@@ -251,7 +251,7 @@ namespace GameSystems.Skills
 
         public void ResetAllCooldowns()
         {
-            foreach (var skill in skillData.Collection)
+            foreach (var skill in skillData.Items)
             {
                 skill.ResetCooldown();
             }
@@ -264,7 +264,7 @@ namespace GameSystems.Skills
 
         private void UpdateAllCooldowns()
         {
-            foreach (var skill in skillData.Collection)
+            foreach (var skill in skillData.Items)
             {
                 bool wasOnCooldown = skill.IsOnCooldown;
                 skill.UpdateCooldown(Time.deltaTime);
@@ -306,7 +306,7 @@ namespace GameSystems.Skills
 
         public void UnlockAll()
         {
-            foreach (var skill in skillData.Collection)
+            foreach (var skill in skillData.Items)
             {
                 if (!skill.IsUnlocked)
                 {
@@ -388,8 +388,8 @@ namespace GameSystems.Skills
 
         private void UpdateRuntimeInfo()
         {
-            currentIndex = skillData.GetCurrentIndex();
-            totalIterations = skillData.GetTotalIterations();
+            currentIndex = skillData.CurrentIndex;
+            totalIterations = skillData.Items.Count;
         }
 
         public void ShowSkillInfo()
@@ -399,7 +399,7 @@ namespace GameSystems.Skills
             Debug.Log("<color=cyan>═══════════════════════════════════════</color>");
             Debug.Log($"Player Level: {playerLevel}");
             Debug.Log($"Mana: {currentMana}/{maxMana}");
-            Debug.Log($"Total Skills: {skillData.Collection.Count}");
+            Debug.Log($"Total Skills: {skillData.Items.Count}");
             Debug.Log($"Unlocked: {skillData.GetUnlockedSkills().Count}");
             Debug.Log($"Total Casts: {totalCasts}");
             

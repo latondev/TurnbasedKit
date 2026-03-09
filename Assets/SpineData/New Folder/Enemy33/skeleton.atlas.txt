@@ -1,0 +1,76 @@
+
+skeleton.png
+size: 512,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+Atk_beaten_3_000
+  rotate: false
+  xy: 357, 337
+  size: 55, 70
+  orig: 55, 70
+  offset: 0, 0
+  index: -1
+Atk_beaten_3_002
+  rotate: false
+  xy: 335, 238
+  size: 57, 70
+  orig: 57, 70
+  offset: 0, 0
+  index: -1
+Atk_beaten_3_004
+  rotate: false
+  xy: 377, 436
+  size: 59, 60
+  orig: 59, 60
+  offset: 0, 0
+  index: -1
+Atk_beaten_3_006
+  rotate: false
+  xy: 278, 29
+  size: 59, 59
+  orig: 59, 59
+  offset: 0, 0
+  index: -1
+Layer 2
+  rotate: false
+  xy: 2, 157
+  size: 255, 339
+  orig: 255, 339
+  offset: 0, 0
+  index: -1
+Layer 3
+  rotate: false
+  xy: 278, 90
+  size: 58, 100
+  orig: 58, 100
+  offset: 0, 0
+  index: -1
+Layer 4
+  rotate: true
+  xy: 259, 409
+  size: 87, 116
+  orig: 87, 116
+  offset: 0, 0
+  index: -1
+Layer 5
+  rotate: true
+  xy: 259, 310
+  size: 97, 96
+  orig: 97, 96
+  offset: 0, 0
+  index: -1
+Layer 6
+  rotate: false
+  xy: 259, 192
+  size: 74, 116
+  orig: 74, 116
+  offset: 0, 0
+  index: -1
+bong
+  rotate: false
+  xy: 2, 2
+  size: 274, 153
+  orig: 274, 153
+  offset: 0, 0
+  index: -1

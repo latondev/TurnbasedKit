@@ -26,7 +26,7 @@ namespace GameSystems.Inventory
         }
 
         public InventoryIteratorData InventoryData => inventoryData;
-        public Item CurrentItem => inventoryData.CurrentIterator?.Current;
+        public Item CurrentItem => inventoryData.Current;
         public int MaxSlots => maxSlots;
 
         // Events
@@ -37,7 +37,7 @@ namespace GameSystems.Inventory
 
         void Start()
         {
-            if (inventoryData.Collection.Count == 0)
+            if (inventoryData.Items.Count == 0)
             {
                 SetupStarterItems();
             }
@@ -106,8 +106,8 @@ namespace GameSystems.Inventory
                 ItemType.Quest, ItemRarity.Rare, 1, 0));
 
             // Add multiple of the same item
-            inventoryData.Collection[3].AddQuantity(5); // 6 health potions
-            inventoryData.Collection[4].AddQuantity(2); // 3 mana potions
+            inventoryData.Items[3].AddQuantity(5); // 6 health potions
+            inventoryData.Items[4].AddQuantity(2); // 3 mana potions
         }
 
         #endregion
@@ -168,14 +168,14 @@ namespace GameSystems.Inventory
 
         public void AddItem(Item item)
         {
-            if (inventoryData.Collection.Count >= maxSlots)
+            if (inventoryData.Items.Count >= maxSlots)
             {
                 LogDebug("<color=red>Inventory full!</color>");
                 return;
             }
 
             // Check if item already exists and can stack
-            Item existingItem = inventoryData.Collection.Find(i => 
+            Item existingItem = inventoryData.Items.Find(i => 
                 i.ItemId == item.ItemId && i.CanStack());
 
             if (existingItem != null)
@@ -184,7 +184,7 @@ namespace GameSystems.Inventory
             }
             else
             {
-                inventoryData.AddItem(item);
+                inventoryData.Add(item);
             }
 
             UpdateRuntimeInfo();
@@ -232,7 +232,7 @@ namespace GameSystems.Inventory
             if (item.ItemType == ItemType.Weapon || item.ItemType == ItemType.Armor)
             {
                 // Unequip other items of same type
-                foreach (var i in inventoryData.Collection)
+                foreach (var i in inventoryData.Items)
                 {
                     if (i.ItemType == item.ItemType && i.IsEquipped && i != item)
                     {
@@ -277,7 +277,7 @@ namespace GameSystems.Inventory
 
         private void RemoveItem(Item item)
         {
-            inventoryData.Collection.Remove(item);
+            inventoryData.Items.Remove(item);
             inventoryData.Initialize();
             UpdateRuntimeInfo();
             OnItemRemoved?.Invoke(item);
@@ -321,9 +321,9 @@ namespace GameSystems.Inventory
 
         private void UpdateRuntimeInfo()
         {
-            currentIndex = inventoryData.GetCurrentIndex();
-            totalIterations = inventoryData.GetTotalIterations();
-            totalItems = inventoryData.Collection.Count;
+            currentIndex = inventoryData.CurrentIndex;
+            totalIterations = inventoryData.Items.Count;
+            totalItems = inventoryData.Items.Count;
             totalValue = inventoryData.GetTotalValue();
         }
 

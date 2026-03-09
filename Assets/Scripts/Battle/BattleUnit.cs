@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using UnityEngine;
 using GameSystems.Skills;
 using GameSystems.Common;
+using GameSystems.Stats;
 
 namespace GameSystems.AutoBattle
 {
     /// <summary>
     /// Represents a unit in battle with calculated stats
+    /// Uses StatsSystem package (UnitStatController)
     /// </summary>
     [Serializable]
     public class BattleUnit
@@ -25,59 +27,31 @@ namespace GameSystems.AutoBattle
         [SerializeField] private int currentCooldown;
         [SerializeField] private string skillName;
 
-        [Header("Mana")]
-        [SerializeField] private int currentMana;
-        [SerializeField] private int maxMana;
-        [SerializeField] private int manaRegen;
+        [Header("Stats System - Using StatsSystem Package")]
+        [SerializeField] private UnitStatController statController;
 
-        [Header("Base Stats")]
-        [SerializeField] private int baseHP;
-        [SerializeField] private int baseAttack;
-        [SerializeField] private int baseDefense;
-        [SerializeField] private int baseSpeed;
-        
-        [Header("Equipment Bonuses")]
-        [SerializeField] private int equipmentHP;
-        [SerializeField] private int equipmentAttack;
-        [SerializeField] private int equipmentDefense;
-        [SerializeField] private int equipmentSpeed;
-        [SerializeField] private int equipmentMana;
-
-        [Header("Player Stats (Unified)")]
-        [SerializeField] private PlayerStats playerStats;
-        
-        [Header("Skill Bonuses")]
-        [SerializeField] private int skillAttackBonus;
-        [SerializeField] private int skillDefenseBonus;
-        [SerializeField] private float critRate;
-        [SerializeField] private float critDamage;
-        
-        [Header("Final Stats")]
-        [SerializeField] private int currentHP;
-        [SerializeField] private int maxHP;
-        [SerializeField] private int finalAttack;
-        [SerializeField] private int finalDefense;
-        [SerializeField] private int finalSpeed;
-        
         [Header("Battle Info")]
         [SerializeField] private int damageDealt;
         [SerializeField] private int damageTaken;
         [SerializeField] private int turnsTaken;
         [SerializeField] private List<string> actionsLog;
 
-        // Properties
+        // Properties using StatsSystem
         public string UnitId => unitId;
         public string UnitName => unitName;
         public UnitType Type => unitType;
         public AttackRange Range => attackRange;
         public bool IsAlive => isAlive;
-        public int CurrentHP => currentHP;
-        public int MaxHP => maxHP;
-        public int FinalAttack => finalAttack;
-        public int FinalDefense => finalDefense;
-        public int FinalSpeed => finalSpeed;
-        public float CritRate => critRate;
-        public float CritDamage => critDamage;
+
+        // Stats from UnitStatController
+        public int CurrentHP => (int)statController.GetStatValue("hp");
+        public int MaxHP => (int)statController.GetStatMaxValue("hp");
+        public int FinalAttack => (int)statController.GetStatValue("attack");
+        public int FinalDefense => (int)statController.GetStatValue("defense");
+        public int FinalSpeed => (int)statController.GetStatValue("speed");
+        public float CritRate => statController.GetStatValue("critical_rate");
+        public float CritDamage => statController.GetStatValue("critical_damage");
+
         public int DamageDealt => damageDealt;
         public int DamageTaken => damageTaken;
         public int TurnsTaken => turnsTaken;
@@ -88,10 +62,11 @@ namespace GameSystems.AutoBattle
         public SkillData EquippedSkill => equippedSkill;
 
         // Mana properties
-        public int CurrentMana => currentMana;
-        public int MaxMana => maxMana;
-        public bool HasMana => currentMana > 0;
-        public PlayerStats PlayerStats => playerStats;
+        public int CurrentMana => (int)statController.GetStatValue("mp");
+        public int MaxMana => (int)statController.GetStatMaxValue("mp");
+        public bool HasMana => CurrentMana > 0;
+
+        public UnitStatController StatController => statController;
 
         public BattleUnit(string id, string name, UnitType type, AttackRange range, int hp, int atk, int def, int spd,
             string skillName = "Power Strike", int skillDmgMult = 2, int skillCd = 3)
@@ -100,115 +75,80 @@ namespace GameSystems.AutoBattle
             this.unitName = name;
             this.unitType = type;
             this.attackRange = range;
-            
-            this.baseHP = hp;
-            this.baseAttack = atk;
-            this.baseDefense = def;
-            this.baseSpeed = spd;
 
-            this.equipmentHP = 0;
-            this.equipmentAttack = 0;
-            this.equipmentDefense = 0;
-            this.equipmentSpeed = 0;
-            this.equipmentMana = 0;
+            // Create UnitStatController for this unit
+            var go = new GameObject($"StatController_{id}");
+            this.statController = go.AddComponent<UnitStatController>();
+            statController.UnitName = name;
 
-            // Mana initialization
-            this.maxMana = 100;
-            this.currentMana = maxMana;
-            this.manaRegen = 5;
+            // Setup stats using StatsSystem
+            SetupStats(hp, atk, def, spd);
 
-            this.playerStats = new PlayerStats();
-
-            this.skillAttackBonus = 0;
-            this.skillDefenseBonus = 0;
-            this.critRate = 0.05f;
-            this.critDamage = 1.5f;
-            
             this.skillName = skillName;
             this.skillDamageMultiplier = skillDmgMult;
             this.skillCooldown = skillCd;
             this.currentCooldown = 0;
-            
+
             this.actionsLog = new List<string>();
-            
-            CalculateFinalStats();
-            this.currentHP = maxHP;
+
             this.isAlive = true;
         }
 
         /// <summary>
-        /// Calculates final stats from base + equipment + skills + player stats (unified)
+        /// Setup stats using StatsSystem package
         /// </summary>
-        public void CalculateFinalStats()
+        private void SetupStats(int hp, int atk, int def, int spd)
         {
-            // Apply PlayerStats multipliers if available
-            if (playerStats != null)
-            {
-                maxHP = Mathf.RoundToInt((baseHP + equipmentHP) * playerStats.HealthMultiplier);
-                finalAttack = Mathf.RoundToInt((baseAttack + equipmentAttack + skillAttackBonus) * playerStats.AttackMultiplier);
-                finalDefense = Mathf.RoundToInt((baseDefense + equipmentDefense + skillDefenseBonus) * playerStats.DefenseMultiplier);
-                finalSpeed = Mathf.RoundToInt((baseSpeed + equipmentSpeed) * playerStats.SpeedMultiplier);
-                maxMana = Mathf.RoundToInt((maxMana + equipmentMana) * playerStats.ManaMultiplier);
+            var stats = statController.Stats;
+            stats.ClearStats();
 
-                // Apply crit multipliers
-                critRate = Mathf.Clamp01(playerStats.BaseCritRate * playerStats.CritRateMultiplier);
-                critDamage = playerStats.BaseCritDamage * playerStats.CritDamageMultiplier;
-            }
-            else
-            {
-                // Fallback: original calculation without multipliers
-                maxHP = baseHP + equipmentHP;
-                finalAttack = baseAttack + equipmentAttack + skillAttackBonus;
-                finalDefense = baseDefense + equipmentDefense + skillDefenseBonus;
-                finalSpeed = baseSpeed + equipmentSpeed;
-            }
+            // Vital stats
+            stats.AddStat(new Stat("hp", "Health", StatType.Health, hp, hp, true, 0f));
+            stats.AddStat(new Stat("mp", "Mana", StatType.Mana, 100, 100, true, 5f));
 
-            // Ensure minimum values
-            maxHP = Mathf.Max(1, maxHP);
-            finalAttack = Mathf.Max(1, finalAttack);
-            finalDefense = Mathf.Max(0, finalDefense);
-            finalSpeed = Mathf.Max(1, finalSpeed);
-            maxMana = Mathf.Max(1, maxMana);
+            // Combat stats
+            stats.AddStat(new Stat("attack", "Attack", StatType.Attack, atk));
+            stats.AddStat(new Stat("defense", "Defense", StatType.Defense, def));
+            stats.AddStat(new Stat("speed", "Speed", StatType.Speed, spd));
 
-            currentHP = Mathf.Min(currentHP, maxHP);
-            currentMana = Mathf.Min(currentMana, maxMana);
+            // Critical stats
+            stats.AddStat(new Stat("critical_rate", "Critical Rate", StatType.CriticalRate, 5f));
+            stats.AddStat(new Stat("critical_damage", "Critical Damage", StatType.CriticalDamage, 150f));
         }
 
         /// <summary>
-        /// Applies unified PlayerStats from Equipment + Formation + Pet
-        /// </summary>
-        public void ApplyPlayerStats(PlayerStats stats)
-        {
-            this.playerStats = stats;
-            CalculateFinalStats();
-            LogAction($"Applied PlayerStats: {stats}");
-        }
-
-        /// <summary>
-        /// Applies equipment bonuses
+        /// Applies equipment bonuses using StatsSystem modifiers
         /// </summary>
         public void ApplyEquipmentBonuses(int hp, int atk, int def, int spd)
         {
-            equipmentHP = hp;
-            equipmentAttack = atk;
-            equipmentDefense = def;
-            equipmentSpeed = spd;
-            
-            CalculateFinalStats();
+            var hpStat = statController.GetStat("hp");
+            var atkStat = statController.GetStat("attack");
+            var defStat = statController.GetStat("defense");
+            var spdStat = statController.GetStat("speed");
+
+            if (hpStat != null) hpStat.IncreaseMax(hp);
+            if (atkStat != null) atkStat.ModifiableValue.InitialValue += atk;
+            if (defStat != null) defStat.ModifiableValue.InitialValue += def;
+            if (spdStat != null) spdStat.ModifiableValue.InitialValue += spd;
+
             LogAction($"Applied equipment bonuses: +{hp}HP +{atk}ATK +{def}DEF +{spd}SPD");
         }
 
         /// <summary>
-        /// Applies skill bonuses
+        /// Applies skill bonuses using StatsSystem modifiers
         /// </summary>
         public void ApplySkillBonuses(int atkBonus, int defBonus, float crit, float critDmg)
         {
-            skillAttackBonus = atkBonus;
-            skillDefenseBonus = defBonus;
-            critRate = crit;
-            critDamage = critDmg;
+            var atkStat = statController.GetStat("attack");
+            var defStat = statController.GetStat("defense");
+            var critRateStat = statController.GetStat("critical_rate");
+            var critDmgStat = statController.GetStat("critical_damage");
 
-            CalculateFinalStats();
+            if (atkStat != null) atkStat.ModifiableValue.InitialValue += atkBonus;
+            if (defStat != null) defStat.ModifiableValue.InitialValue += defBonus;
+            if (critRateStat != null) critRateStat.ModifiableValue.InitialValue += crit * 100f;
+            if (critDmgStat != null) critDmgStat.ModifiableValue.InitialValue += (critDmg - 1f) * 100f;
+
             LogAction($"Applied skill bonuses: +{atkBonus}ATK +{defBonus}DEF {crit*100:F0}%CRIT");
         }
 
@@ -239,7 +179,7 @@ namespace GameSystems.AutoBattle
 
             // Check mana
             int manaCost = equippedSkill != null ? equippedSkill.GetScaledManaCost() : 0;
-            if (currentMana < manaCost) return false;
+            if (CurrentMana < manaCost) return false;
 
             return true;
         }
@@ -259,9 +199,9 @@ namespace GameSystems.AutoBattle
             int manaCost = equippedSkill.GetScaledManaCost();
 
             // Check mana
-            if (currentMana < manaCost)
+            if (CurrentMana < manaCost)
             {
-                LogAction($"<color=red>Not enough mana! Need {manaCost}, have {currentMana}</color>");
+                LogAction($"<color=red>Not enough mana! Need {manaCost}, have {CurrentMana}</color>");
                 return 0;
             }
 
@@ -273,7 +213,7 @@ namespace GameSystems.AutoBattle
             }
 
             // Deduct mana
-            currentMana -= manaCost;
+            statController.ModifyStat("mp", -manaCost);
 
             // Use skill - set cooldown
             turnsTaken++;
@@ -281,11 +221,11 @@ namespace GameSystems.AutoBattle
 
             // Calculate damage using SkillData
             float skillDamage = equippedSkill.GetTotalDamage();
-            int baseDamage = Mathf.Max(1, Mathf.RoundToInt(skillDamage) - (target.finalDefense / 2));
+            int baseDamage = Mathf.Max(1, Mathf.RoundToInt(skillDamage) - (target.FinalDefense / 2));
 
             // Skills have higher crit chance
-            bool isCrit = UnityEngine.Random.value < (critRate * 2f);
-            int finalDamage = isCrit ? Mathf.RoundToInt(baseDamage * critDamage) : baseDamage;
+            bool isCrit = UnityEngine.Random.value < (CritRate * 2f);
+            int finalDamage = isCrit ? Mathf.RoundToInt(baseDamage * CritDamage) : baseDamage;
 
             int actualDamage = target.TakeDamage(finalDamage);
             damageDealt += actualDamage;
@@ -303,7 +243,7 @@ namespace GameSystems.AutoBattle
         public void RegenerateMana()
         {
             if (!isAlive) return;
-            currentMana = Mathf.Min(currentMana + manaRegen, maxMana);
+            // Mana regenerates automatically via UnitStatController's regen timer
         }
 
         /// <summary>
@@ -311,8 +251,12 @@ namespace GameSystems.AutoBattle
         /// </summary>
         public void SetMana(int current, int max)
         {
-            this.maxMana = max;
-            this.currentMana = Mathf.Min(current, max);
+            var mpStat = statController.GetStat("mp");
+            if (mpStat != null)
+            {
+                mpStat.IncreaseMax(max - MaxMana);
+                mpStat.SetCurrent(Mathf.Min(current, MaxMana));
+            }
         }
 
         /// <summary>
@@ -321,26 +265,26 @@ namespace GameSystems.AutoBattle
         public int Attack(BattleUnit target)
         {
             if (!isAlive) return 0;
-            
+
             turnsTaken++;
             ReduceCooldown();
-            
+
             // Calculate base damage
-            int baseDamage = Mathf.Max(1, finalAttack - target.finalDefense);
-            
+            int baseDamage = Mathf.Max(1, FinalAttack - target.FinalDefense);
+
             // Check for critical hit
-            bool isCrit = UnityEngine.Random.value < critRate;
-            int finalDamage = isCrit ? Mathf.RoundToInt(baseDamage * critDamage) : baseDamage;
-            
+            bool isCrit = UnityEngine.Random.value < CritRate;
+            int finalDamage = isCrit ? Mathf.RoundToInt(baseDamage * CritDamage) : baseDamage;
+
             // Apply damage to target
             int actualDamage = target.TakeDamage(finalDamage);
             damageDealt += actualDamage;
-            
+
             string critText = isCrit ? " [CRIT!]" : "";
             string rangeText = attackRange == AttackRange.Ranged ? "🏹" : "⚔️";
             LogAction($"{rangeText} Attacked {target.unitName} for {actualDamage} damage{critText}");
             target.LogAction($"Took {actualDamage} damage from {unitName}{critText}");
-            
+
             return actualDamage;
         }
 
@@ -350,24 +294,24 @@ namespace GameSystems.AutoBattle
         public int SkillAttack(BattleUnit target)
         {
             if (!isAlive || !IsSkillReady) return 0;
-            
+
             turnsTaken++;
             currentCooldown = skillCooldown; // set cooldown
-            
+
             // Skill does multiplied damage, ignores part of defense
-            int baseDamage = Mathf.Max(1, (finalAttack * skillDamageMultiplier) - (target.finalDefense / 2));
-            
+            int baseDamage = Mathf.Max(1, (FinalAttack * skillDamageMultiplier) - (target.FinalDefense / 2));
+
             // Skills always have higher crit chance
-            bool isCrit = UnityEngine.Random.value < (critRate * 2f);
-            int finalDamage = isCrit ? Mathf.RoundToInt(baseDamage * critDamage) : baseDamage;
-            
+            bool isCrit = UnityEngine.Random.value < (CritRate * 2f);
+            int finalDamage = isCrit ? Mathf.RoundToInt(baseDamage * CritDamage) : baseDamage;
+
             int actualDamage = target.TakeDamage(finalDamage);
             damageDealt += actualDamage;
-            
+
             string critText = isCrit ? " [CRIT!]" : "";
             LogAction($"💥 Used [{skillName}] on {target.unitName} for {actualDamage} damage{critText}");
             target.LogAction($"Hit by [{skillName}] from {unitName} for {actualDamage}{critText}");
-            
+
             return actualDamage;
         }
 
@@ -377,36 +321,37 @@ namespace GameSystems.AutoBattle
         }
 
         /// <summary>
-        /// Takes damage
+        /// Takes damage - uses StatsSystem
         /// </summary>
         public int TakeDamage(int damage)
         {
             if (!isAlive) return 0;
-            
-            int actualDamage = Mathf.Min(damage, currentHP);
-            currentHP -= actualDamage;
+
+            int actualDamage = Mathf.Min(damage, CurrentHP);
+            statController.ModifyStat("hp", -actualDamage);
             damageTaken += actualDamage;
-            
-            if (currentHP <= 0)
+
+            if (CurrentHP <= 0)
             {
-                currentHP = 0;
+                var hpStat = statController.GetStat("hp");
+                if (hpStat != null) hpStat.SetCurrent(0);
                 isAlive = false;
                 LogAction($"<color=red>💀 {unitName} has been defeated!</color>");
             }
-            
+
             return actualDamage;
         }
 
         /// <summary>
-        /// Heals the unit
+        /// Heals the unit - uses StatsSystem
         /// </summary>
         public int Heal(int amount)
         {
             if (!isAlive) return 0;
-            
-            int actualHeal = Mathf.Min(amount, maxHP - currentHP);
-            currentHP += actualHeal;
-            
+
+            int actualHeal = Mathf.Min(amount, MaxHP - CurrentHP);
+            statController.ModifyStat("hp", amount);
+
             LogAction($"<color=green>Healed for {actualHeal} HP</color>");
             return actualHeal;
         }
@@ -416,17 +361,17 @@ namespace GameSystems.AutoBattle
         /// </summary>
         public float GetHPPercentage()
         {
-            if (maxHP <= 0) return 0f;
-            return (float)currentHP / maxHP;
+            if (MaxHP <= 0) return 0f;
+            return (float)CurrentHP / MaxHP;
         }
 
         /// <summary>
-        /// Resets unit for new battle
+        /// Resets unit for new battle - uses StatsSystem
         /// </summary>
         public void Reset()
         {
-            currentHP = maxHP;
-            currentMana = maxMana;
+            statController.RestoreAll();
+            statController.ClearAllModifiers(); // Clear all buffs/debuffs
             isAlive = true;
             damageDealt = 0;
             damageTaken = 0;
@@ -434,8 +379,51 @@ namespace GameSystems.AutoBattle
             currentCooldown = 0;
             actionsLog.Clear();
 
-            LogAction($"{unitName} [{attackRange}] ready for battle! HP:{currentHP}/{maxHP} MP:{currentMana}/{maxMana}");
+            LogAction($"{unitName} [{attackRange}] ready for battle! HP:{CurrentHP}/{MaxHP} MP:{CurrentMana}/{MaxMana}");
         }
+
+        #region Buff/Debuff Methods (using StatsSystem)
+
+        /// <summary>
+        /// Apply attack buff to this unit
+        /// </summary>
+        public void ApplyAttackBuff(float percentageBonus, int durationTurns)
+        {
+            var modifier = GameSystems.Stats.Modifier.Times(1f + percentageBonus, 0, "attack_buff");
+            statController.AddModifier("attack", modifier);
+            LogAction($"Applied Attack Buff: +{percentageBonus*100}% for {durationTurns} turns");
+        }
+
+        /// <summary>
+        /// Apply defense buff to this unit
+        /// </summary>
+        public void ApplyDefenseBuff(float percentageBonus, int durationTurns)
+        {
+            var modifier = GameSystems.Stats.Modifier.Times(1f + percentageBonus, 0, "defense_buff");
+            statController.AddModifier("defense", modifier);
+            LogAction($"Applied Defense Buff: +{percentageBonus*100}% for {durationTurns} turns");
+        }
+
+        /// <summary>
+        /// Apply attack debuff to this unit
+        /// </summary>
+        public void ApplyAttackDebuff(float percentagePenalty, int durationTurns)
+        {
+            var modifier = GameSystems.Stats.Modifier.Times(1f - percentagePenalty, 0, "attack_debuff");
+            statController.AddModifier("attack", modifier);
+            LogAction($"Applied Attack Debuff: -{percentagePenalty*100}% for {durationTurns} turns");
+        }
+
+        /// <summary>
+        /// Clear all buffs/debuffs
+        /// </summary>
+        public void ClearAllBuffs()
+        {
+            statController.ClearAllModifiers();
+            LogAction("Cleared all buffs/debuffs");
+        }
+
+        #endregion
 
         private void LogAction(string action)
         {
@@ -444,7 +432,7 @@ namespace GameSystems.AutoBattle
 
         public override string ToString()
         {
-            string status = isAlive ? $"HP: {currentHP}/{maxHP}" : "💀 Defeated";
+            string status = IsAlive ? $"HP: {CurrentHP}/{MaxHP}" : "💀 Defeated";
             return $"{unitName} ({unitType}) - {status}";
         }
 

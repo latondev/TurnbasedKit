@@ -1,112 +1,112 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace GameSystems.Common
 {
     /// <summary>
-    /// Generic Iterator for traversing collections
+    /// Simple collection wrapper with index-based access.
+    /// Replaces cumbersome Iterator Pattern for random-access lists.
     /// </summary>
     [Serializable]
-    public class GenericIterator<T> where T : class
+    public class ItemCollection<T> where T : class
     {
-        private readonly IList<T> _collection;
-        private int _currentIndex;
+        [SerializeField] protected List<T> items = new List<T>();
+        [SerializeField] protected int currentIndex = -1;
 
-        public T Current => _currentIndex >= 0 && _currentIndex < _collection.Count
-            ? _collection[_currentIndex]
-            : default(T);
-
-        public int CurrentIndex => _currentIndex;
-
-        public GenericIterator(IList<T> collection, int startIndex = 0)
+        public List<T> Items => items;
+        public int Count => items.Count;
+        public int CurrentIndex
         {
-            _collection = collection ?? throw new ArgumentNullException(nameof(collection));
-            _currentIndex = startIndex;
+            get => currentIndex;
+            set => currentIndex = Mathf.Clamp(value, -1, items.Count - 1);
         }
 
-        public bool HasNext() => _currentIndex < _collection.Count - 1;
-        public bool HasPrevious() => _currentIndex > 0;
+        public T Current => currentIndex >= 0 && currentIndex < items.Count ? items[currentIndex] : null;
+        public bool HasSelection => currentIndex >= 0 && currentIndex < items.Count;
+        public bool IsEmpty => items.Count == 0;
 
-        public T Next()
+        public ItemCollection()
         {
-            if (HasNext()) _currentIndex++;
-            return Current;
-        }
-
-        public T Previous()
-        {
-            if (HasPrevious()) _currentIndex--;
-            return Current;
-        }
-
-        public void Reset() => _currentIndex = 0;
-
-        public void SetIndex(int index)
-        {
-            if (index >= 0 && index < _collection.Count)
-                _currentIndex = index;
-        }
-    }
-
-    /// <summary>
-    /// Generic IteratorData base class for collections
-    /// </summary>
-    [Serializable]
-    public class GenericIteratorData<T> where T : class
-    {
-        [SerializeField] protected List<T> collection = new List<T>();
-        [SerializeField] protected GenericIterator<T> currentIterator;
-
-        public List<T> Collection => collection;
-        public GenericIterator<T> CurrentIterator => currentIterator;
-        public T Current => currentIterator?.Current;
-
-        public GenericIteratorData()
-        {
-            collection = new List<T>();
+            items = new List<T>();
         }
 
         public virtual void Initialize()
         {
-            if (collection.Count > 0)
-                currentIterator = new GenericIterator<T>(collection, 0);
+            if (items.Count > 0 && currentIndex < 0)
+                currentIndex = 0;
         }
 
-        public void AddItem(T item) => collection.Add(item);
-        public bool RemoveItem(T item) => collection.Remove(item);
-        public void Clear() { collection.Clear(); currentIterator = null; }
+        public void Add(T item) => items.Add(item);
+        public bool Remove(T item) => items.Remove(item);
+        public void Clear() { items.Clear(); currentIndex = -1; }
 
-        public virtual T Next()
+        public T GetAt(int index)
         {
-            if (currentIterator == null) Initialize();
-            return currentIterator?.Next();
+            return index >= 0 && index < items.Count ? items[index] : null;
         }
 
-        public virtual T Previous()
+        public bool SetIndex(int index)
         {
-            if (currentIterator == null) Initialize();
-            return currentIterator?.Previous();
+            if (index >= 0 && index < items.Count)
+            {
+                currentIndex = index;
+                return true;
+            }
+            return false;
         }
 
-        public virtual T First()
+        public bool MoveNext()
         {
-            if (currentIterator == null) Initialize();
-            currentIterator?.Reset();
-            return Current;
+            if (currentIndex < items.Count - 1)
+            {
+                currentIndex++;
+                return true;
+            }
+            return false;
         }
 
-        public virtual T Last()
+        public bool MovePrevious()
         {
-            if (currentIterator == null) Initialize();
-            if (collection.Count > 0) currentIterator?.SetIndex(collection.Count - 1);
-            return Current;
+            if (currentIndex > 0)
+            {
+                currentIndex--;
+                return true;
+            }
+            return false;
         }
 
-        public int GetCurrentIndex() => currentIterator?.CurrentIndex ?? -1;
-        public int GetTotalIterations() => collection.Count;
-        public bool IsEmpty() => collection.Count == 0;
-        public bool HasNext() => currentIterator?.HasNext() ?? false;
-        public bool HasPrevious() => currentIterator?.HasPrevious() ?? false;
+        public bool MoveFirst()
+        {
+            if (items.Count > 0)
+            {
+                currentIndex = 0;
+                return true;
+            }
+            return false;
+        }
+
+        public bool MoveLast()
+        {
+            if (items.Count > 0)
+            {
+                currentIndex = items.Count - 1;
+                return true;
+            }
+            return false;
+        }
+
+        // Convenience methods returning T (for API compatibility)
+        public T Next() => MoveNext() ? Current : null;
+        public T Previous() => MovePrevious() ? Current : null;
+        public T First() => MoveFirst() ? Current : null;
+        public T Last() => MoveLast() ? Current : null;
+
+        // Query methods
+        public int GetTotalIterations() => items.Count;
+        public bool HasNext() => currentIndex < items.Count - 1;
+        public bool HasPrevious() => currentIndex > 0;
+        public int GetCurrentIndex() => currentIndex;
     }
 }

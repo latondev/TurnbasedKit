@@ -27,7 +27,7 @@ namespace GameSystems.Equipment
         }
 
         public EquipmentIteratorData EquipmentData => equipmentData;
-        public EquipmentItem CurrentItem => equipmentData.CurrentIterator?.Current;
+        public EquipmentItem CurrentItem => equipmentData.Current;
         public int PlayerLevel => playerLevel;
         public Dictionary<string, EquipmentSet> EquipmentSets => equipmentSets;
 
@@ -38,7 +38,7 @@ namespace GameSystems.Equipment
 
         void Start()
         {
-            if (equipmentData.Collection.Count == 0)
+            if (equipmentData.Items.Count == 0)
             {
                 SetupExampleEquipment();
             }
@@ -69,7 +69,7 @@ namespace GameSystems.Equipment
             );
             dragonSword.SetStats(atk: 100, critDmg: 0.5f);
             dragonSword.SetEquipmentSet("Dragon's Fury", 1);
-            equipmentData.AddItem(dragonSword);
+            equipmentData.Add(dragonSword);
 
             var dragonHelmet = new EquipmentItem(
                 "helmet_dragon",
@@ -81,7 +81,7 @@ namespace GameSystems.Equipment
             );
             dragonHelmet.SetStats(def: 50, hp: 200);
             dragonHelmet.SetEquipmentSet("Dragon's Fury", 2);
-            equipmentData.AddItem(dragonHelmet);
+            equipmentData.Add(dragonHelmet);
 
             var dragonArmor = new EquipmentItem(
                 "armor_dragon",
@@ -93,7 +93,7 @@ namespace GameSystems.Equipment
             );
             dragonArmor.SetStats(def: 80, hp: 300);
             dragonArmor.SetEquipmentSet("Dragon's Fury", 3);
-            equipmentData.AddItem(dragonArmor);
+            equipmentData.Add(dragonArmor);
 
             // Knight Set - Epic
             var knightSword = new EquipmentItem(
@@ -106,7 +106,7 @@ namespace GameSystems.Equipment
             );
             knightSword.SetStats(atk: 60, critRate: 0.1f);
             knightSword.SetEquipmentSet("Knight's Honor", 1);
-            equipmentData.AddItem(knightSword);
+            equipmentData.Add(knightSword);
 
             var knightShield = new EquipmentItem(
                 "armor_knight_shield",
@@ -118,7 +118,7 @@ namespace GameSystems.Equipment
             );
             knightShield.SetStats(def: 60, hp: 150);
             knightShield.SetEquipmentSet("Knight's Honor", 2);
-            equipmentData.AddItem(knightShield);
+            equipmentData.Add(knightShield);
 
             // Assassin Set - Rare
             var assassinDagger = new EquipmentItem(
@@ -131,7 +131,7 @@ namespace GameSystems.Equipment
             );
             assassinDagger.SetStats(atk: 40, critRate: 0.25f, spd: 20);
             assassinDagger.SetEquipmentSet("Shadow Strike", 1);
-            equipmentData.AddItem(assassinDagger);
+            equipmentData.Add(assassinDagger);
 
             // Accessories
             var powerRing = new EquipmentItem(
@@ -143,7 +143,7 @@ namespace GameSystems.Equipment
                 5
             );
             powerRing.SetStats(atk: 30, critRate: 0.15f);
-            equipmentData.AddItem(powerRing);
+            equipmentData.Add(powerRing);
 
             var lifeNecklace = new EquipmentItem(
                 "necklace_life",
@@ -154,7 +154,7 @@ namespace GameSystems.Equipment
                 4
             );
             lifeNecklace.SetStats(hp: 150, def: 20);
-            equipmentData.AddItem(lifeNecklace);
+            equipmentData.Add(lifeNecklace);
 
             // Common items
             var ironSword = new EquipmentItem(
@@ -166,7 +166,7 @@ namespace GameSystems.Equipment
                 1
             );
             ironSword.SetStats(atk: 15);
-            equipmentData.AddItem(ironSword);
+            equipmentData.Add(ironSword);
 
             var leatherArmor = new EquipmentItem(
                 "armor_leather",
@@ -177,7 +177,7 @@ namespace GameSystems.Equipment
                 1
             );
             leatherArmor.SetStats(def: 10, hp: 50);
-            equipmentData.AddItem(leatherArmor);
+            equipmentData.Add(leatherArmor);
         }
 
         private void SetupEquipmentSets()
@@ -448,8 +448,8 @@ namespace GameSystems.Equipment
 
         private void UpdateRuntimeInfo()
         {
-            currentIndex = equipmentData.GetCurrentIndex();
-            totalIterations = equipmentData.GetTotalIterations();
+            currentIndex = equipmentData.CurrentIndex;
+            totalIterations = equipmentData.Items.Count;
             
             int totalPower = 0;
             foreach (var item in equipmentData.GetEquippedItems())
@@ -465,7 +465,7 @@ namespace GameSystems.Equipment
             Debug.Log($"<color=yellow>⚔️ {controllerName} ⚔️</color>");
             Debug.Log("<color=cyan>═══════════════════════════════════════</color>");
             Debug.Log($"Player Level: {playerLevel}");
-            Debug.Log($"Total Equipment: {equipmentData.Collection.Count}");
+            Debug.Log($"Total Equipment: {equipmentData.Items.Count}");
             Debug.Log($"Equipped: {equipmentData.GetEquippedItems().Count}");
             Debug.Log($"Total Power Score: {totalPowerScore}");
             

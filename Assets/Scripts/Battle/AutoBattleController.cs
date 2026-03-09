@@ -5,6 +5,7 @@ using System.Linq;
 using UnityEngine;
 using GameSystems.Common;
 using GameSystems.Skills;
+using GameSystems.Stats;
 
 namespace GameSystems.AutoBattle
 {
@@ -206,7 +207,7 @@ namespace GameSystems.AutoBattle
         }
 
         /// <summary>
-        /// Initializes battle - applies player stats from Equipment + Formation + Pet
+        /// Initializes battle - applies player stats from Equipment + Formation + Pet using StatsSystem
         /// </summary>
         private void InitializeBattle()
         {
@@ -218,33 +219,23 @@ namespace GameSystems.AutoBattle
 
                 foreach (var unit in playerUnits)
                 {
-                    unit.ApplyPlayerStats(playerStats);
+                    // Apply stats using new method
+                    ApplyPlayerStatsToUnit(unit, playerStats);
                 }
 
                 // Enemies get a base stat bonus (optional)
-                var enemyStats = new PlayerStats();
-                enemyStats.BaseAttack = 50;
-                enemyStats.BaseDefense = 20;
-                enemyStats.BaseHealth = 1000;
-                enemyStats.BaseSpeed = 60;
-
-                foreach (var unit in enemyUnits)
-                {
-                    unit.ApplyPlayerStats(enemyStats);
-                }
+                ApplyEnemyBaseStats();
             }
 
             // Reset all units
             foreach (var unit in playerUnits)
             {
                 unit.Reset();
-                unit.CalculateFinalStats();
             }
 
             foreach (var unit in enemyUnits)
             {
                 unit.Reset();
-                unit.CalculateFinalStats();
             }
 
             // Setup turn order based on speed
@@ -263,6 +254,69 @@ namespace GameSystems.AutoBattle
             {
                 var u = playerUnits[0];
                 LogDebug($"Player stats: HP:{u.MaxHP} ATK:{u.FinalAttack} DEF:{u.FinalDefense} SPD:{u.FinalSpeed}");
+            }
+        }
+
+        /// <summary>
+        /// Apply PlayerStats to BattleUnit using StatsSystem
+        /// </summary>
+        private void ApplyPlayerStatsToUnit(BattleUnit unit, PlayerStats stats)
+        {
+            var statCtrl = unit.StatController;
+
+            var hp = statCtrl.GetStat("hp");
+            var atk = statCtrl.GetStat("attack");
+            var def = statCtrl.GetStat("defense");
+            var spd = statCtrl.GetStat("speed");
+            var critRate = statCtrl.GetStat("critical_rate");
+            var critDmg = statCtrl.GetStat("critical_damage");
+
+            if (hp != null)
+            {
+                hp.IncreaseMax(stats.BaseHealth);
+            }
+            if (atk != null)
+            {
+                atk.ModifiableValue.InitialValue = Mathf.RoundToInt(atk.ModifiableValue.InitialValue * stats.AttackMultiplier);
+            }
+            if (def != null)
+            {
+                def.ModifiableValue.InitialValue = Mathf.RoundToInt(def.ModifiableValue.InitialValue * stats.DefenseMultiplier);
+            }
+            if (spd != null)
+            {
+                spd.ModifiableValue.InitialValue = Mathf.RoundToInt(spd.ModifiableValue.InitialValue * stats.SpeedMultiplier);
+            }
+            if (critRate != null)
+            {
+                critRate.ModifiableValue.InitialValue = stats.BaseCritRate * 100f * stats.CritRateMultiplier;
+            }
+            if (critDmg != null)
+            {
+                critDmg.ModifiableValue.InitialValue = stats.BaseCritDamage * 100f;
+            }
+
+            LogDebug($"Applied stats to {unit.UnitName}: HP:{unit.MaxHP} ATK:{unit.FinalAttack}");
+        }
+
+        /// <summary>
+        /// Apply base stats to enemy units
+        /// </summary>
+        private void ApplyEnemyBaseStats()
+        {
+            foreach (var unit in enemyUnits)
+            {
+                var statCtrl = unit.StatController;
+
+                var hp = statCtrl.GetStat("hp");
+                var atk = statCtrl.GetStat("attack");
+                var def = statCtrl.GetStat("defense");
+                var spd = statCtrl.GetStat("speed");
+
+                if (hp != null) hp.IncreaseMax(1000 - hp.BaseValue);
+                if (atk != null) atk.ModifiableValue.InitialValue = 50;
+                if (def != null) def.ModifiableValue.InitialValue = 20;
+                if (spd != null) spd.ModifiableValue.InitialValue = 60;
             }
         }
 

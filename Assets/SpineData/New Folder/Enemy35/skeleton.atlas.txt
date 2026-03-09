@@ -1,0 +1,90 @@
+
+skeleton.png
+size: 256,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+Layer 1
+  rotate: true
+  xy: 73, 214
+  size: 37, 44
+  orig: 37, 44
+  offset: 0, 0
+  index: -1
+Layer 2
+  rotate: true
+  xy: 119, 214
+  size: 37, 44
+  orig: 37, 44
+  offset: 0, 0
+  index: -1
+Layer 3
+  rotate: true
+  xy: 120, 26
+  size: 135, 131
+  orig: 135, 131
+  offset: 0, 0
+  index: -1
+Layer 4
+  rotate: false
+  xy: 2, 97
+  size: 116, 67
+  orig: 116, 67
+  offset: 0, 0
+  index: -1
+baozha_0002
+  rotate: false
+  xy: 206, 211
+  size: 42, 40
+  orig: 42, 40
+  offset: 0, 0
+  index: -1
+baozha_0003
+  rotate: false
+  xy: 2, 190
+  size: 44, 42
+  orig: 44, 42
+  offset: 0, 0
+  index: -1
+baozha_0005
+  rotate: false
+  xy: 104, 166
+  size: 54, 46
+  orig: 54, 46
+  offset: 0, 0
+  index: -1
+baozha_0007
+  rotate: false
+  xy: 48, 167
+  size: 54, 45
+  orig: 54, 45
+  offset: 0, 0
+  index: -1
+baozha_0009
+  rotate: false
+  xy: 160, 163
+  size: 57, 46
+  orig: 57, 46
+  offset: 0, 0
+  index: -1
+baozha_0012
+  rotate: true
+  xy: 165, 214
+  size: 37, 39
+  orig: 37, 39
+  offset: 0, 0
+  index: -1
+baozha_0013
+  rotate: false
+  xy: 2, 238
+  size: 37, 13
+  orig: 37, 13
+  offset: 0, 0
+  index: -1
+bong
+  rotate: false
+  xy: 41, 234
+  size: 30, 17
+  orig: 30, 17
+  offset: 0, 0
+  index: -1

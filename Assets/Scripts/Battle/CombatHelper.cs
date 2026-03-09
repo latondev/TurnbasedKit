@@ -132,7 +132,7 @@ namespace GameSystems.Battle
             float dmgBonus = 0;
             if (skillBasic.bonusDmg != null)
             {
-                dmgBonus = skillBasic.bonusDmg.percentBonusDamage * (main.Stat != null ? main.Stat.atk : 0);
+                dmgBonus = skillBasic.bonusDmg.percentBonusDamage * main.Atk;
             }
 
             foreach (var item in randomTargets)
@@ -171,7 +171,7 @@ namespace GameSystems.Battle
             float dmgBonus = 0;
             if (skillUltimate.bonusDmg != null)
             {
-                dmgBonus = skillUltimate.bonusDmg.percentBonusDamage * (main.Stat != null ? main.Stat.atk : 0);
+                dmgBonus = skillUltimate.bonusDmg.percentBonusDamage * main.Atk;
             }
 
             foreach (var item in randomTargets)
@@ -202,13 +202,14 @@ namespace GameSystems.Battle
 
         float GetDmg(CharacterTurnbase main, CharacterTurnbase target, float dmgBonus = 0)
         {
-            if (main == null || main.Stat == null || target == null || target.Stat == null)
+            if (main == null || target == null)
             {
                 return 0;
             }
 
-            float atk = main.Stat.atk + dmgBonus;
-            float def = target.Stat.pdef;
+            // Use new stats properties from StatsSystem
+            float atk = main.Atk + dmgBonus;
+            float def = target.Def;
 
             // Simple damage formula
             float dmg = Mathf.Abs(def - atk);

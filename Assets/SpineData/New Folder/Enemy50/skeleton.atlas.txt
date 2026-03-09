@@ -1,0 +1,104 @@
+
+skeleton.png
+size: 512,512
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+Layer 1
+  rotate: true
+  xy: 248, 340
+  size: 72, 61
+  orig: 72, 61
+  offset: 0, 0
+  index: -1
+Layer 110 copy
+  rotate: true
+  xy: 248, 340
+  size: 72, 61
+  orig: 72, 61
+  offset: 0, 0
+  index: -1
+Layer 2
+  rotate: true
+  xy: 400, 280
+  size: 50, 57
+  orig: 50, 57
+  offset: 0, 0
+  index: -1
+Layer 109 copy
+  rotate: true
+  xy: 400, 280
+  size: 50, 57
+  orig: 50, 57
+  offset: 0, 0
+  index: -1
+Layer 3
+  rotate: false
+  xy: 248, 414
+  size: 118, 91
+  orig: 118, 91
+  offset: 0, 0
+  index: -1
+Layer 4
+  rotate: true
+  xy: 384, 120
+  size: 90, 108
+  orig: 90, 108
+  offset: 0, 0
+  index: -1
+Layer 5
+  rotate: false
+  xy: 2, 194
+  size: 244, 311
+  orig: 244, 311
+  offset: 0, 0
+  index: -1
+Layer 6
+  rotate: false
+  xy: 459, 263
+  size: 35, 67
+  orig: 35, 67
+  offset: 0, 0
+  index: -1
+Layer 107 copy
+  rotate: false
+  xy: 459, 263
+  size: 35, 67
+  orig: 35, 67
+  offset: 0, 0
+  index: -1
+Layer 7
+  rotate: false
+  xy: 2, 2
+  size: 223, 190
+  orig: 223, 190
+  offset: 0, 0
+  index: -1
+Layer 8
+  rotate: true
+  xy: 248, 212
+  size: 118, 150
+  orig: 118, 150
+  offset: 0, 0
+  index: -1
+Layer 9
+  rotate: false
+  xy: 227, 8
+  size: 155, 184
+  orig: 155, 184
+  offset: 0, 0
+  index: -1
+Vuot_cao
+  rotate: false
+  xy: 384, 332
+  size: 103, 173
+  orig: 103, 173
+  offset: 0, 0
+  index: -1
+bong
+  rotate: true
+  xy: 311, 336
+  size: 76, 41
+  orig: 76, 41
+  offset: 0, 0
+  index: -1
