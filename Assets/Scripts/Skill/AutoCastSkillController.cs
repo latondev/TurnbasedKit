@@ -94,15 +94,10 @@ namespace GameSystems.Skills
         {
             var collection = skillController.SkillData.Items;
             int index = collection.IndexOf(skill);
-            
+
             if (index < 0) return;
-            
-            skillController.First();
-            for (int i = 0; i < index; i++)
-            {
-                skillController.Next();
-            }
-            
+
+            skillController.SkillData.CurrentIndex = index;
             skillController.CastCurrentSkill();
         }
 

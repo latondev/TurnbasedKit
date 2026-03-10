@@ -6,7 +6,7 @@ using UnityEngine;
 namespace GameSystems.Common
 {
     /// <summary>
-    /// Simple collection wrapper with index-based access.
+    /// Simple collection wrapper with direct index access.
     /// Replaces cumbersome Iterator Pattern for random-access lists.
     /// </summary>
     [Serializable]
@@ -56,57 +56,5 @@ namespace GameSystems.Common
             }
             return false;
         }
-
-        public bool MoveNext()
-        {
-            if (currentIndex < items.Count - 1)
-            {
-                currentIndex++;
-                return true;
-            }
-            return false;
-        }
-
-        public bool MovePrevious()
-        {
-            if (currentIndex > 0)
-            {
-                currentIndex--;
-                return true;
-            }
-            return false;
-        }
-
-        public bool MoveFirst()
-        {
-            if (items.Count > 0)
-            {
-                currentIndex = 0;
-                return true;
-            }
-            return false;
-        }
-
-        public bool MoveLast()
-        {
-            if (items.Count > 0)
-            {
-                currentIndex = items.Count - 1;
-                return true;
-            }
-            return false;
-        }
-
-        // Convenience methods returning T (for API compatibility)
-        public T Next() => MoveNext() ? Current : null;
-        public T Previous() => MovePrevious() ? Current : null;
-        public T First() => MoveFirst() ? Current : null;
-        public T Last() => MoveLast() ? Current : null;
-
-        // Query methods
-        public int GetTotalIterations() => items.Count;
-        public bool HasNext() => currentIndex < items.Count - 1;
-        public bool HasPrevious() => currentIndex > 0;
-        public int GetCurrentIndex() => currentIndex;
     }
 }

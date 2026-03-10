@@ -13,86 +13,53 @@ namespace GameSystems.Inventory
     public class InventoryIteratorData : ItemCollection<Item>
     {
         /// <summary>
-        /// Gets next item of specific type
+        /// Gets next item of specific type (circular search from current)
         /// </summary>
         public Item NextOfType(ItemType type)
         {
             if (IsEmpty) return null;
 
-            int startIndex = CurrentIndex;
-            int loopCount = 0;
-            int maxLoops = Items.Count;
-
-            while (loopCount < maxLoops)
+            for (int i = 1; i <= Items.Count; i++)
             {
-                if (MoveNext())
-                {
-                    Item item = Current;
-                    if (item != null && item.ItemType == type)
-                        return item;
-
-                    if (CurrentIndex == startIndex)
-                        break;
-                }
-                loopCount++;
+                int checkIndex = (CurrentIndex + i) % Items.Count;
+                var item = Items[checkIndex];
+                if (item != null && item.ItemType == type)
+                    return item;
             }
-
             return null;
         }
 
         /// <summary>
-        /// Gets next consumable item
+        /// Gets next consumable item (circular search from current)
         /// </summary>
         public Item NextConsumable()
         {
             if (IsEmpty) return null;
 
-            int startIndex = CurrentIndex;
-            int loopCount = 0;
-            int maxLoops = Items.Count;
-
-            while (loopCount < maxLoops)
+            for (int i = 1; i <= Items.Count; i++)
             {
-                if (MoveNext())
-                {
-                    Item item = Current;
-                    if (item != null && item.IsConsumable && item.Quantity > 0)
-                        return item;
-
-                    if (CurrentIndex == startIndex)
-                        break;
-                }
-                loopCount++;
+                int checkIndex = (CurrentIndex + i) % Items.Count;
+                var item = Items[checkIndex];
+                if (item != null && item.IsConsumable && item.Quantity > 0)
+                    return item;
             }
-
             return null;
         }
 
         /// <summary>
-        /// Gets next equipped item
+        /// Gets next equipped item (circular search from current)
         /// </summary>
         public Item NextEquipped()
         {
             if (IsEmpty) return null;
 
-            int startIndex = CurrentIndex;
-            int loopCount = 0;
-            int maxLoops = Items.Count;
-
-            while (loopCount < maxLoops)
+            for (int i = 1; i <= Items.Count; i++)
             {
-                if (MoveNext())
-                {
-                    Item item = Current;
-                    if (item != null && item.IsEquipped)
-                        return item;
-
-                    if (CurrentIndex == startIndex)
-                        break;
-                }
-                loopCount++;
+                int checkIndex = (CurrentIndex + i) % Items.Count;
+                var item = Items[checkIndex];
+                if (item != null && item.IsEquipped)
+                    return item;
             }
-
             return null;
         }
 
@@ -151,6 +118,24 @@ namespace GameSystems.Inventory
         public void SortByType()
         {
             Items.Sort((a, b) => a.ItemType.CompareTo(b.ItemType));
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sorts inventory by rarity
+        /// </summary>
+        public void SortByRarity()
+        {
+            Items.Sort((a, b) => b.Rarity.CompareTo(a.Rarity));
+            Initialize();
+        }
+
+        /// <summary>
+        /// Sorts inventory by value
+        /// </summary>
+        public void SortByValue()
+        {
+            Items.Sort((a, b) => (b.Value * b.Quantity).CompareTo(a.Value * a.Quantity));
             Initialize();
         }
     }

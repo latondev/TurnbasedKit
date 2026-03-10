@@ -653,7 +653,7 @@ public class SkillControllerEditor : Editor
             return;
         }
 
-        int currentIndex = controller.SkillData.GetCurrentIndex();
+        int currentIndex = controller.SkillData.CurrentIndex;
 
         // Filter skills
         var displaySkills = controller.SkillData.Items.AsEnumerable();

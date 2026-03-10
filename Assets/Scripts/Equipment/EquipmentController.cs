@@ -220,28 +220,38 @@ namespace GameSystems.Equipment
 
         public void Next()
         {
-            EquipmentItem item = equipmentData.Next();
+            if (equipmentData.CurrentIndex < equipmentData.Items.Count - 1)
+                equipmentData.CurrentIndex++;
+            else
+                equipmentData.CurrentIndex = 0;
+            var item = equipmentData.Current;
             UpdateRuntimeInfo();
             LogDebug($"→ {item}");
         }
 
         public void Previous()
         {
-            EquipmentItem item = equipmentData.Previous();
+            if (equipmentData.CurrentIndex > 0)
+                equipmentData.CurrentIndex--;
+            else
+                equipmentData.CurrentIndex = equipmentData.Items.Count - 1;
+            var item = equipmentData.Current;
             UpdateRuntimeInfo();
             LogDebug($"← {item}");
         }
 
         public void First()
         {
-            EquipmentItem item = equipmentData.First();
+            equipmentData.CurrentIndex = 0;
+            var item = equipmentData.Current;
             UpdateRuntimeInfo();
             LogDebug($"⏮ {item}");
         }
 
         public void Last()
         {
-            EquipmentItem item = equipmentData.Last();
+            equipmentData.CurrentIndex = equipmentData.Items.Count - 1;
+            var item = equipmentData.Current;
             UpdateRuntimeInfo();
             LogDebug($"⏭ {item}");
         }

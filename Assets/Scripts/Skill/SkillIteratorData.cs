@@ -13,86 +13,54 @@ namespace GameSystems.Skills
     public class SkillIteratorData : ItemCollection<SkillData>
     {
         /// <summary>
-        /// Gets next unlocked skill
+        /// Gets next unlocked skill (circular search from current)
         /// </summary>
         public SkillData NextUnlocked()
         {
             if (IsEmpty) return null;
 
-            int startIndex = CurrentIndex;
-            int loopCount = 0;
-            int maxLoops = Items.Count;
-
-            while (loopCount < maxLoops)
+            // Search circularly starting from next index
+            for (int i = 1; i <= Items.Count; i++)
             {
-                if (MoveNext())
-                {
-                    SkillData skill = Current;
-                    if (skill != null && skill.IsUnlocked)
-                        return skill;
-
-                    if (CurrentIndex == startIndex)
-                        break;
-                }
-                loopCount++;
+                int checkIndex = (CurrentIndex + i) % Items.Count;
+                var skill = Items[checkIndex];
+                if (skill != null && skill.IsUnlocked)
+                    return skill;
             }
-
             return null;
         }
 
         /// <summary>
-        /// Gets next skill ready to cast
+        /// Gets next skill ready to cast (circular search from current)
         /// </summary>
         public SkillData NextReady(int currentMana)
         {
             if (IsEmpty) return null;
 
-            int startIndex = CurrentIndex;
-            int loopCount = 0;
-            int maxLoops = Items.Count;
-
-            while (loopCount < maxLoops)
+            for (int i = 1; i <= Items.Count; i++)
             {
-                if (MoveNext())
-                {
-                    SkillData skill = Current;
-                    if (skill != null && skill.CanCast(currentMana))
-                        return skill;
-
-                    if (CurrentIndex == startIndex)
-                        break;
-                }
-                loopCount++;
+                int checkIndex = (CurrentIndex + i) % Items.Count;
+                var skill = Items[checkIndex];
+                if (skill != null && skill.CanCast(currentMana))
+                    return skill;
             }
-
             return null;
         }
 
         /// <summary>
-        /// Gets next skill of category
+        /// Gets next skill of category (circular search from current)
         /// </summary>
         public SkillData NextOfCategory(SkillCategory category)
         {
             if (IsEmpty) return null;
 
-            int startIndex = CurrentIndex;
-            int loopCount = 0;
-            int maxLoops = Items.Count;
-
-            while (loopCount < maxLoops)
+            for (int i = 1; i <= Items.Count; i++)
             {
-                if (MoveNext())
-                {
-                    SkillData skill = Current;
-                    if (skill != null && skill.Category == category)
-                        return skill;
-
-                    if (CurrentIndex == startIndex)
-                        break;
-                }
-                loopCount++;
+                int checkIndex = (CurrentIndex + i) % Items.Count;
+                var skill = Items[checkIndex];
+                if (skill != null && skill.Category == category)
+                    return skill;
             }
-
             return null;
         }
 
