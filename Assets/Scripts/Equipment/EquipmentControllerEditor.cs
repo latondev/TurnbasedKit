@@ -897,7 +897,7 @@ public class EquipmentControllerEditor : Editor
             return;
         }
 
-        int currentIndex = controller.EquipmentData.GetCurrentIndex();
+        int currentIndex = controller.EquipmentData.CurrentIndex;
 
         var displayItems = controller.EquipmentData.Items.AsEnumerable();
         

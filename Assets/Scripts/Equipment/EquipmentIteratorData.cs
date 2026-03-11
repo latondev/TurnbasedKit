@@ -13,86 +13,53 @@ namespace GameSystems.Equipment
     public class EquipmentIteratorData : ItemCollection<EquipmentItem>
     {
         /// <summary>
-        /// Gets next equipped item
+        /// Gets next equipped item (circular search from current)
         /// </summary>
         public EquipmentItem NextEquipped()
         {
             if (IsEmpty) return null;
 
-            int startIndex = CurrentIndex;
-            int loopCount = 0;
-            int maxLoops = Items.Count;
-
-            while (loopCount < maxLoops)
+            for (int i = 1; i <= Items.Count; i++)
             {
-                if (MoveNext())
-                {
-                    EquipmentItem item = Current;
-                    if (item != null && item.IsEquipped)
-                        return item;
-
-                    if (CurrentIndex == startIndex)
-                        break;
-                }
-                loopCount++;
+                int checkIndex = (CurrentIndex + i) % Items.Count;
+                var item = Items[checkIndex];
+                if (item != null && item.IsEquipped)
+                    return item;
             }
-
             return null;
         }
 
         /// <summary>
-        /// Gets next item by slot
+        /// Gets next item by slot (circular search from current)
         /// </summary>
         public EquipmentItem NextOfSlot(EquipmentSlot slot)
         {
             if (IsEmpty) return null;
 
-            int startIndex = CurrentIndex;
-            int loopCount = 0;
-            int maxLoops = Items.Count;
-
-            while (loopCount < maxLoops)
+            for (int i = 1; i <= Items.Count; i++)
             {
-                if (MoveNext())
-                {
-                    EquipmentItem item = Current;
-                    if (item != null && item.Slot == slot)
-                        return item;
-
-                    if (CurrentIndex == startIndex)
-                        break;
-                }
-                loopCount++;
+                int checkIndex = (CurrentIndex + i) % Items.Count;
+                var item = Items[checkIndex];
+                if (item != null && item.Slot == slot)
+                    return item;
             }
-
             return null;
         }
 
         /// <summary>
-        /// Gets next item by rarity
+        /// Gets next item by rarity (circular search from current)
         /// </summary>
         public EquipmentItem NextOfRarity(EquipmentRarity rarity)
         {
             if (IsEmpty) return null;
 
-            int startIndex = CurrentIndex;
-            int loopCount = 0;
-            int maxLoops = Items.Count;
-
-            while (loopCount < maxLoops)
+            for (int i = 1; i <= Items.Count; i++)
             {
-                if (MoveNext())
-                {
-                    EquipmentItem item = Current;
-                    if (item != null && item.Rarity == rarity)
-                        return item;
-
-                    if (CurrentIndex == startIndex)
-                        break;
-                }
-                loopCount++;
+                int checkIndex = (CurrentIndex + i) % Items.Count;
+                var item = Items[checkIndex];
+                if (item != null && item.Rarity == rarity)
+                    return item;
             }
-
             return null;
         }
 

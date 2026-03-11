@@ -131,28 +131,38 @@ namespace GameSystems.Skills
 
         public void Next()
         {
-            SkillData skill = skillData.Next();
+            if (skillData.CurrentIndex < skillData.Items.Count - 1)
+                skillData.CurrentIndex++;
+            else
+                skillData.CurrentIndex = 0;
+            var skill = skillData.Current;
             UpdateRuntimeInfo();
             LogDebug($"→ {skill}");
         }
 
         public void Previous()
         {
-            SkillData skill = skillData.Previous();
+            if (skillData.CurrentIndex > 0)
+                skillData.CurrentIndex--;
+            else
+                skillData.CurrentIndex = skillData.Items.Count - 1;
+            var skill = skillData.Current;
             UpdateRuntimeInfo();
             LogDebug($"← {skill}");
         }
 
         public void First()
         {
-            SkillData skill = skillData.First();
+            skillData.CurrentIndex = 0;
+            var skill = skillData.Current;
             UpdateRuntimeInfo();
             LogDebug($"⏮ {skill}");
         }
 
         public void Last()
         {
-            SkillData skill = skillData.Last();
+            skillData.CurrentIndex = skillData.Items.Count - 1;
+            var skill = skillData.Current;
             UpdateRuntimeInfo();
             LogDebug($"⏭ {skill}");
         }

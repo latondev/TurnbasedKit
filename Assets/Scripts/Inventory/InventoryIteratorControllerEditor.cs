@@ -204,7 +204,7 @@ public class InventoryIteratorControllerEditor : Editor
         // Iterations
         EditorGUILayout.BeginHorizontal();
         EditorGUILayout.LabelField("🔁 Iterations:", GUILayout.Width(140));
-        EditorGUILayout.LabelField(controller.InventoryData.GetTotalIterations().ToString(), EditorStyles.boldLabel);
+        EditorGUILayout.LabelField(controller.InventoryData.Items.Count.ToString(), EditorStyles.boldLabel);
         EditorGUILayout.EndHorizontal();
 
         // Item counts by type
@@ -440,7 +440,7 @@ public class InventoryIteratorControllerEditor : Editor
             return;
         }
 
-        int currentIndex = controller.InventoryData.GetCurrentIndex();
+        int currentIndex = controller.InventoryData.CurrentIndex;
 
         inventoryScrollPos = EditorGUILayout.BeginScrollView(inventoryScrollPos, GUILayout.MaxHeight(400));
 

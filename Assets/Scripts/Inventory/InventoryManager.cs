@@ -69,7 +69,7 @@ namespace GameSystems.Inventory
             );
             newItem.AddQuantity(quantity - 1);
 
-            inventory.Add(newItem);
+            inventory.AddItem(newItem);
             OnItemPurchased?.Invoke(newItem);
 
             LogDebug($"<color=green>Bought:</color> {item.ItemName} x{quantity} for {totalCost} gold");
@@ -207,7 +207,7 @@ namespace GameSystems.Inventory
         /// </summary>
         public void AddItem(Item item)
         {
-            inventory.Add(item);
+            inventory.AddItem(item);
         }
 
         /// <summary>

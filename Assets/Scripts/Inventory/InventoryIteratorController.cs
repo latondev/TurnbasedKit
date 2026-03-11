@@ -7,6 +7,7 @@ namespace GameSystems.Inventory
     /// </summary>
     public class InventoryIteratorController : MonoBehaviour
     {
+        
         [SerializeField] private string inventoryName = "Player Inventory";
         [SerializeField] private bool debugMode = true;
         [SerializeField] private int maxSlots = 30;
@@ -116,28 +117,38 @@ namespace GameSystems.Inventory
 
         public void Next()
         {
-            Item item = inventoryData.Next();
+            if (inventoryData.CurrentIndex < inventoryData.Items.Count - 1)
+                inventoryData.CurrentIndex++;
+            else
+                inventoryData.CurrentIndex = 0;
+            var item = inventoryData.Current;
             UpdateRuntimeInfo();
             LogDebug($"→ Next: {item}");
         }
 
         public void Previous()
         {
-            Item item = inventoryData.Previous();
+            if (inventoryData.CurrentIndex > 0)
+                inventoryData.CurrentIndex--;
+            else
+                inventoryData.CurrentIndex = inventoryData.Items.Count - 1;
+            var item = inventoryData.Current;
             UpdateRuntimeInfo();
             LogDebug($"← Previous: {item}");
         }
 
         public void First()
         {
-            Item item = inventoryData.First();
+            inventoryData.CurrentIndex = 0;
+            var item = inventoryData.Current;
             UpdateRuntimeInfo();
             LogDebug($"⏮ First: {item}");
         }
 
         public void Last()
         {
-            Item item = inventoryData.Last();
+            inventoryData.CurrentIndex = inventoryData.Items.Count - 1;
+            var item = inventoryData.Current;
             UpdateRuntimeInfo();
             LogDebug($"⏭ Last: {item}");
         }
