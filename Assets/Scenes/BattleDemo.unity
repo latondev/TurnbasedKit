@@ -128,7 +128,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 725711412}
-  - component: {fileID: 725711411}
   m_Layer: 0
   m_Name: BattleSetup
   m_TagString: Untagged
@@ -136,20 +135,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &725711411
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 725711410}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 75dedd79707c12d4b9b7d4a3c7be754f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GameSystems.Demo.BattleSceneSetup
-  setupOnStart: 1
-  createCharacterData: 1
 --- !u!4 &725711412
 Transform:
   m_ObjectHideFlags: 0
@@ -157,6 +142,59 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 725711410}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1369796114
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1369796116}
+  - component: {fileID: 1369796115}
+  m_Layer: 0
+  m_Name: CharacterManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1369796115
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1369796114}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 916f62e4750f1aa4fa5fcaf2ed61c5c8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  characters: []
+  enemies: []
+  ownerCharacters: []
+  powerConfig:
+    atkBonus: 0.1
+    hpBonus: 0.1
+    mdefBonus: 0.1
+    pdefBonus: 0.1
+    expBonus: 0.1
+--- !u!4 &1369796116
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1369796114}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -257,9 +295,158 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1788279927
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1788279931}
+  - component: {fileID: 1788279930}
+  - component: {fileID: 1788279929}
+  - component: {fileID: 1788279928}
+  m_Layer: 0
+  m_Name: Battle
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1788279928
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1788279927}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ffc1c1323767234c91c661106c9898e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  controllerName: Skill System
+  debugMode: 1
+  playerLevel: 1
+  skillData:
+    items: []
+    currentIndex: -1
+  currentMana: 100
+  maxMana: 100
+  manaRegenRate: 2
+  currentIndex: -1
+  totalIterations: 0
+  totalCasts: 0
+--- !u!114 &1788279929
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1788279927}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2961201498bfcca4abd236d70877ef08, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  equipment: {fileID: 0}
+  formation: {fileID: 0}
+  pet: {fileID: 0}
+  gameState: {fileID: 0}
+--- !u!114 &1788279930
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1788279927}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0a81b427eef238d4badadfd6b3a79ebd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  battleMode: 0
+  debugMode: 1
+  turnDelay: 1
+  battleSpeed: 1
+  maxTurns: 100
+  playerUnits: []
+  enemyUnits: []
+  statsCalculator: {fileID: 0}
+  skillController: {fileID: 0}
+  currentState: 0
+  currentTurn: 0
+  currentActiveUnit:
+    unitId: 
+    unitName: 
+    unitType: 0
+    attackRange: 0
+    isAlive: 0
+    equippedSkill:
+      skillId: 
+      skillName: 
+      description: 
+      category: 0
+      element: 0
+      currentLevel: 0
+      maxLevel: 0
+      requiredLevel: 0
+      manaCost: 0
+      isUnlocked: 0
+      baseCooldown: 0
+      currentCooldown: 0
+      isOnCooldown: 0
+      baseDamage: 0
+      damagePerLevel: 0
+      range: 0
+      maxTargets: 0
+      effectType: 0
+      effectDuration: 0
+      effectValue: 0
+      castTime: 0
+      totalCasts: 0
+      icon: {fileID: 0}
+    skillDamageMultiplier: 0
+    skillCooldown: 0
+    currentCooldown: 0
+    skillName: 
+    statController: {fileID: 0}
+    damageDealt: 0
+    damageTaken: 0
+    turnsTaken: 0
+    actionsLog: []
+  turnHistory: []
+  lastResult:
+    outcome: 0
+    totalTurns: 0
+    playerUnits: []
+    enemyUnits: []
+    turnHistory: []
+  totalBattles: 0
+  victoriesCount: 0
+  defeatsCount: 0
+  IsWaitingForVisuals: 0
+--- !u!4 &1788279931
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1788279927}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 725711412}
   - {fileID: 1559441031}
+  - {fileID: 1369796116}
+  - {fileID: 1788279931}

@@ -2455,6 +2455,13 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4958909109105354}
+  - component: {fileID: 620650698462130219}
+  - component: {fileID: 6703914952764756619}
+  - component: {fileID: 7309862787171012001}
+  - component: {fileID: 3925102175026364934}
+  - component: {fileID: 577365785051746754}
+  - component: {fileID: 4750573100925832857}
+  - component: {fileID: 8211087495896200257}
   m_Layer: 0
   m_Name: bing_yi
   m_TagString: Untagged
@@ -2485,6 +2492,179 @@ Transform:
   - {fileID: 4769521666767693}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: -0, z: -0}
+--- !u!114 &620650698462130219
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1323280155661537}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce5194becae4f4d4da78a57752bd8a94, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  animationHandle: {fileID: 0}
+--- !u!114 &6703914952764756619
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1323280155661537}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62df86ded73ec6f49a820ad90ae0e879, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  dirType: 0
+  animationHandle: {fileID: 620650698462130219}
+  moveGo: run
+  moveBack: run
+  attackRange: 0
+  offsetExcute: {x: 0, y: 0}
+  targetPosition: {x: 0, y: 0}
+  speed: 1
+  posOrigin: {x: 0, y: 0}
+  fxHit: {fileID: 0}
+  isHitEffect: 0
+  skillAnimation: skill
+  idleAnimation: idle
+  eventHit: hit
+  eventFalldown: falldown
+  skillAnimations: []
+  totalHit: 1
+--- !u!114 &7309862787171012001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1323280155661537}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 99fd8386e86b7624c9923dc18133ff40, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  behitAnimation: hit
+  dieAnimation: die
+  downAnimation: down
+  upAnimation: up
+  idleAnimation: idle
+  floatingTextPrefab: {fileID: 0}
+  animationHandle: {fileID: 620650698462130219}
+  valueHealthBar: {fileID: 0}
+  valueMpBar: {fileID: 0}
+  canvasBar: {fileID: 0}
+  maxHealth: 0
+  currentHealth: 0
+  maxMp: 0
+  currentMp: 0
+--- !u!114 &3925102175026364934
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1323280155661537}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 583a53a3592407e4c9e554a54b7c66d4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  dirType: 0
+  animationHandle: {fileID: 620650698462130219}
+  moveGo: run
+  moveBack: run
+  attackRange: 0
+  offsetExcute: {x: 0, y: 0}
+  targetPosition: {x: 0, y: 0}
+  speed: 1
+  posOrigin: {x: 0, y: 0}
+  fxHit: {fileID: 0}
+  isHitEffect: 0
+  attackAnimation: attack
+  idleAnimation: idle
+  eventHit: hit
+--- !u!114 &577365785051746754
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1323280155661537}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 80f0de3721092eb4ba187b60b6384fc8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  attackBehavior: {fileID: 0}
+  behitBehavior: {fileID: 0}
+  skillBehavior: {fileID: 0}
+  statusView: {fileID: 0}
+  animationController: {fileID: 0}
+  actionType: 0
+  isExecuteAction: 0
+  appearAnimation: appear
+  winAnimation: win
+--- !u!114 &4750573100925832857
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1323280155661537}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cdcde115a548d6e4482beb54a894a1b3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  skillBasic:
+    numberTarget: 0
+    bonusDmg:
+      dmgType: 0
+      percentBonusDamage: 0
+    percentBonusCrit: 0
+    percentBonusAccuracy: 0
+    location: 0
+    typeSkill: 0
+    actionTypeSkill: 0
+    hitEffect: []
+  skillUltimate:
+    numberTarget: 0
+    bonusDmg:
+      dmgType: 0
+      percentBonusDamage: 0
+    percentBonusCrit: 0
+    percentBonusAccuracy: 0
+    location: 0
+    typeSkill: 0
+    actionTypeSkill: 0
+    hitEffect: []
+  skillPassive:
+    numberTarget: 0
+    bonusDmg:
+      dmgType: 0
+      percentBonusDamage: 0
+    percentBonusCrit: 0
+    percentBonusAccuracy: 0
+    location: 0
+    typeSkill: 0
+    actionTypeSkill: 0
+    hitEffect: []
+--- !u!114 &8211087495896200257
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1323280155661537}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca3c84bdec69c1443b9014258b814b53, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  activeStatuses: []
 --- !u!1 &1418941338570891
 GameObject:
   m_ObjectHideFlags: 0
@@ -2590,6 +2770,7 @@ GameObject:
   - component: {fileID: 8871747311633434495}
   - component: {fileID: 5431155925952084250}
   - component: {fileID: 831821597393689764}
+  - component: {fileID: 2799984800395796437}
   m_Layer: 0
   m_Name: model
   m_TagString: Untagged
@@ -2702,3 +2883,18 @@ MonoBehaviour:
   _animationName: 
   loop: 0
   timeScale: 1
+--- !u!114 &2799984800395796437
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4220769597665041548}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: edeadd37f340828478225b0d8482c319, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  skeletonAnimation: {fileID: 831821597393689764}
+  sortingOrder: 0
+  sortingLayerName: Default
