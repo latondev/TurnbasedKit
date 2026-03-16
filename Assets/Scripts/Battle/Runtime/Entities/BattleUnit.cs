@@ -45,13 +45,13 @@ namespace GameSystems.AutoBattle
         public bool IsAlive => isAlive;
 
         // Stats from UnitStatController
-        public int CurrentHP => (int)statController.GetStatValue("hp");
-        public int MaxHP => (int)statController.GetStatMaxValue("hp");
-        public int FinalAttack => (int)statController.GetStatValue("attack");
-        public int FinalDefense => (int)statController.GetStatValue("defense");
-        public int FinalSpeed => (int)statController.GetStatValue("speed");
-        public float CritRate => statController.GetStatValue("critical_rate");
-        public float CritDamage => statController.GetStatValue("critical_damage");
+        public int CurrentHP => (int)statController.GetStatValue(StatType.Health);
+        public int MaxHP => (int)statController.GetStatMaxValue(StatType.Health);
+        public int FinalAttack => (int)statController.GetStatValue(StatType.Attack);
+        public int FinalDefense => (int)statController.GetStatValue(StatType.Defense);
+        public int FinalSpeed => (int)statController.GetStatValue(StatType.Speed);
+        public float CritRate => statController.GetStatValue(StatType.CriticalRate);
+        public float CritDamage => statController.GetStatValue(StatType.CriticalDamage);
 
         public int DamageDealt => damageDealt;
         public int DamageTaken => damageTaken;
@@ -63,8 +63,8 @@ namespace GameSystems.AutoBattle
         public SkillData EquippedSkill => equippedSkill;
 
         // Mana properties
-        public int CurrentMana => (int)statController.GetStatValue("mp");
-        public int MaxMana => (int)statController.GetStatMaxValue("mp");
+        public int CurrentMana => (int)statController.GetStatValue(StatType.Mana);
+        public int MaxMana => (int)statController.GetStatMaxValue(StatType.Mana);
         public bool HasMana => CurrentMana > 0;
 
         public UnitStatController StatController => statController;
@@ -88,7 +88,6 @@ namespace GameSystems.AutoBattle
             // Create UnitStatController for this unit
             var go = new GameObject($"StatController_{unitId}");
             this.statController = go.AddComponent<UnitStatController>();
-            statController.UnitName = unitName;
             //statController.Level = characterData.level;
 
             // Setup stats directly from CharacterDataSO.stats (StatsSystem)
@@ -133,7 +132,6 @@ namespace GameSystems.AutoBattle
             // Create UnitStatController for this unit
             var go = new GameObject($"StatController_{id}");
             this.statController = go.AddComponent<UnitStatController>();
-            statController.UnitName = name;
 
             // Setup stats using StatsSystem
             SetupStats(hp, atk, def, spd);
@@ -157,17 +155,17 @@ namespace GameSystems.AutoBattle
             stats.ClearStats();
 
             // Vital stats
-            stats.AddStat(new Stat("hp", "Health", StatType.Health, hp, hp, true, 0f));
-            stats.AddStat(new Stat("mp", "Mana", StatType.Mana, 100, 100, true, 5f));
+            stats.AddStat(new Stat(StatType.Health, hp, hp, true, 0f));
+            stats.AddStat(new Stat(StatType.Mana, 100, 100, true, 5f));
 
             // Combat stats
-            stats.AddStat(new Stat("attack", "Attack", StatType.Attack, atk));
-            stats.AddStat(new Stat("defense", "Defense", StatType.Defense, def));
-            stats.AddStat(new Stat("speed", "Speed", StatType.Speed, spd));
+            stats.AddStat(new Stat(StatType.Attack, atk));
+            stats.AddStat(new Stat(StatType.Defense, def));
+            stats.AddStat(new Stat(StatType.Speed, spd));
 
             // Critical stats
-            stats.AddStat(new Stat("critical_rate", "Critical Rate", StatType.CriticalRate, 5f));
-            stats.AddStat(new Stat("critical_damage", "Critical Damage", StatType.CriticalDamage, 150f));
+            stats.AddStat(new Stat(StatType.CriticalRate, 5f));
+            stats.AddStat(new Stat(StatType.CriticalDamage, 150f));
         }
 
         /// <summary>
@@ -175,10 +173,10 @@ namespace GameSystems.AutoBattle
         /// </summary>
         public void ApplyEquipmentBonuses(int hp, int atk, int def, int spd)
         {
-            var hpStat = statController.GetStat("hp");
-            var atkStat = statController.GetStat("attack");
-            var defStat = statController.GetStat("defense");
-            var spdStat = statController.GetStat("speed");
+            var hpStat = statController.GetStat(StatType.Health);
+            var atkStat = statController.GetStat(StatType.Attack);
+            var defStat = statController.GetStat(StatType.Defense);
+            var spdStat = statController.GetStat(StatType.Speed);
 
             if (hpStat != null) hpStat.IncreaseMax(hp);
             if (atkStat != null) atkStat.ModifiableValue.InitialValue += atk;
@@ -193,10 +191,10 @@ namespace GameSystems.AutoBattle
         /// </summary>
         public void ApplySkillBonuses(int atkBonus, int defBonus, float crit, float critDmg)
         {
-            var atkStat = statController.GetStat("attack");
-            var defStat = statController.GetStat("defense");
-            var critRateStat = statController.GetStat("critical_rate");
-            var critDmgStat = statController.GetStat("critical_damage");
+            var atkStat = statController.GetStat(StatType.Attack);
+            var defStat = statController.GetStat(StatType.Defense);
+            var critRateStat = statController.GetStat(StatType.CriticalRate);
+            var critDmgStat = statController.GetStat(StatType.CriticalDamage);
 
             if (atkStat != null) atkStat.ModifiableValue.InitialValue += atkBonus;
             if (defStat != null) defStat.ModifiableValue.InitialValue += defBonus;
@@ -267,7 +265,7 @@ namespace GameSystems.AutoBattle
             }
 
             // Deduct mana
-            statController.ModifyStat("mp", -manaCost);
+            statController.ModifyStat(StatType.Mana, -manaCost);
 
             // Use skill - set cooldown
             turnsTaken++;
@@ -305,7 +303,7 @@ namespace GameSystems.AutoBattle
         /// </summary>
         public void SetMana(int current, int max)
         {
-            var mpStat = statController.GetStat("mp");
+            var mpStat = statController.GetStat(StatType.Mana);
             if (mpStat != null)
             {
                 mpStat.IncreaseMax(max - MaxMana);
@@ -382,12 +380,12 @@ namespace GameSystems.AutoBattle
             if (!isAlive) return 0;
 
             int actualDamage = Mathf.Min(damage, CurrentHP);
-            statController.ModifyStat("hp", -actualDamage);
+            statController.ModifyStat(StatType.Health, -actualDamage);
             damageTaken += actualDamage;
 
             if (CurrentHP <= 0)
             {
-                var hpStat = statController.GetStat("hp");
+                var hpStat = statController.GetStat(StatType.Health);
                 if (hpStat != null) hpStat.SetCurrent(0);
                 isAlive = false;
                 LogAction($"<color=red>💀 {unitName} has been defeated!</color>");
@@ -404,7 +402,7 @@ namespace GameSystems.AutoBattle
             if (!isAlive) return 0;
 
             int actualHeal = Mathf.Min(amount, MaxHP - CurrentHP);
-            statController.ModifyStat("hp", amount);
+            statController.ModifyStat(StatType.Health, amount);
 
             LogAction($"<color=green>Healed for {actualHeal} HP</color>");
             return actualHeal;
@@ -444,7 +442,7 @@ namespace GameSystems.AutoBattle
         public void ApplyAttackBuff(float percentageBonus, int durationTurns)
         {
             var modifier = GameSystems.Stats.Modifier.Times(1f + percentageBonus, 0, "attack_buff");
-            statController.AddModifier("attack", modifier);
+            statController.AddModifier(StatType.Attack, modifier);
             LogAction($"Applied Attack Buff: +{percentageBonus*100}% for {durationTurns} turns");
         }
 
@@ -454,7 +452,7 @@ namespace GameSystems.AutoBattle
         public void ApplyDefenseBuff(float percentageBonus, int durationTurns)
         {
             var modifier = GameSystems.Stats.Modifier.Times(1f + percentageBonus, 0, "defense_buff");
-            statController.AddModifier("defense", modifier);
+            statController.AddModifier(StatType.Defense, modifier);
             LogAction($"Applied Defense Buff: +{percentageBonus*100}% for {durationTurns} turns");
         }
 
@@ -464,7 +462,7 @@ namespace GameSystems.AutoBattle
         public void ApplyAttackDebuff(float percentagePenalty, int durationTurns)
         {
             var modifier = GameSystems.Stats.Modifier.Times(1f - percentagePenalty, 0, "attack_debuff");
-            statController.AddModifier("attack", modifier);
+            statController.AddModifier(StatType.Attack, modifier);
             LogAction($"Applied Attack Debuff: -{percentagePenalty*100}% for {durationTurns} turns");
         }
 

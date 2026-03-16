@@ -39,8 +39,6 @@ namespace GameSystems.Battle
 
             // Clone stats for base (original values)
             statBase = new StatData(
-                "base",
-                "Base Stats",
                 StatType.Health,
                 characterDataSO.GetStatValue("hp"),
                 characterDataSO.GetStatValue("hp"),
@@ -50,8 +48,6 @@ namespace GameSystems.Battle
 
             // Clone stats for runtime (can be modified during battle)
             statRuntime = new StatData(
-                "runtime",
-                "Runtime Stats",
                 StatType.Health,
                 characterDataSO.GetStatValue("hp"),
                 characterDataSO.GetStatValue("hp"),

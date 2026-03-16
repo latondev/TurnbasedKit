@@ -13,8 +13,6 @@ namespace GameSystems.Stats
     public class StatData : ISerializationCallbackReceiver
     {
         [Header("Basic Info")]
-        [SerializeField] private string statId;
-        [SerializeField] private string statName;
         [SerializeField] private StatType statType;
 
         [Header("Values")]
@@ -29,8 +27,8 @@ namespace GameSystems.Stats
         // Runtime-only fields (not serialized)
         [NonSerialized] private Stat _runtimeStat;
 
-        public string StatId => statId;
-        public string StatName => statName;
+        public string StatId => statType.ToString().ToLower();
+        public string StatName => statType.ToString();
         public StatType StatType => statType;
         public float BaseValue
         {
@@ -50,10 +48,8 @@ namespace GameSystems.Stats
 
         public StatData() { }
 
-        public StatData(string id, string name, StatType type, float value, float maxValue = -1, bool canRegen = false, float regenRate = 0f)
+        public StatData(StatType type, float value, float maxValue = -1, bool canRegen = false, float regenRate = 0f)
         {
-            this.statId = id;
-            this.statName = name;
             this.statType = type;
             this.baseValue = value;
             this.maxValue = maxValue > 0 ? maxValue : value;
@@ -69,7 +65,7 @@ namespace GameSystems.Stats
         {
             if (_runtimeStat == null)
             {
-                _runtimeStat = new Stat(statId, statName, statType, baseValue, maxValue, canRegenerate, regenRate);
+                _runtimeStat = new Stat(statType, baseValue, maxValue, canRegenerate, regenRate);
                 _runtimeStat.SetCurrent(currentValue);
             }
             return _runtimeStat;
@@ -80,7 +76,7 @@ namespace GameSystems.Stats
         /// </summary>
         public Stat ToStatClone()
         {
-            return new Stat(statId, statName, statType, baseValue, maxValue, canRegenerate, regenRate);
+            return new Stat(statType, baseValue, maxValue, canRegenerate, regenRate);
         }
 
         #region ISerializationCallbackReceiver
@@ -118,15 +114,15 @@ namespace GameSystems.Stats
         {
             var stats = new List<StatData>
             {
-                new StatData("hp", "Health", StatType.Health, 1000f, 1000f, true, 0f),
-                new StatData("mp", "Mana", StatType.Mana, 100f, 100f, true, 5f),
-                new StatData("attack", "Attack", StatType.Attack, 100f),
-                new StatData("defense", "Defense", StatType.Defense, 50f),
-                new StatData("speed", "Speed", StatType.Speed, 50f),
-                new StatData("critical_rate", "Critical Rate", StatType.CriticalRate, 5f),
-                new StatData("critical_damage", "Critical Damage", StatType.CriticalDamage, 150f),
-                new StatData("accuracy", "Accuracy", StatType.Accuracy, 100f),
-                new StatData("evasion", "Evasion", StatType.Evasion, 5f),
+                new StatData(StatType.Health, 1000f, 1000f, true, 0f),
+                new StatData(StatType.Mana, 100f, 100f, true, 5f),
+                new StatData(StatType.Attack, 100f),
+                new StatData(StatType.Defense, 50f),
+                new StatData(StatType.Speed, 50f),
+                new StatData(StatType.CriticalRate, 5f),
+                new StatData(StatType.CriticalDamage, 150f),
+                new StatData(StatType.Accuracy, 100f),
+                new StatData(StatType.Evasion, 5f),
             };
             return stats;
         }
@@ -135,7 +131,7 @@ namespace GameSystems.Stats
 
         public override string ToString()
         {
-            return $"{statName}: {currentValue}/{maxValue}";
+            return $"{StatName}: {currentValue}/{maxValue}";
         }
     }
 }

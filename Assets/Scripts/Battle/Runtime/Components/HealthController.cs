@@ -15,13 +15,13 @@ namespace GameSystems.Battle
         [SerializeField] private UnitStatController statController;
 
         // Properties - delegate to StatsSystem
-        public float Health => statController?.GetStatValue("hp") ?? 0;
-        public float Shield => statController?.GetStatValue("shield") ?? 0;
-        public int Mana => (int)(statController?.GetStatValue("mp") ?? 0);
+        public float Health => statController?.GetStatValue(StatType.Health) ?? 0;
+        public float Shield => statController?.GetStatValue(StatType.Shield) ?? 0;
+        public int Mana => (int)(statController?.GetStatValue(StatType.Mana) ?? 0);
         public bool IsDead => statController?.IsDead() ?? false;
-        public float MaxHealth => statController?.GetStatMaxValue("hp") ?? 0;
-        public int MaxMana => (int)(statController?.GetStatMaxValue("mp") ?? 0);
-        public float MaxShield => statController?.GetStatMaxValue("shield") ?? 0;
+        public float MaxHealth => statController?.GetStatMaxValue(StatType.Health) ?? 0;
+        public int MaxMana => (int)(statController?.GetStatMaxValue(StatType.Mana) ?? 0);
+        public float MaxShield => statController?.GetStatMaxValue(StatType.Shield) ?? 0;
 
         public UnitStatController StatController => statController;
 
@@ -32,13 +32,12 @@ namespace GameSystems.Battle
                 var go = new GameObject("HealthStats");
                 go.transform.SetParent(transform);
                 statController = go.AddComponent<UnitStatController>();
-                statController.UnitName = transform.name;
             }
         }
 
         public void AddMana(int value)
         {
-            statController?.ModifyStat("mp", value);
+            statController?.ModifyStat(StatType.Mana, value);
         }
 
         public void ChangeHealth(float value)
@@ -48,11 +47,11 @@ namespace GameSystems.Battle
             // Shield absorbs damage first
             if (value < 0)
             {
-                float shield = statController.GetStatValue("shield");
+                float shield = statController.GetStatValue(StatType.Shield);
                 if (shield > 0)
                 {
                     float remainingDamage = Mathf.Abs(value);
-                    var shieldStat = statController.GetStat("shield");
+                    var shieldStat = statController.GetStat(StatType.Shield);
 
                     if (shield >= remainingDamage)
                     {
@@ -68,7 +67,7 @@ namespace GameSystems.Battle
                 }
             }
 
-            statController.ModifyStat("hp", value);
+            statController.ModifyStat(StatType.Health, value);
 
             if (IsDead)
             {
@@ -78,7 +77,7 @@ namespace GameSystems.Battle
 
         public void ResetMana()
         {
-            var mpStat = statController?.GetStat("mp");
+            var mpStat = statController?.GetStat(StatType.Mana);
             mpStat?.SetCurrent(0);
         }
 
@@ -110,9 +109,9 @@ namespace GameSystems.Battle
             var stats = statController.Stats;
             stats.ClearStats();
 
-            stats.AddStat(new Stat("hp", "Health", StatType.Health, hp, hp, true, 0f));
-            stats.AddStat(new Stat("mp", "Mana", StatType.Mana, 0, mp, true, 5f));
-            stats.AddStat(new Stat("shield", "Shield", StatType.Health, shield, shield, false, 0f));
+            stats.AddStat(new Stat(StatType.Health, hp, hp, true, 0f));
+            stats.AddStat(new Stat(StatType.Mana, 0, mp, true, 5f));
+            stats.AddStat(new Stat(StatType.Shield, shield, shield, false, 0f));
         }
 
         /// <summary>
@@ -125,18 +124,18 @@ namespace GameSystems.Battle
             var stats = statController.Stats;
             stats.ClearStats();
 
-            stats.AddStat(new Stat("hp", "Health", StatType.Health, hp, hp, true, 0f));
-            stats.AddStat(new Stat("mp", "Mana", StatType.Mana, 0, mp, true, 5f));
-            stats.AddStat(new Stat("shield", "Shield", StatType.Health, shield, shield, false, 0f));
+            stats.AddStat(new Stat(StatType.Health, hp, hp, true, 0f));
+            stats.AddStat(new Stat(StatType.Mana, 0, mp, true, 5f));
+            stats.AddStat(new Stat(StatType.Shield, shield, shield, false, 0f));
 
-            stats.AddStat(new Stat("attack", "Attack", StatType.Attack, (int)atk));
-            stats.AddStat(new Stat("defense", "Defense", StatType.Defense, (int)def));
-            stats.AddStat(new Stat("speed", "Speed", StatType.Speed, (int)speed));
+            stats.AddStat(new Stat(StatType.Attack, (int)atk));
+            stats.AddStat(new Stat(StatType.Defense, (int)def));
+            stats.AddStat(new Stat(StatType.Speed, (int)speed));
         }
 
         public void SetMaxShield(float shield)
         {
-            var shieldStat = statController?.GetStat("shield");
+            var shieldStat = statController?.GetStat(StatType.Shield);
             if (shieldStat != null)
             {
                 shieldStat.IncreaseMax((int)(shield - MaxShield));
@@ -146,7 +145,7 @@ namespace GameSystems.Battle
 
         public void AddShield(float amount)
         {
-            var shieldStat = statController?.GetStat("shield");
+            var shieldStat = statController?.GetStat(StatType.Shield);
             shieldStat?.Add(amount);
         }
 
@@ -169,33 +168,33 @@ namespace GameSystems.Battle
 
         #region Buff/Debuff System using StatsSystem Modifiers
 
-        public void ApplyBuff(string statId, float percentageBonus, int durationTurns)
+        public void ApplyBuff(StatType statType, float percentageBonus, int durationTurns)
         {
-            var stat = statController?.GetStat(statId);
+            var stat = statController?.GetStat(statType);
             if (stat == null) return;
 
-            var modifier = Modifier.Times(1f + percentageBonus, 0, $"{statId}_buff");
-            stat.Modifiers.Add(modifier);
+            var modifier = Modifier.Times(1f + percentageBonus, 0, $"{statType}_buff");
+            stat.AddModifier(modifier);
         }
 
-        public void ApplyDebuff(string statId, float percentagePenalty, int durationTurns)
+        public void ApplyDebuff(StatType statType, float percentagePenalty, int durationTurns)
         {
-            ApplyBuff(statId, -percentagePenalty, durationTurns);
+            ApplyBuff(statType, -percentagePenalty, durationTurns);
         }
 
-        public void ApplyFlatBuff(string statId, int flatBonus, int durationTurns)
+        public void ApplyFlatBuff(StatType statType, int flatBonus, int durationTurns)
         {
-            var stat = statController?.GetStat(statId);
+            var stat = statController?.GetStat(statType);
             if (stat == null) return;
 
-            var modifier = Modifier.Plus((float)flatBonus, 0, $"{statId}_flat_buff");
-            stat.Modifiers.Add(modifier);
+            var modifier = Modifier.Plus((float)flatBonus, 0, $"{statType}_flat_buff");
+            stat.AddModifier(modifier);
         }
 
-        public void ClearBuffs(string statId)
+        public void ClearBuffs(StatType statType)
         {
-            var stat = statController?.GetStat(statId);
-            stat?.Modifiers.Clear();
+            var stat = statController?.GetStat(statType);
+            stat?.ClearModifiers();
         }
 
         public void ClearAllBuffs()

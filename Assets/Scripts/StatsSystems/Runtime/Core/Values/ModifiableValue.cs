@@ -87,6 +87,14 @@ namespace GameSystems.Stats
 			MarkDirty();
 		}
 
+		public void AddModifiers(IEnumerable<IModifier<T>> modifiers)
+		{
+			foreach (var modifier in modifiers)
+			{
+				AddModifier(modifier);
+			}
+		}
+
 		private T CalculateValue()
 		{
 			T value = _initialValue;

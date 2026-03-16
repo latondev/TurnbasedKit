@@ -11,7 +11,6 @@ namespace GameSystems.Stats
 	public class UnitStatController : MonoBehaviour
 	{
 		[Header("Configuration")]
-		[SerializeField] private string _unitName = "Hero";
 		[SerializeField] private int _level = 1;
 		[SerializeField] private bool _enableRegen = true;
 		[SerializeField] private float _regenInterval = 0.1f;
@@ -19,15 +18,7 @@ namespace GameSystems.Stats
 		private UnitStats _stats;
 		private Coroutine _regenCoroutine;
 
-		public string UnitName
-		{
-			get => _stats?.UnitName ?? _unitName;
-			set
-			{
-				_unitName = value;
-				if (_stats != null) _stats.UnitName = value;
-			}
-		}
+		public string UnitName => transform.name;
 
 		public int Level => _stats?.Level ?? _level;
 		public UnitStats Stats => _stats;
@@ -67,7 +58,7 @@ namespace GameSystems.Stats
 
 		protected virtual void Awake()
 		{
-			_stats = new UnitStats(GetInstanceID().ToString(), _unitName, _level);
+			_stats = new UnitStats(_level);
 		}
 
 		protected virtual void Start()
@@ -105,19 +96,17 @@ namespace GameSystems.Stats
 
 		#region Stat Access
 
-		public Stat GetStat(string statId) => _stats?.GetStat(statId);
-
 		public Stat GetStat(StatType type) => _stats?.GetStat(type);
 
-		public float GetStatValue(string statId) => _stats?.GetStat(statId)?.CurrentValue ?? 0f;
+		public float GetStatValue(StatType type) => _stats?.GetStat(type)?.CurrentValue ?? 0f;
 
-		public float GetStatMaxValue(string statId) => _stats?.GetStat(statId)?.MaxValue ?? 0f;
+		public float GetStatMaxValue(StatType type) => _stats?.GetStat(type)?.MaxValue ?? 0f;
 
-		public float GetStatPercentage(string statId) => _stats?.GetStat(statId)?.GetPercentage() ?? 0f;
+		public float GetStatPercentage(StatType type) => _stats?.GetStat(type)?.GetPercentage() ?? 0f;
 
-		public float GetHpPercentage() => GetStatPercentage("hp");
+		public float GetHpPercentage() => GetStatPercentage(StatType.Health);
 
-		public bool HasStat(string statId) => _stats?.HasStat(statId) ?? false;
+		public bool HasStat(StatType type) => _stats?.HasStat(type) ?? false;
 
 		public bool IsDead() => _stats?.IsDead() ?? false;
 
@@ -127,8 +116,6 @@ namespace GameSystems.Stats
 
 		#region Stat Modification
 
-		public void ModifyStat(string statId, float amount) => _stats?.ModifyStat(statId, amount);
-
 		public void ModifyStat(StatType type, float amount) => _stats?.ModifyStat(type, amount);
 
 		public float TakeDamage(float damage) => _stats?.TakeDamage(damage) ?? 0;
@@ -137,7 +124,7 @@ namespace GameSystems.Stats
 
 		public bool Consume(StatType resourceType, float amount) => _stats?.Consume(resourceType, amount) ?? false;
 
-		public void RestoreStat(string statId) => _stats?.Restore(statId);
+		public void RestoreStat(StatType type) => _stats?.Restore(type);
 
 		public void RestoreAll() => _stats?.RestoreAll();
 
@@ -145,11 +132,11 @@ namespace GameSystems.Stats
 
 		#region Modifiers
 
-		public void AddModifier(string statId, IModifier<float> modifier) => _stats?.AddModifier(statId, modifier);
+		public void AddModifier(StatType type, IModifier<float> modifier) => _stats?.AddModifier(type, modifier);
 
-		public void AddMaxModifier(string statId, IModifier<float> modifier) => _stats?.AddMaxModifier(statId, modifier);
+		public void AddMaxModifier(StatType type, IModifier<float> modifier) => _stats?.AddMaxModifier(type, modifier);
 
-		public void ClearModifiers(string statId) => _stats?.ClearModifiers(statId);
+		public void ClearModifiers(StatType type) => _stats?.ClearModifiers(type);
 
 		public void ClearAllModifiers() => _stats?.ClearAllModifiers();
 
@@ -218,20 +205,19 @@ namespace GameSystems.Stats
 		public void Initialize(UnitStats unitStats)
 		{
 			_stats = unitStats ?? throw new ArgumentNullException(nameof(unitStats));
-			_unitName = _stats.UnitName;
 			_level = _stats.Level;
 		}
 
 		[ContextMenu("Setup Default Stats")]
 		private void SetupDefaultStats()
 		{
-			_stats.AddStat(new Stat("hp", "Health", StatType.Health, 100f, 100f, true, 1f));
-			_stats.AddStat(new Stat("mp", "Mana", StatType.Mana, 50f, 50f, true, 2f));
-			_stats.AddStat(new Stat("stamina", "Stamina", StatType.Stamina, 100f, 100f, true, 5f));
+			_stats.AddStat(new Stat(StatType.Health, 100f, 100f, true, 1f));
+			_stats.AddStat(new Stat(StatType.Mana, 50f, 50f, true, 2f));
+			_stats.AddStat(new Stat(StatType.Stamina, 100f, 100f, true, 5f));
 
-			_stats.AddStat(new Stat("attack", "Attack", StatType.Attack, 20f));
-			_stats.AddStat(new Stat("defense", "Defense", StatType.Defense, 10f));
-			_stats.AddStat(new Stat("speed", "Speed", StatType.Speed, 15f));
+			_stats.AddStat(new Stat(StatType.Attack, 20f));
+			_stats.AddStat(new Stat(StatType.Defense, 10f));
+			_stats.AddStat(new Stat(StatType.Speed, 15f));
 		}
 
 		#endregion
@@ -247,7 +233,7 @@ namespace GameSystems.Stats
 				return;
 			}
 
-			Debug.Log($"<color=cyan>═══ {_stats.UnitName} (Lv.{_stats.Level}) ═══</color>");
+			Debug.Log($"<color=cyan>═══ {transform.name} (Lv.{_stats.Level}) ═══</color>");
 
 			foreach (var stat in _stats.Stats)
 			{

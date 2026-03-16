@@ -305,8 +305,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1788279931}
   - component: {fileID: 1788279930}
-  - component: {fileID: 1788279929}
-  - component: {fileID: 1788279928}
   m_Layer: 0
   m_Name: Battle
   m_TagString: Untagged
@@ -314,46 +312,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1788279928
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1788279927}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0ffc1c1323767234c91c661106c9898e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  controllerName: Skill System
-  debugMode: 1
-  playerLevel: 1
-  skillData:
-    items: []
-    currentIndex: -1
-  currentMana: 100
-  maxMana: 100
-  manaRegenRate: 2
-  currentIndex: -1
-  totalIterations: 0
-  totalCasts: 0
---- !u!114 &1788279929
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1788279927}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2961201498bfcca4abd236d70877ef08, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  equipment: {fileID: 0}
-  formation: {fileID: 0}
-  pet: {fileID: 0}
-  gameState: {fileID: 0}
 --- !u!114 &1788279930
 MonoBehaviour:
   m_ObjectHideFlags: 0

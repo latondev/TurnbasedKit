@@ -7,8 +7,6 @@ namespace GameSystems.Stats
 	[Serializable]
 	public class Stat
 	{
-		[SerializeField] private string statId;
-		[SerializeField] private string statName;
 		[SerializeField] private StatType statType;
 		[SerializeField] private bool canRegenerate;
 		[SerializeField] private float regenRate;
@@ -17,8 +15,8 @@ namespace GameSystems.Stats
 		private ModifiableValue<float> _maxValue;
 		private BoundedValue<float> _currentValue;
 
-		public string StatId => statId;
-		public string StatName => statName;
+		public string StatId => statType.ToString().ToLower();
+		public string StatName => statType.ToString();
 		public StatType StatType => statType;
 		public bool CanRegenerate => canRegenerate;
 		public float RegenRate => regenRate;
@@ -29,16 +27,31 @@ namespace GameSystems.Stats
 
 		public ModifiableValue<float> ModifiableValue => _modifiableValue;
 		public ModifiableValue<float> MaxModifiableValue => _maxValue;
-		public ICollection<IModifier<float>> Modifiers => _modifiableValue.Modifiers;
-		public ICollection<IModifier<float>> MaxModifiers => _maxValue.Modifiers;
+
+		/// <summary>
+		/// Add modifier to base value
+		/// </summary>
+		public void AddModifier(IModifier<float> modifier) => _modifiableValue.Modifiers.Add(modifier);
+
+		/// <summary>
+		/// Add modifier to max value
+		/// </summary>
+		public void AddMaxModifier(IModifier<float> modifier) => _maxValue.Modifiers.Add(modifier);
+
+		/// <summary>
+		/// Clear all modifiers from base and max value
+		/// </summary>
+		public void ClearModifiers()
+		{
+			_modifiableValue.Modifiers.Clear();
+			_maxValue.Modifiers.Clear();
+		}
 
 		// Event: (stat, newValue)
 		public event Action<Stat, float> OnValueChanged;
 
-		public Stat(string id, string name, StatType type, float baseValue, float maxValue = -1, bool canRegen = false, float regenRate = 0f)
+		public Stat(StatType type, float baseValue, float maxValue = -1, bool canRegen = false, float regenRate = 0f)
 		{
-			this.statId = id;
-			this.statName = name;
 			this.statType = type;
 			this.canRegenerate = canRegen;
 			this.regenRate = regenRate;
@@ -94,17 +107,13 @@ namespace GameSystems.Stats
 		/// </summary>
 		public Stat Clone()
 		{
-			var clone = new Stat(statId, statName, statType, BaseValue, MaxValue, canRegenerate, regenRate);
+			var clone = new Stat(statType, BaseValue, MaxValue, canRegenerate, regenRate);
 
 			// Copy modifiers
-			foreach (var mod in Modifiers)
-			{
-				clone.Modifiers.Add(mod);
-			}
-			foreach (var mod in MaxModifiers)
-			{
-				clone.MaxModifiers.Add(mod);
-			}
+			foreach (var mod in _modifiableValue.Modifiers)
+				clone._modifiableValue.AddModifier(mod);
+			foreach (var mod in _maxValue.Modifiers)
+				clone._maxValue.AddModifier(mod);
 
 			// Clone current value
 			clone.SetCurrent(CurrentValue);
@@ -117,9 +126,9 @@ namespace GameSystems.Stats
 			string icon = GetStatIcon();
 			if (MaxValue > 0)
 			{
-				return $"{icon} {statName}: {CurrentValue:F0}/{MaxValue:F0}";
+				return $"{icon} {StatName}: {CurrentValue:F0}/{MaxValue:F0}";
 			}
-			return $"{icon} {statName}: {GetFinalValue():F0}";
+			return $"{icon} {StatName}: {GetFinalValue():F0}";
 		}
 
 		public string GetStatIcon()
@@ -129,6 +138,7 @@ namespace GameSystems.Stats
 				StatType.Health => "❤️",
 				StatType.Mana => "💙",
 				StatType.Stamina => "💚",
+				StatType.Shield => "🛡️",
 				StatType.Attack => "⚔️",
 				StatType.Defense => "🛡️",
 				StatType.Speed => "⚡",
@@ -147,6 +157,7 @@ namespace GameSystems.Stats
 				StatType.Health => new Color(1f, 0.3f, 0.3f),
 				StatType.Mana => new Color(0.3f, 0.5f, 1f),
 				StatType.Stamina => new Color(0.3f, 1f, 0.3f),
+				StatType.Shield => new Color(0.6f, 0.8f, 1f),
 				StatType.Attack => new Color(1f, 0.5f, 0.2f),
 				StatType.Defense => new Color(0.5f, 0.7f, 1f),
 				StatType.Speed => new Color(1f, 1f, 0.3f),
@@ -164,6 +175,7 @@ namespace GameSystems.Stats
 		Health,
 		Mana,
 		Stamina,
+		Shield,
 		Attack,
 		Defense,
 		Speed,

@@ -11,23 +11,15 @@ namespace GameSystems.Stats
 	[Serializable]
 	public class UnitStats
 	{
-		private string unitId;
-		private string unitName;
 		private int level;
-		private List<Stat> stats;
+		private readonly Dictionary<StatType, Stat> stats;
 
-		public string UnitId => unitId;
-		public string UnitName 
-		{ 
-			get => unitName; 
-			set => unitName = value; 
+		public int Level
+		{
+			get => level;
+			set => level = Math.Max(1, value);
 		}
-		public int Level 
-		{ 
-			get => level; 
-			set => level = Math.Max(1, value); 
-		}
-		public IReadOnlyList<Stat> Stats => stats.AsReadOnly();
+		public IEnumerable<Stat> Stats => stats.Values;
 		public int Count => stats.Count;
 
 		// Events
@@ -36,12 +28,10 @@ namespace GameSystems.Stats
 		public event Action OnLevelUp;
 		public event Action<Stat> OnRegenComplete;
 
-		public UnitStats(string unitId = null, string unitName = "Unit", int level = 1)
+		public UnitStats(int level = 1)
 		{
-			this.unitId = unitId ?? Guid.NewGuid().ToString();
-			this.unitName = unitName;
 			this.level = Math.Max(1, level);
-			this.stats = new List<Stat>();
+			this.stats = new Dictionary<StatType, Stat>();
 		}
 
 		#region Stat Management
@@ -49,7 +39,7 @@ namespace GameSystems.Stats
 		public void AddStat(Stat stat)
 		{
 			if (stat == null) return;
-			stats.Add(stat);
+			stats[stat.StatType] = stat;
 			SubscribeToStatEvents(stat);
 		}
 
@@ -57,41 +47,30 @@ namespace GameSystems.Stats
 		{
 			if (stat == null) return;
 			UnsubscribeFromStatEvents(stat);
-			stats.Remove(stat);
+			stats.Remove(stat.StatType);
 		}
 
-		public void RemoveStat(string statId)
+		public void RemoveStat(StatType type)
 		{
-			var stat = GetStat(statId);
-			if (stat != null)
+			if (stats.TryGetValue(type, out var stat))
 			{
 				RemoveStat(stat);
 			}
 		}
 
-		public Stat GetStat(string statId)
-		{
-			return stats.FirstOrDefault(s => s.StatId == statId);
-		}
-
 		public Stat GetStat(StatType type)
 		{
-			return stats.FirstOrDefault(s => s.StatType == type);
-		}
-
-		public bool HasStat(string statId)
-		{
-			return stats.Any(s => s.StatId == statId);
+			return stats.TryGetValue(type, out var stat) ? stat : null;
 		}
 
 		public bool HasStat(StatType type)
 		{
-			return stats.Any(s => s.StatType == type);
+			return stats.ContainsKey(type);
 		}
 
 		public void ClearStats()
 		{
-			foreach (var stat in stats)
+			foreach (var stat in stats.Values)
 			{
 				UnsubscribeFromStatEvents(stat);
 			}
@@ -104,28 +83,23 @@ namespace GameSystems.Stats
 
 		public IEnumerable<Stat> GetVitalStats()
 		{
-			return stats.Where(s => s.StatType is StatType.Health or StatType.Mana or StatType.Stamina);
+			return stats.Values.Where(s => s.StatType is StatType.Health or StatType.Mana or StatType.Stamina);
 		}
 
 		public IEnumerable<Stat> GetCombatStats()
 		{
-			return stats.Where(s => s.StatType is StatType.Attack or StatType.Defense or StatType.Speed 
+			return stats.Values.Where(s => s.StatType is StatType.Attack or StatType.Defense or StatType.Speed
 				or StatType.CriticalRate or StatType.CriticalDamage);
 		}
 
 		public IEnumerable<Stat> GetDepletedStats()
 		{
-			return stats.Where(s => s.IsDepleted());
+			return stats.Values.Where(s => s.IsDepleted());
 		}
 
 		public IEnumerable<Stat> GetRegenerableStats()
 		{
-			return stats.Where(s => s.CanRegenerate && !s.IsAtMax());
-		}
-
-		public IEnumerable<Stat> GetStatsByType(StatType type)
-		{
-			return stats.Where(s => s.StatType == type);
+			return stats.Values.Where(s => s.CanRegenerate && !s.IsAtMax());
 		}
 
 		/// <summary>
@@ -134,7 +108,7 @@ namespace GameSystems.Stats
 		/// <param name="deltaTime">Time since last update in seconds</param>
 		public void ProcessRegen(float deltaTime)
 		{
-			foreach (var stat in stats)
+			foreach (var stat in stats.Values)
 			{
 				if (stat.CanRegenerate && !stat.IsAtMax())
 				{
@@ -155,7 +129,11 @@ namespace GameSystems.Stats
 		/// </summary>
 		public bool IsDead()
 		{
-			return GetVitalStats().Any(s => s.StatType == StatType.Health && s.IsDepleted());
+			if (stats.TryGetValue(StatType.Health, out var hp))
+			{
+				return hp.IsDepleted();
+			}
+			return false;
 		}
 
 		/// <summary>
@@ -163,36 +141,16 @@ namespace GameSystems.Stats
 		/// </summary>
 		public bool CanAct()
 		{
-			var vitalStats = GetVitalStats().ToList();
-			
 			// Need at least some stamina/mana to act
-			if (vitalStats.Any(s => s.StatType == StatType.Stamina && s.IsDepleted()))
+			if (stats.TryGetValue(StatType.Stamina, out var stamina) && stamina.IsDepleted())
 				return false;
-				
+
 			return true;
 		}
 
 		#endregion
 
 		#region Stat Modification
-
-		/// <summary>
-		/// Modify current value of a stat
-		/// </summary>
-		public void ModifyStat(string statId, float amount)
-		{
-			var stat = GetStat(statId);
-			if (stat == null) return;
-
-			if (amount > 0)
-			{
-				stat.Add(amount);
-			}
-			else
-			{
-				stat.Subtract(-amount);
-			}
-		}
 
 		/// <summary>
 		/// Modify current value of a stat by type
@@ -222,7 +180,7 @@ namespace GameSystems.Stats
 
 			float actualDamage = Math.Min(damage, hp.CurrentValue);
 			hp.Subtract(actualDamage);
-			
+
 			return actualDamage;
 		}
 
@@ -236,7 +194,7 @@ namespace GameSystems.Stats
 
 			float healAmount = Math.Min(amount, hp.MaxValue - hp.CurrentValue);
 			hp.Add(healAmount);
-			
+
 			return healAmount;
 		}
 
@@ -258,7 +216,7 @@ namespace GameSystems.Stats
 		/// </summary>
 		public void RestoreAll()
 		{
-			foreach (var stat in stats)
+			foreach (var stat in stats.Values)
 			{
 				stat.RestoreToMax();
 			}
@@ -267,9 +225,9 @@ namespace GameSystems.Stats
 		/// <summary>
 		/// Restore a specific stat to max
 		/// </summary>
-		public void Restore(string statId)
+		public void Restore(StatType type)
 		{
-			var stat = GetStat(statId);
+			var stat = GetStat(type);
 			stat?.RestoreToMax();
 		}
 
@@ -277,34 +235,29 @@ namespace GameSystems.Stats
 
 		#region Modifiers
 
-		public void AddModifier(string statId, IModifier<float> modifier)
+		public void AddModifier(StatType type, IModifier<float> modifier)
 		{
-			var stat = GetStat(statId);
-			stat?.Modifiers.Add(modifier);
+			var stat = GetStat(type);
+			stat?.AddModifier(modifier);
 		}
 
-		public void AddMaxModifier(string statId, IModifier<float> modifier)
+		public void AddMaxModifier(StatType type, IModifier<float> modifier)
 		{
-			var stat = GetStat(statId);
-			stat?.MaxModifiers.Add(modifier);
+			var stat = GetStat(type);
+			stat?.AddMaxModifier(modifier);
 		}
 
-		public void ClearModifiers(string statId)
+		public void ClearModifiers(StatType type)
 		{
-			var stat = GetStat(statId);
-			if (stat != null)
-			{
-				stat.Modifiers.Clear();
-				stat.MaxModifiers.Clear();
-			}
+			var stat = GetStat(type);
+			stat?.ClearModifiers();
 		}
 
 		public void ClearAllModifiers()
 		{
-			foreach (var stat in stats)
+			foreach (var stat in stats.Values)
 			{
-				stat.Modifiers.Clear();
-				stat.MaxModifiers.Clear();
+				stat.ClearModifiers();
 			}
 		}
 
@@ -316,7 +269,7 @@ namespace GameSystems.Stats
 		{
 			Level++;
 
-			foreach (var stat in stats)
+			foreach (var stat in stats.Values)
 			{
 				float baseIncrease = GetStatIncrease(stat.StatType);
 				float maxIncrease = GetMaxIncrease(stat.StatType);
@@ -369,13 +322,13 @@ namespace GameSystems.Stats
 
 		public UnitStats Clone()
 		{
-			var clone = new UnitStats(unitId, unitName, level);
-			
-			foreach (var stat in stats)
+			var clone = new UnitStats(level);
+
+			foreach (var stat in stats.Values)
 			{
 				clone.AddStat(stat.Clone());
 			}
-			
+
 			return clone;
 		}
 
@@ -386,14 +339,14 @@ namespace GameSystems.Stats
 		private void SubscribeToStatEvents(Stat stat)
 		{
 			if (stat == null) return;
-			
+
 			stat.OnValueChanged += OnStatValueChanged;
 		}
 
 		private void UnsubscribeFromStatEvents(Stat stat)
 		{
 			if (stat == null) return;
-			
+
 			stat.OnValueChanged -= OnStatValueChanged;
 		}
 
@@ -411,17 +364,17 @@ namespace GameSystems.Stats
 
 		#region Factory Methods
 
-		public static UnitStats CreateDefault(string unitName = "Hero", int level = 1)
+		public static UnitStats CreateDefault(int level = 1)
 		{
-			var unit = new UnitStats(Guid.NewGuid().ToString(), unitName, level);
+			var unit = new UnitStats(level);
 
-			unit.AddStat(new Stat("hp", "Health", StatType.Health, 100f, 100f, true, 1f));
-			unit.AddStat(new Stat("mp", "Mana", StatType.Mana, 50f, 50f, true, 2f));
-			unit.AddStat(new Stat("stamina", "Stamina", StatType.Stamina, 100f, 100f, true, 5f));
+			unit.AddStat(new Stat(StatType.Health, 100f, 100f, true, 1f));
+			unit.AddStat(new Stat(StatType.Mana, 50f, 50f, true, 2f));
+			unit.AddStat(new Stat(StatType.Stamina, 100f, 100f, true, 5f));
 
-			unit.AddStat(new Stat("attack", "Attack", StatType.Attack, 20f));
-			unit.AddStat(new Stat("defense", "Defense", StatType.Defense, 10f));
-			unit.AddStat(new Stat("speed", "Speed", StatType.Speed, 15f));
+			unit.AddStat(new Stat(StatType.Attack, 20f));
+			unit.AddStat(new Stat(StatType.Defense, 10f));
+			unit.AddStat(new Stat(StatType.Speed, 15f));
 
 			return unit;
 		}

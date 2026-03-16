@@ -8,8 +8,6 @@ public class StatMasterExample : MonoBehaviour
 
 	void Start()
 	{
-		unitStats.UnitName = "Hero";
-
 		DemonstrateModifiers();
 		DemonstratePriority();
 		DemonstrateTimeBasedModifier();
@@ -34,6 +32,8 @@ public class StatMasterExample : MonoBehaviour
 
 		attack.Modifiers.Add(Modifier.Divide(2f,0, "/2"));
 		Debug.Log($"After /2: {attack.Value}");
+
+
 	}
 
 	void DemonstratePriority()
@@ -106,13 +106,14 @@ public class StatMasterExample : MonoBehaviour
 	{
 		Debug.Log("\n🎮 INTEGRATION WITH UNIT STATS");
 
-		var attack = unitStats.GetStat("attack");
-		attack.Modifiers.Add(Modifier.Plus(10f,0, "Weapon Bonus"));
-		attack.Modifiers.Add(Modifier.Times(1.2f, 0,"Berserk"));
+		// Use UnitStats methods - CLEAR AND EXPLICIT
+		unitStats.AddModifier(StatType.Attack, Modifier.Plus(10f, 0, "Weapon Bonus"));
+		unitStats.AddModifier(StatType.Attack, Modifier.Times(1.2f, 0, "Berserk"));
+		unitStats.AddModifier(StatType.Mana, Modifier.Plus(50f, 0, "Vitality Boost"));
 
-		var hp = unitStats.GetStat("hp");
-		var mp = unitStats.GetStat("mp");
-		mp.Modifiers.Add(Modifier.Plus(50f, 0,"Vitality Boost"));
+		// Get values to display
+		var hp = unitStats.GetStat(StatType.Health);
+		var attack = unitStats.GetStat(StatType.Attack);
 
 		Debug.Log($"HP: {hp.CurrentValue}/{hp.MaxValue}");
 		Debug.Log($"Attack: {attack.GetFinalValue()}");

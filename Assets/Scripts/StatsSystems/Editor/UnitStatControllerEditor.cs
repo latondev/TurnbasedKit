@@ -136,9 +136,9 @@ public class UnitStatControllerEditor : Editor
 		EditorGUILayout.BeginVertical(statStyle);
 		GUI.backgroundColor = previousBg;
 
-		var hp = controller.GetStat("hp");
-		var mp = controller.GetStat("mp");
-		var stamina = controller.GetStat("stamina");
+		var hp = controller.GetStat(StatType.Health);
+		var mp = controller.GetStat(StatType.Mana);
+		var stamina = controller.GetStat(StatType.Stamina);
 
 		if (hp != null) DrawMiniStatBar("❤️ HP", hp, hp.GetStatColor());
 		if (mp != null) DrawMiniStatBar("💙 MP", mp, mp.GetStatColor());

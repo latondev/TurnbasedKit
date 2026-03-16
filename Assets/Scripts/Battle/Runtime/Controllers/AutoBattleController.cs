@@ -26,10 +26,7 @@ namespace GameSystems.AutoBattle
         [Header("Battle Units")]
         [SerializeField] private List<BattleUnit> playerUnits = new List<BattleUnit>();
         [SerializeField] private List<BattleUnit> enemyUnits = new List<BattleUnit>();
-
-        [Header("Player Stats Sources")]
-        [SerializeField] private PlayerStatsCalculator statsCalculator;
-        [SerializeField] private GameSystems.Skills.SkillController skillController;
+        
 
         [Header("Battle State")]
         [SerializeField] private BattleState currentState = BattleState.Idle;
@@ -58,8 +55,6 @@ namespace GameSystems.AutoBattle
         public int TotalBattles => totalBattles;
         public int VictoriesCount => victoriesCount;
         public int DefeatsCount => defeatsCount;
-        public PlayerStatsCalculator StatsCalculator => statsCalculator;
-        public GameSystems.Skills.SkillController SkillController => skillController;
 
         // Events
         public event Action<BattleState> OnBattleStateChanged;
@@ -130,14 +125,14 @@ namespace GameSystems.AutoBattle
         private SkillData GetRandomSkill()
         {
             // Try to get from SkillController
-            if (skillController != null && skillController.SkillData != null)
-            {
-                var unlockedSkills = skillController.SkillData.GetUnlockedSkills();
-                if (unlockedSkills.Count > 0)
-                {
-                    return unlockedSkills[UnityEngine.Random.Range(0, unlockedSkills.Count)];
-                }
-            }
+            // if (skillController != null && skillController.SkillData != null)
+            // {
+            //     var unlockedSkills = skillController.SkillData.GetUnlockedSkills();
+            //     if (unlockedSkills.Count > 0)
+            //     {
+            //         return unlockedSkills[UnityEngine.Random.Range(0, unlockedSkills.Count)];
+            //     }
+            // }
 
             // Fallback: create a basic skill if no controller
             return new SkillData(
@@ -155,10 +150,10 @@ namespace GameSystems.AutoBattle
         /// </summary>
         public List<SkillData> GetUnlockedSkills()
         {
-            if (skillController != null && skillController.SkillData != null)
-            {
-                return skillController.SkillData.GetUnlockedSkills();
-            }
+            // if (skillController != null && skillController.SkillData != null)
+            // {
+            //     return skillController.SkillData.GetUnlockedSkills();
+            // }
             return new List<SkillData>();
         }
 
@@ -249,21 +244,16 @@ namespace GameSystems.AutoBattle
         /// </summary>
         private void InitializeBattle()
         {
-            // Apply unified player stats if calculator is available
-            if (statsCalculator != null)
-            {
-                var playerStats = statsCalculator.CalculateTotalStats();
-                LogDebug($"<color=green>Applied PlayerStats: {playerStats}");
-
-                foreach (var unit in playerUnits)
-                {
-                    // Apply stats using new method
-                    ApplyPlayerStatsToUnit(unit, playerStats);
-                }
-
-                // Enemies get a base stat bonus (optional)
-                ApplyEnemyBaseStats();
-            }
+                // LogDebug($"<color=green>Applied PlayerStats: {playerStats}");
+                //
+                // foreach (var unit in playerUnits)
+                // {
+                //     // Apply stats using new method
+                //     ApplyPlayerStatsToUnit(unit, playerStats);
+                // }
+                //
+                // // Enemies get a base stat bonus (optional)
+                // ApplyEnemyBaseStats();
 
             // Reset all units
             foreach (var unit in playerUnits)
@@ -302,12 +292,12 @@ namespace GameSystems.AutoBattle
         {
             var statCtrl = unit.StatController;
 
-            var hp = statCtrl.GetStat("hp");
-            var atk = statCtrl.GetStat("attack");
-            var def = statCtrl.GetStat("defense");
-            var spd = statCtrl.GetStat("speed");
-            var critRate = statCtrl.GetStat("critical_rate");
-            var critDmg = statCtrl.GetStat("critical_damage");
+            var hp = statCtrl.GetStat(StatType.Health);
+            var atk = statCtrl.GetStat(StatType.Attack);
+            var def = statCtrl.GetStat(StatType.Defense);
+            var spd = statCtrl.GetStat(StatType.Speed);
+            var critRate = statCtrl.GetStat(StatType.CriticalRate);
+            var critDmg = statCtrl.GetStat(StatType.CriticalDamage);
 
             if (hp != null)
             {
@@ -346,10 +336,10 @@ namespace GameSystems.AutoBattle
             {
                 var statCtrl = unit.StatController;
 
-                var hp = statCtrl.GetStat("hp");
-                var atk = statCtrl.GetStat("attack");
-                var def = statCtrl.GetStat("defense");
-                var spd = statCtrl.GetStat("speed");
+                var hp = statCtrl.GetStat(StatType.Health);
+                var atk = statCtrl.GetStat(StatType.Attack);
+                var def = statCtrl.GetStat(StatType.Defense);
+                var spd = statCtrl.GetStat(StatType.Speed);
 
                 if (hp != null) hp.IncreaseMax(1000 - hp.BaseValue);
                 if (atk != null) atk.ModifiableValue.InitialValue = 50;
