@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace GameSystems.Battle
 {
@@ -17,7 +18,7 @@ namespace GameSystems.Battle
 
         [Header("UI")]
         [SerializeField] private FloatingText floatingTextPrefab;
-        [SerializeField] private AnimationController animationHandle;
+        [SerializeField] private AnimationHandle animationHandle;
         [SerializeField] private UnityEngine.UI.Image valueHealthBar;
         [SerializeField] private UnityEngine.UI.Image valueMpBar;
         [SerializeField] private Transform canvasBar;
@@ -31,6 +32,10 @@ namespace GameSystems.Battle
         private void OnValidate()
         {
             TryGetComponent(out animationHandle);
+            if (animationHandle == null)
+            {
+                animationHandle = GetComponentInChildren<AnimationHandle>(true);
+            }
 
             // Try to find UI elements
             var canvas = transform.Find("Canvas");
@@ -54,6 +59,8 @@ namespace GameSystems.Battle
             this.maxMp = Mp;
             currentMp = 0;
 
+            EnsureRuntimeBars();
+
             if (valueHealthBar != null)
                 valueHealthBar.fillAmount = 1;
             if (valueMpBar != null)
@@ -62,8 +69,14 @@ namespace GameSystems.Battle
 
         void Start()
         {
+            if (animationHandle == null)
+            {
+                animationHandle = GetComponentInChildren<AnimationHandle>(true);
+            }
+
             if (animationHandle != null)
             {
+                animationHandle.Initialize();
                 animationHandle.OnEndAnimation += EndAnimation;
             }
         }
@@ -176,42 +189,120 @@ namespace GameSystems.Battle
             if (canvasBar != null)
                 canvasBar.gameObject.SetActive(true);
         }
-    }
 
-    /// <summary>
-    /// Floating Text - displays damage numbers
-    /// </summary>
-    public class FloatingText : MonoBehaviour
-    {
-        [SerializeField] private UnityEngine.UI.Text text;
-
-        public void SetText(string value)
+        private void EnsureRuntimeBars()
         {
-            if (text != null)
-                text.text = value;
-        }
-
-        void Start()
-        {
-            // Animate floating up
-            StartCoroutine(FloatUp());
-        }
-
-        private IEnumerator FloatUp()
-        {
-            Vector3 start = transform.position;
-            Vector3 end = start + Vector3.up * 1f;
-            float elapsed = 0;
-            float duration = 1f;
-
-            while (elapsed < duration)
+            if (valueHealthBar != null && valueMpBar != null && canvasBar != null)
             {
-                transform.position = Vector3.Lerp(start, end, elapsed / duration);
-                elapsed += Time.deltaTime;
-                yield return null;
+                return;
             }
 
-            Destroy(gameObject, 0.5f);
+            if (canvasBar == null)
+            {
+                var existingCanvas = transform.Find("Canvas");
+                if (existingCanvas != null)
+                {
+                    canvasBar = existingCanvas;
+                }
+                else
+                {
+                    var canvasGo = new GameObject("Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+                    canvasGo.transform.SetParent(transform, false);
+                    canvasBar = canvasGo.transform;
+
+                    var canvas = canvasGo.GetComponent<Canvas>();
+                    canvas.renderMode = RenderMode.WorldSpace;
+
+                    var rect = canvasGo.GetComponent<RectTransform>();
+                    rect.sizeDelta = new Vector2(220f, 60f);
+                    rect.anchoredPosition = new Vector2(0f, 1.65f);
+                }
+            }
+
+            var headBar = canvasBar.Find("battle_HeadBar");
+            if (headBar == null)
+            {
+                var headBarGo = new GameObject("battle_HeadBar", typeof(RectTransform));
+                headBarGo.transform.SetParent(canvasBar, false);
+                var headRect = headBarGo.GetComponent<RectTransform>();
+                headRect.anchorMin = Vector2.zero;
+                headRect.anchorMax = Vector2.one;
+                headRect.offsetMin = Vector2.zero;
+                headRect.offsetMax = Vector2.zero;
+                var layout = headBarGo.AddComponent<VerticalLayoutGroup>();
+                layout.spacing = 2f;
+                layout.childControlWidth = true;
+                layout.childControlHeight = true;
+                layout.childForceExpandWidth = true;
+                layout.childForceExpandHeight = false;
+                headBar = headBarGo.transform;
+            }
+
+            valueHealthBar = EnsureBarFill(headBar, "healthPoint", new Color(0.35f, 0.95f, 0.4f));
+            valueMpBar = EnsureBarFill(headBar, "angerPoint", new Color(0.35f, 0.65f, 1f));
+        }
+
+        private Image EnsureBarFill(Transform parent, string rowName, Color fillColor)
+        {
+            var row = parent.Find(rowName);
+            if (row == null)
+            {
+                var rowGo = new GameObject(rowName, typeof(RectTransform));
+                rowGo.transform.SetParent(parent, false);
+                var rowRect = rowGo.GetComponent<RectTransform>();
+                rowRect.sizeDelta = new Vector2(180f, 14f);
+
+                var background = new GameObject("background", typeof(RectTransform));
+                background.transform.SetParent(rowGo.transform, false);
+                var backgroundRect = background.GetComponent<RectTransform>();
+                backgroundRect.anchorMin = Vector2.zero;
+                backgroundRect.anchorMax = Vector2.one;
+                backgroundRect.offsetMin = Vector2.zero;
+                backgroundRect.offsetMax = Vector2.zero;
+
+                var backgroundImage = background.AddComponent<Image>();
+                backgroundImage.color = new Color(0f, 0f, 0f, 0.65f);
+
+                var value = new GameObject("value", typeof(RectTransform));
+                value.transform.SetParent(background.transform, false);
+                var valueRect = value.GetComponent<RectTransform>();
+                valueRect.anchorMin = Vector2.zero;
+                valueRect.anchorMax = Vector2.one;
+                valueRect.offsetMin = new Vector2(2f, 2f);
+                valueRect.offsetMax = new Vector2(-2f, -2f);
+
+                var valueImage = value.AddComponent<Image>();
+                valueImage.color = fillColor;
+                valueImage.type = Image.Type.Filled;
+                valueImage.fillMethod = Image.FillMethod.Horizontal;
+                valueImage.fillOrigin = 0;
+                valueImage.fillAmount = 1f;
+
+                return valueImage;
+            }
+
+            var valueTransform = row.Find("background/value");
+            if (valueTransform != null)
+            {
+                var valueImage = valueTransform.GetComponent<Image>();
+                if (valueImage != null)
+                {
+                    valueImage.type = Image.Type.Filled;
+                    valueImage.fillMethod = Image.FillMethod.Horizontal;
+                    valueImage.fillOrigin = 0;
+                    return valueImage;
+                }
+            }
+
+            return row.GetComponentInChildren<Image>(true);
+        }
+
+        private void OnDestroy()
+        {
+            if (animationHandle != null)
+            {
+                animationHandle.OnEndAnimation -= EndAnimation;
+            }
         }
     }
 }

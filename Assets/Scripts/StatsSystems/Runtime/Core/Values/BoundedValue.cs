@@ -10,6 +10,8 @@ namespace GameSystems.Stats
 		private readonly IReadOnlyValue<T> _minValue;
 		private readonly IReadOnlyValue<T> _maxValue;
 		private readonly IOperator<T> _op;
+		private PropertyChangedEventHandler _minHandler;
+		private PropertyChangedEventHandler _maxHandler;
 
 		public BoundedValue(T initialValue, T minValue, IReadOnlyValue<T> maxValue) : base(initialValue)
 		{
@@ -17,9 +19,10 @@ namespace GameSystems.Stats
 			_maxValue = maxValue;
 			_op = Operator<T>.Instance;
 
+			_maxHandler = (s, e) => OnPropertyChanged(nameof(Value));
 			if (_maxValue is INotifyPropertyChanged notify)
 			{
-				notify.PropertyChanged += (s, e) => OnPropertyChanged(nameof(Value));
+				notify.PropertyChanged += _maxHandler;
 			}
 
 			EnsureBounds();
@@ -31,14 +34,16 @@ namespace GameSystems.Stats
 			_maxValue = maxValue;
 			_op = Operator<T>.Instance;
 
+			_minHandler = (s, e) => OnPropertyChanged(nameof(Value));
 			if (_minValue is INotifyPropertyChanged minNotify)
 			{
-				minNotify.PropertyChanged += (s, e) => OnPropertyChanged(nameof(Value));
+				minNotify.PropertyChanged += _minHandler;
 			}
 
+			_maxHandler = (s, e) => OnPropertyChanged(nameof(Value));
 			if (_maxValue is INotifyPropertyChanged maxNotify)
 			{
-				maxNotify.PropertyChanged += (s, e) => OnPropertyChanged(nameof(Value));
+				maxNotify.PropertyChanged += _maxHandler;
 			}
 
 			EnsureBounds();
@@ -60,6 +65,23 @@ namespace GameSystems.Stats
 			{
 				InitialValue = clamped;
 			}
+		}
+
+		public override void Dispose()
+		{
+			if (_minHandler != null && _minValue is INotifyPropertyChanged minNotify)
+			{
+				minNotify.PropertyChanged -= _minHandler;
+				_minHandler = null;
+			}
+
+			if (_maxHandler != null && _maxValue is INotifyPropertyChanged maxNotify)
+			{
+				maxNotify.PropertyChanged -= _maxHandler;
+				_maxHandler = null;
+			}
+
+			base.Dispose();
 		}
 	}
 

@@ -18,17 +18,63 @@ Shader "ASE/RongJie_Alpha" {
 			Blend SrcAlpha OneMinusSrcAlpha, SrcAlpha OneMinusSrcAlpha
 			ZWrite Off
 			Cull Off
-			GpuProgramID 59873
-			// No subprograms found
+			CGPROGRAM
+			#pragma target 2.0
+			#pragma vertex ASEFallbackVert
+			#pragma fragment frag
+			#include "ShaderFallbackCommon.cginc"
+
+			sampler2D _MainTex;
+			sampler2D _DissolutionTex;
+			sampler2D _Mask_Tex;
+			fixed4 _Main_Color;
+			fixed4 _Side_Color;
+			float _Dissolution;
+			float _Side;
+
+			fixed4 frag(ASEFallbackV2F i) : SV_Target
+			{
+				fixed4 mainCol = tex2D(_MainTex, i.uv) * _Main_Color * i.color;
+				mainCol *= tex2D(_Mask_Tex, i.uv).a;
+				float dissolve = tex2D(_DissolutionTex, i.uv).r + _Dissolution;
+				float dissolve01 = saturate(dissolve * 0.5 + 0.5);
+				float alpha = saturate(1.0 - dissolve01);
+				float edge = smoothstep(_Side - 0.08, _Side + 0.08, dissolve01);
+				mainCol.rgb = lerp(_Side_Color.rgb, mainCol.rgb, edge);
+				mainCol.a *= alpha;
+				return mainCol;
+			}
+			ENDCG
 		}
 		Pass {
-			Name "FORWARD"
-			Tags { "IGNOREPROJECTOR" = "true" "IsEmissive" = "true" "LIGHTMODE" = "FORWARDADD" "QUEUE" = "Transparent+0" "RenderType" = "Custom" }
-			Blend One One, One One
-			ZWrite Off
-			Cull Off
-			GpuProgramID 71457
-			// No subprograms found
+			Name "FORWARDADD"
+			CGPROGRAM
+			#pragma target 2.0
+			#pragma vertex ASEFallbackVert
+			#pragma fragment frag
+			#include "ShaderFallbackCommon.cginc"
+
+			sampler2D _MainTex;
+			sampler2D _DissolutionTex;
+			sampler2D _Mask_Tex;
+			fixed4 _Main_Color;
+			fixed4 _Side_Color;
+			float _Dissolution;
+			float _Side;
+
+			fixed4 frag(ASEFallbackV2F i) : SV_Target
+			{
+				fixed4 mainCol = tex2D(_MainTex, i.uv) * _Main_Color * i.color;
+				mainCol *= tex2D(_Mask_Tex, i.uv).a;
+				float dissolve = tex2D(_DissolutionTex, i.uv).r + _Dissolution;
+				float dissolve01 = saturate(dissolve * 0.5 + 0.5);
+				float alpha = saturate(1.0 - dissolve01);
+				float edge = smoothstep(_Side - 0.08, _Side + 0.08, dissolve01);
+				mainCol.rgb = lerp(_Side_Color.rgb, mainCol.rgb, edge);
+				mainCol.a *= alpha;
+				return mainCol;
+			}
+			ENDCG
 		}
 	}
 	CustomEditor "ASEMaterialInspector"

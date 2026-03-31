@@ -22,29 +22,144 @@ MonoBehaviour:
   level: 1
   isUnlock: 0
   stats:
-    hp: 1000
-    mp: 100
-    atk: 100
-    pdef: 10
-    mdef: 10
-    speed: 50
-    crit: 0.05
-    critRes: 0
-    hitRate: 0.95
-    dodgeRate: 0.05
-    dmgIncr: 0
-    dmgRes: 0
-    critDmg: 1.5
-    antiDivine: 0
-    resDivine: 0
-    antiBuddha: 0
-    resBuddha: 0
-    antiSorcerer: 0
-    resSorcerer: 0
-    antiDemon: 0
-    resDemon: 0
-    acc: 1
-    eva: 1
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 0
+    baseValue: 0
+    maxValue: 0
+    currentValue: 0
+    canRegenerate: 0
+    regenRate: 0
   skillBasic:
     skillId: 
     skillName: 

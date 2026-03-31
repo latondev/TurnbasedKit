@@ -3,6 +3,55 @@ using System.ComponentModel;
 
 namespace GameSystems.Stats
 {
+	/// <summary>
+	/// Base class cho tất cả modifier — đảm bảo Enabled/Priority fire PropertyChanged
+	/// để ModifiableValue tự động recalculate khi modifier thay đổi trạng thái.
+	/// </summary>
+	public abstract class ModifierBase<T> : IModifier<T>
+	{
+		private bool _enabled = true;
+		private int _priority;
+
+		public bool Enabled
+		{
+			get => _enabled;
+			set
+			{
+				if (_enabled == value) return;
+				_enabled = value;
+				OnPropertyChanged(nameof(Enabled));
+			}
+		}
+
+		public int Priority
+		{
+			get => _priority;
+			set
+			{
+				if (_priority == value) return;
+				_priority = value;
+				OnPropertyChanged(nameof(Priority));
+			}
+		}
+
+		public string Name { get; }
+
+		public event PropertyChangedEventHandler PropertyChanged;
+
+		protected ModifierBase(string name, int priority)
+		{
+			Name = name;
+			_priority = priority;
+		}
+
+		public abstract T Modify(T given);
+
+		protected void OnPropertyChanged(string propertyName)
+		{
+			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+		}
+	}
+
 	public static class Modifier
 	{
 		public static IModifier<T> Plus<T>(T value, int priority = 0, string name = null)
@@ -41,184 +90,144 @@ namespace GameSystems.Stats
 		}
 	}
 
-	internal class AddModifier<T> : IModifier<T>
+	internal class AddModifier<T> : ModifierBase<T>
 	{
 		private readonly T _value;
 		private readonly IOperator<T> _op;
 
-		public bool Enabled { get; set; } = true;
-		public int Priority { get; set; }
-		public string Name { get; }
-
-		public event PropertyChangedEventHandler PropertyChanged;
-
-		public AddModifier(T value, string name, int priority)
+		public AddModifier(T value, string name, int priority) : base(name ?? $"+{value}", priority)
 		{
 			_value = value;
-			Name = name ?? $"+{_value}";
-			Priority = priority;
 			_op = Operator<T>.Instance;
 		}
 
-		public T Modify(T given)
+		public override T Modify(T given)
 		{
 			if (!Enabled) return given;
 			return _op.Add(given, _value);
 		}
 	}
 
-	internal class SubtractModifier<T> : IModifier<T>
+	internal class SubtractModifier<T> : ModifierBase<T>
 	{
 		private readonly T _value;
 		private readonly IOperator<T> _op;
 
-		public bool Enabled { get; set; } = true;
-		public int Priority { get; set; }
-		public string Name { get; }
-
-		public event PropertyChangedEventHandler PropertyChanged;
-
-		public SubtractModifier(T value, string name, int priority)
+		public SubtractModifier(T value, string name, int priority) : base(name ?? $"-{value}", priority)
 		{
 			_value = value;
-			Name = name ?? $"-{_value}";
-			Priority = priority;
 			_op = Operator<T>.Instance;
 		}
 
-		public T Modify(T given)
+		public override T Modify(T given)
 		{
 			if (!Enabled) return given;
 			return _op.Subtract(given, _value);
 		}
 	}
 
-	internal class MultiplyModifier<T> : IModifier<T>
+	internal class MultiplyModifier<T> : ModifierBase<T>
 	{
 		private readonly T _value;
 		private readonly IOperator<T> _op;
 
-		public bool Enabled { get; set; } = true;
-		public int Priority { get; set; }
-		public string Name { get; }
-
-		public event PropertyChangedEventHandler PropertyChanged;
-
-		public MultiplyModifier(T value, string name, int priority)
+		public MultiplyModifier(T value, string name, int priority) : base(name ?? $"×{value}", priority)
 		{
 			_value = value;
-			Name = name ?? $"×{_value}";
-			Priority = priority;
 			_op = Operator<T>.Instance;
 		}
 
-		public T Modify(T given)
+		public override T Modify(T given)
 		{
 			if (!Enabled) return given;
 			return _op.Multiply(given, _value);
 		}
 	}
 
-	internal class DivideModifier<T> : IModifier<T>
+	internal class DivideModifier<T> : ModifierBase<T>
 	{
 		private readonly T _value;
 		private readonly IOperator<T> _op;
 
-		public bool Enabled { get; set; } = true;
-		public int Priority { get; set; }
-		public string Name { get; }
-
-		public event PropertyChangedEventHandler PropertyChanged;
-
-		public DivideModifier(T value, string name, int priority)
+		public DivideModifier(T value, string name, int priority) : base(name ?? $"/{value}", priority)
 		{
 			_value = value;
-			Name = name ?? $"/{_value}";
-			Priority = priority;
 			_op = Operator<T>.Instance;
 		}
 
-		public T Modify(T given)
+		public override T Modify(T given)
 		{
 			if (!Enabled) return given;
 			return _op.Divide(given, _value);
 		}
 	}
 
-	internal class SubstituteModifier<T> : IModifier<T>
+	internal class SubstituteModifier<T> : ModifierBase<T>
 	{
 		private readonly T _value;
 
-		public bool Enabled { get; set; } = true;
-		public int Priority { get; set; }
-		public string Name { get; }
-
-		public event PropertyChangedEventHandler PropertyChanged;
-
-		public SubstituteModifier(T value, string name, int priority)
+		public SubstituteModifier(T value, string name, int priority) : base(name ?? $"={value}", priority)
 		{
 			_value = value;
-			Name = name ?? $"={_value}";
-			Priority = priority;
 		}
 
-		public T Modify(T given)
+		public override T Modify(T given)
 		{
 			if (!Enabled) return given;
 			return _value;
 		}
 	}
 
-	internal class FuncModifier<T> : IModifier<T>
+	internal class FuncModifier<T> : ModifierBase<T>
 	{
 		private readonly Func<T, T> _func;
 
-		public bool Enabled { get; set; } = true;
-		public int Priority { get; set; }
-		public string Name { get; }
-
-		public event PropertyChangedEventHandler PropertyChanged;
-
-		public FuncModifier(Func<T, T> func, string name, int priority)
+		public FuncModifier(Func<T, T> func, string name, int priority) : base(name ?? "Custom", priority)
 		{
 			_func = func;
-			Name = name ?? "Custom";
-			Priority = priority;
 		}
 
-		public T Modify(T given)
+		public override T Modify(T given)
 		{
 			if (!Enabled) return given;
 			return _func(given);
 		}
 	}
 
-	internal class ValueModifier<T> : IModifier<T>
+	internal class ValueModifier<T> : ModifierBase<T>, IDisposable
 	{
 		private readonly IReadOnlyValue<T> _value;
-
-		public bool Enabled { get; set; } = true;
-		public int Priority { get; set; }
-		public string Name { get; }
-
-		public event PropertyChangedEventHandler PropertyChanged;
+		private PropertyChangedEventHandler _valueChangedHandler;
+		private bool _isDisposed;
 
 		public ValueModifier(IReadOnlyValue<T> value, string name, int priority)
+			: base(name ?? $"Value({value.Value})", priority)
 		{
 			_value = value;
-			Name = name ?? $"Value({_value.Value})";
-			Priority = priority;
 
 			if (_value is INotifyPropertyChanged notify)
 			{
-				notify.PropertyChanged += (s, e) => PropertyChanged?.Invoke(this, e);
+				_valueChangedHandler = (s, e) => OnPropertyChanged("Value");
+				notify.PropertyChanged += _valueChangedHandler;
 			}
 		}
 
-		public T Modify(T given)
+		public override T Modify(T given)
 		{
 			if (!Enabled) return given;
 			return _value.Value;
+		}
+
+		public void Dispose()
+		{
+			if (_isDisposed) return;
+			_isDisposed = true;
+
+			if (_valueChangedHandler != null && _value is INotifyPropertyChanged notify)
+			{
+				notify.PropertyChanged -= _valueChangedHandler;
+				_valueChangedHandler = null;
+			}
 		}
 	}
 }

@@ -90,6 +90,7 @@ namespace GameSystems.Stats
 		protected virtual void OnDestroy()
 		{
 			StopRegen();
+			_stats?.Dispose();
 		}
 
 		#endregion

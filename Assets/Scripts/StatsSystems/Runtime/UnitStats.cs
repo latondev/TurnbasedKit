@@ -9,18 +9,19 @@ namespace GameSystems.Stats
 	/// All game logic lives here, UnitStatController is just a Unity wrapper.
 	/// </summary>
 	[Serializable]
-	public class UnitStats
+	public class UnitStats : IDisposable
 	{
-		private int level;
-		private readonly Dictionary<StatType, Stat> stats;
+		private int _level;
+		private readonly Dictionary<StatType, Stat> _stats;
+		private bool _isDisposed;
 
 		public int Level
 		{
-			get => level;
-			set => level = Math.Max(1, value);
+			get => _level;
+			set => _level = Math.Max(1, value);
 		}
-		public IEnumerable<Stat> Stats => stats.Values;
-		public int Count => stats.Count;
+		public IEnumerable<Stat> Stats => _stats.Values;
+		public int Count => _stats.Count;
 
 		// Events
 		public event Action<Stat> OnStatChanged;
@@ -30,8 +31,8 @@ namespace GameSystems.Stats
 
 		public UnitStats(int level = 1)
 		{
-			this.level = Math.Max(1, level);
-			this.stats = new Dictionary<StatType, Stat>();
+			_level = Math.Max(1, level);
+			_stats = new Dictionary<StatType, Stat>();
 		}
 
 		#region Stat Management
@@ -39,7 +40,7 @@ namespace GameSystems.Stats
 		public void AddStat(Stat stat)
 		{
 			if (stat == null) return;
-			stats[stat.StatType] = stat;
+			_stats[stat.StatType] = stat;
 			SubscribeToStatEvents(stat);
 		}
 
@@ -47,12 +48,12 @@ namespace GameSystems.Stats
 		{
 			if (stat == null) return;
 			UnsubscribeFromStatEvents(stat);
-			stats.Remove(stat.StatType);
+			_stats.Remove(stat.StatType);
 		}
 
 		public void RemoveStat(StatType type)
 		{
-			if (stats.TryGetValue(type, out var stat))
+			if (_stats.TryGetValue(type, out var stat))
 			{
 				RemoveStat(stat);
 			}
@@ -60,21 +61,21 @@ namespace GameSystems.Stats
 
 		public Stat GetStat(StatType type)
 		{
-			return stats.TryGetValue(type, out var stat) ? stat : null;
+			return _stats.TryGetValue(type, out var stat) ? stat : null;
 		}
 
 		public bool HasStat(StatType type)
 		{
-			return stats.ContainsKey(type);
+			return _stats.ContainsKey(type);
 		}
 
 		public void ClearStats()
 		{
-			foreach (var stat in stats.Values)
+			foreach (var stat in _stats.Values)
 			{
 				UnsubscribeFromStatEvents(stat);
 			}
-			stats.Clear();
+			_stats.Clear();
 		}
 
 		#endregion
@@ -83,23 +84,23 @@ namespace GameSystems.Stats
 
 		public IEnumerable<Stat> GetVitalStats()
 		{
-			return stats.Values.Where(s => s.StatType is StatType.Health or StatType.Mana or StatType.Stamina);
+			return _stats.Values.Where(s => s.StatType is StatType.Health or StatType.Mana or StatType.Stamina);
 		}
 
 		public IEnumerable<Stat> GetCombatStats()
 		{
-			return stats.Values.Where(s => s.StatType is StatType.Attack or StatType.Defense or StatType.Speed
+			return _stats.Values.Where(s => s.StatType is StatType.Attack or StatType.Defense or StatType.Speed
 				or StatType.CriticalRate or StatType.CriticalDamage);
 		}
 
 		public IEnumerable<Stat> GetDepletedStats()
 		{
-			return stats.Values.Where(s => s.IsDepleted());
+			return _stats.Values.Where(s => s.IsDepleted());
 		}
 
 		public IEnumerable<Stat> GetRegenerableStats()
 		{
-			return stats.Values.Where(s => s.CanRegenerate && !s.IsAtMax());
+			return _stats.Values.Where(s => s.CanRegenerate && !s.IsAtMax());
 		}
 
 		/// <summary>
@@ -108,7 +109,7 @@ namespace GameSystems.Stats
 		/// <param name="deltaTime">Time since last update in seconds</param>
 		public void ProcessRegen(float deltaTime)
 		{
-			foreach (var stat in stats.Values)
+			foreach (var stat in _stats.Values)
 			{
 				if (stat.CanRegenerate && !stat.IsAtMax())
 				{
@@ -129,7 +130,7 @@ namespace GameSystems.Stats
 		/// </summary>
 		public bool IsDead()
 		{
-			if (stats.TryGetValue(StatType.Health, out var hp))
+			if (_stats.TryGetValue(StatType.Health, out var hp))
 			{
 				return hp.IsDepleted();
 			}
@@ -142,7 +143,7 @@ namespace GameSystems.Stats
 		public bool CanAct()
 		{
 			// Need at least some stamina/mana to act
-			if (stats.TryGetValue(StatType.Stamina, out var stamina) && stamina.IsDepleted())
+			if (_stats.TryGetValue(StatType.Stamina, out var stamina) && stamina.IsDepleted())
 				return false;
 
 			return true;
@@ -216,7 +217,7 @@ namespace GameSystems.Stats
 		/// </summary>
 		public void RestoreAll()
 		{
-			foreach (var stat in stats.Values)
+			foreach (var stat in _stats.Values)
 			{
 				stat.RestoreToMax();
 			}
@@ -255,7 +256,7 @@ namespace GameSystems.Stats
 
 		public void ClearAllModifiers()
 		{
-			foreach (var stat in stats.Values)
+			foreach (var stat in _stats.Values)
 			{
 				stat.ClearModifiers();
 			}
@@ -269,7 +270,7 @@ namespace GameSystems.Stats
 		{
 			Level++;
 
-			foreach (var stat in stats.Values)
+			foreach (var stat in _stats.Values)
 			{
 				float baseIncrease = GetStatIncrease(stat.StatType);
 				float maxIncrease = GetMaxIncrease(stat.StatType);
@@ -322,9 +323,9 @@ namespace GameSystems.Stats
 
 		public UnitStats Clone()
 		{
-			var clone = new UnitStats(level);
+			var clone = new UnitStats(_level);
 
-			foreach (var stat in stats.Values)
+			foreach (var stat in _stats.Values)
 			{
 				clone.AddStat(stat.Clone());
 			}
@@ -377,6 +378,24 @@ namespace GameSystems.Stats
 			unit.AddStat(new Stat(StatType.Speed, 15f));
 
 			return unit;
+		}
+
+		#endregion
+
+		#region IDisposable
+
+		public void Dispose()
+		{
+			if (_isDisposed) return;
+			_isDisposed = true;
+
+			foreach (var stat in _stats.Values)
+			{
+				UnsubscribeFromStatEvents(stat);
+				stat.ModifiableValue?.Dispose();
+				stat.MaxModifiableValue?.Dispose();
+			}
+			_stats.Clear();
 		}
 
 		#endregion

@@ -15,7 +15,7 @@ namespace GameSystems.Battle
         public Action OnEndAction;
 
         [Header("Animation")]
-        [SerializeField] protected AnimationController animationHandle;
+        [SerializeField] protected AnimationHandle animationHandle;
         [SerializeField] protected string moveGo = "run";
         [SerializeField] protected string moveBack = "run";
 
@@ -33,6 +33,10 @@ namespace GameSystems.Battle
         protected virtual void OnValidate()
         {
             TryGetComponent(out animationHandle);
+            if (animationHandle == null)
+            {
+                animationHandle = GetComponentInChildren<AnimationHandle>(true);
+            }
         }
 
         public virtual void SetSpeed(float speed)
@@ -43,6 +47,14 @@ namespace GameSystems.Battle
         protected virtual void Start()
         {
             posOrigin = transform.position;
+            if (animationHandle == null)
+            {
+                animationHandle = GetComponentInChildren<AnimationHandle>(true);
+            }
+            if (animationHandle != null)
+            {
+                animationHandle.Initialize();
+            }
         }
 
         protected void MoveToRoot(Action callback = null)

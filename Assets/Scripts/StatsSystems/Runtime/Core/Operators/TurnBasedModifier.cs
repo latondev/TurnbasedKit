@@ -3,10 +3,12 @@ using System.ComponentModel;
 
 namespace GameSystems.Stats
 {
-	public class TurnBasedModifierWrapper<T> : IModifier<T>, ITurnBasedModifier
+	public class TurnBasedModifierWrapper<T> : IModifier<T>, ITurnBasedModifier, IDisposable
 	{
 		private readonly IModifier<T> _wrappedModifier;
 		private PropertyChangedEventHandler _propertyChangedHandler;
+		private PropertyChangedEventHandler _wrappedHandler;
+		private bool _isDisposed;
 
 		public bool Enabled
 		{
@@ -37,7 +39,8 @@ namespace GameSystems.Stats
 			TotalTurns = totalTurns;
 			RemainingTurns = totalTurns;
 
-			_wrappedModifier.PropertyChanged += (s, e) => _propertyChangedHandler?.Invoke(this, e);
+			_wrappedHandler = (s, e) => _propertyChangedHandler?.Invoke(this, e);
+			_wrappedModifier.PropertyChanged += _wrappedHandler;
 		}
 
 		public T Modify(T given)
@@ -77,6 +80,23 @@ namespace GameSystems.Stats
 			Enabled = true;
 			_propertyChangedHandler?.Invoke(this, new PropertyChangedEventArgs(nameof(RemainingTurns)));
 			_propertyChangedHandler?.Invoke(this, new PropertyChangedEventArgs(nameof(Enabled)));
+		}
+
+		public void Dispose()
+		{
+			if (_isDisposed) return;
+			_isDisposed = true;
+
+			if (_wrappedHandler != null)
+			{
+				_wrappedModifier.PropertyChanged -= _wrappedHandler;
+				_wrappedHandler = null;
+			}
+
+			if (_wrappedModifier is IDisposable disposable)
+			{
+				disposable.Dispose();
+			}
 		}
 	}
 

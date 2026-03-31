@@ -20,8 +20,32 @@ Shader "ASE/Add_UVx2" {
 			Blend One One, One One
 			ZWrite Off
 			Cull Off
-			GpuProgramID 12035
-			// No subprograms found
+			CGPROGRAM
+			#pragma target 2.0
+			#pragma vertex ASEFallbackVert
+			#pragma fragment frag
+			#include "ShaderFallbackCommon.cginc"
+
+			sampler2D _TextureSample0;
+			sampler2D _Tex_2;
+			sampler2D _Mask;
+			fixed4 _Color;
+			float _Opacity;
+			float _U_Speed;
+			float _V_Speed;
+			float _U2_Speed;
+			float _V2_Speed;
+
+			fixed4 frag(ASEFallbackV2F i) : SV_Target
+			{
+				float2 uv1 = ASEScrollUV(i.uv, float2(_U_Speed, _V_Speed));
+				float2 uv2 = ASEScrollUV(i.uv, float2(_U2_Speed, _V2_Speed));
+				fixed4 col = tex2D(_TextureSample0, uv1) + tex2D(_Tex_2, uv2);
+				col *= _Color * i.color;
+				col.a *= _Opacity * tex2D(_Mask, i.uv).a;
+				return ASEFinalizeAdditive(col);
+			}
+			ENDCG
 		}
 		Pass {
 			Name "FORWARD"
@@ -29,8 +53,32 @@ Shader "ASE/Add_UVx2" {
 			Blend One One, One One
 			ZWrite Off
 			Cull Off
-			GpuProgramID 90404
-			// No subprograms found
+			CGPROGRAM
+			#pragma target 2.0
+			#pragma vertex ASEFallbackVert
+			#pragma fragment frag
+			#include "ShaderFallbackCommon.cginc"
+
+			sampler2D _TextureSample0;
+			sampler2D _Tex_2;
+			sampler2D _Mask;
+			fixed4 _Color;
+			float _Opacity;
+			float _U_Speed;
+			float _V_Speed;
+			float _U2_Speed;
+			float _V2_Speed;
+
+			fixed4 frag(ASEFallbackV2F i) : SV_Target
+			{
+				float2 uv1 = ASEScrollUV(i.uv, float2(_U_Speed, _V_Speed));
+				float2 uv2 = ASEScrollUV(i.uv, float2(_U2_Speed, _V2_Speed));
+				fixed4 col = tex2D(_TextureSample0, uv1) + tex2D(_Tex_2, uv2);
+				col *= _Color * i.color;
+				col.a *= _Opacity * tex2D(_Mask, i.uv).a;
+				return ASEFinalizeAdditive(col);
+			}
+			ENDCG
 		}
 	}
 	CustomEditor "ASEMaterialInspector"

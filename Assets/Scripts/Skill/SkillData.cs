@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using GameSystems;
+using GameSystems.Battle;
 
 namespace GameSystems.Skills
 {
@@ -44,6 +45,7 @@ namespace GameSystems.Skills
         [SerializeField] private int totalCasts;
         
         [SerializeField] private Sprite icon;
+        [SerializeField] private SkillViewSequence viewSequence;
 
         // Properties
         public string SkillId => skillId;
@@ -67,6 +69,12 @@ namespace GameSystems.Skills
         public float CastTime => castTime;
         public int TotalCasts => totalCasts;
         public Sprite Icon => icon;
+        public SkillViewSequence ViewSequence => viewSequence;
+
+        public void SetViewSequence(SkillViewSequence sequence)
+        {
+            viewSequence = sequence;
+        }
 
         public SkillData(string id, string name, string description, SkillCategory category, 
             SkillElement element, int manaCost, float cooldown, float damage)

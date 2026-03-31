@@ -1,4 +1,12 @@
 {
+    "dotnet.defaultSolution": "TurnbasedKit.sln",
+    "dotrush.roslyn.dotnetSdkDirectory": "C:/Program Files/dotnet/sdk/9.0.306",
+    "dotrush.msbuildProperties": {
+        "DefineConstants": "UNITY_EDITOR"
+    },
+    "dotrush.roslyn.projectOrSolutionFiles": [
+        "D:/git/TurnbasedKit/TurnbasedKit.sln"
+    ],
     "files.exclude": {
         "**/.DS_Store": true,
         "**/.git": true,
@@ -56,15 +64,5 @@
         "temp/": true,
         "Temp/": true
     },
-    "files.associations": {
-        "*.asset": "yaml",
-        "*.meta": "yaml",
-        "*.prefab": "yaml",
-        "*.unity": "yaml"
-    },
-    "explorer.fileNesting.enabled": true,
-    "explorer.fileNesting.patterns": {
-        "*.sln": "*.csproj"
-    },
-    "dotnet.defaultSolution": "TurnbasedKit.slnx"
+    "dotnet.preferCSharpExtension": true
 }

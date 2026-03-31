@@ -21,6 +21,11 @@ namespace GameSystems.Battle
                 TryGetComponent(out animationHandle);
             }
 
+            if (animationHandle == null)
+            {
+                animationHandle = GetComponentInChildren<AnimationHandle>(true);
+            }
+
             if (animationHandle != null)
             {
                 animationHandle.OnEventAnimation += OnEventAnimation;
@@ -40,7 +45,7 @@ namespace GameSystems.Battle
                 if (animationHandle != null)
                 {
                     animationHandle.ResetSortingOrder();
-                    animationHandle.PlayAnimation(moveBack, 0.1f, 2, false);
+                    animationHandle.TryPlayAnimation(moveBack, moveBack, 0.1f, 2, false);
                 }
 
                 MoveToRoot(() =>
@@ -48,7 +53,7 @@ namespace GameSystems.Battle
                     if (animationHandle != null)
                     {
                         animationHandle.SetSortingOrder(2 - (int)transform.position.y);
-                        animationHandle.PlayAnimation(idleAnimation, 0.1f, 0, true);
+                        animationHandle.TryPlayAnimation(idleAnimation, idleAnimation, 0.1f, 0, true);
                     }
                     OnEndAction?.Invoke();
                 });
@@ -76,7 +81,7 @@ namespace GameSystems.Battle
         {
             if (animationHandle != null)
             {
-                animationHandle.PlayAnimation(moveGo, 0.1f, 1, false);
+                animationHandle.TryPlayAnimation(moveGo, moveGo, 0.1f, 1, false);
             }
 
             int sortingOrder = 1000 + (int)transform.position.y;
@@ -90,7 +95,7 @@ namespace GameSystems.Battle
             {
                 if (animationHandle != null)
                 {
-                    animationHandle.PlayAnimation(attackAnimation, 0.1f, 1, false);
+                    animationHandle.TryPlayAnimation(attackAnimation, "war_attack", 0.1f, 1, false);
                 }
             });
         }

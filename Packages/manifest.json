@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.antigravity.ide": "https://github.com/billythekidz/UnityAntigravityIDE.git",
     "com.chenpipi.project-pin-board": "https://github.com/ichenpipi/unity-project-pin-board.git",
     "com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#beta",
     "com.unity.feature.2d": "2.0.2",

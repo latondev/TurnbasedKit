@@ -58,7 +58,7 @@ namespace GameSystems.Stats
 
 			_modifiableValue = new ModifiableValue<float>(baseValue);
 			_maxValue = new ModifiableValue<float>(maxValue > 0 ? maxValue : baseValue);
-			_currentValue = new BoundedValue<float>(0f, baseValue, _maxValue);
+			_currentValue = new BoundedValue<float>(_maxValue.Value, 0f, _maxValue);
 
 			_maxValue.PropertyChanged += (s, e) =>
 			{

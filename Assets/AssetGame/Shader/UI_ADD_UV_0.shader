@@ -18,23 +18,74 @@ Shader "UI/ADD_UV" {
 	}
 	SubShader {
 		Tags { "CanUseSpriteAtlas" = "true" "IGNOREPROJECTOR" = "true" "PreviewType" = "Plane" "QUEUE" = "Transparent" "RenderType" = "Transparent" }
+		Stencil {
+			Ref [_Stencil]
+			Comp [_StencilComp]
+			Pass [_StencilOp]
+			ReadMask [_StencilReadMask]
+			WriteMask [_StencilWriteMask]
+		}
 		Pass {
 			Name "Default"
 			Tags { "CanUseSpriteAtlas" = "true" "IGNOREPROJECTOR" = "true" "PreviewType" = "Plane" "QUEUE" = "Transparent" "RenderType" = "Transparent" }
-			Blend SrcAlpha OneMinusSrcAlpha, SrcAlpha OneMinusSrcAlpha
-			ColorMask 0
+			Blend SrcAlpha OneMinusSrcAlpha
+			ColorMask [_ColorMask]
 			ZWrite Off
 			Cull Off
-			Stencil {
-				ReadMask 0
-				WriteMask 0
-				Comp [Disabled]
-				Pass Keep
-				Fail Keep
-				ZFail Keep
+			ZTest [unity_GUIZTestMode]
+			CGPROGRAM
+			#pragma target 2.0
+			#pragma vertex vert
+			#pragma fragment frag
+			#pragma multi_compile __ UNITY_UI_ALPHACLIP
+			#include "UnityCG.cginc"
+			#include "UnityUI.cginc"
+			#include "ShaderFallbackCommon.cginc"
+
+			struct appdata_t
+			{
+				float4 vertex : POSITION;
+				float4 color : COLOR;
+				float2 texcoord : TEXCOORD0;
+			};
+
+			struct v2f
+			{
+				float4 vertex : SV_POSITION;
+				fixed4 color : COLOR;
+				float2 uv : TEXCOORD0;
+				float4 worldPosition : TEXCOORD1;
+			};
+
+			sampler2D _MainTex;
+			sampler2D _EmissionTex;
+			fixed4 _Color;
+			fixed4 _EmissionColor;
+			float _Intensity;
+			float _U_Speed;
+			float _V_Speed;
+			float _Rotation;
+
+			v2f vert(appdata_t v)
+			{
+				v2f o;
+				o.worldPosition = v.vertex;
+				o.vertex = UnityObjectToClipPos(v.vertex);
+				o.uv = ASERotateUV(ASEScrollUV(v.texcoord, float2(_U_Speed, _V_Speed)), _Rotation * 6.2831853);
+				o.color = v.color * _Color;
+				return o;
 			}
-			GpuProgramID 8175
-			// No subprograms found
+
+			fixed4 frag(v2f i) : SV_Target
+			{
+				fixed4 col = tex2D(_MainTex, i.uv) * i.color;
+				col += tex2D(_EmissionTex, i.uv) * _EmissionColor * _Intensity;
+				#ifdef UNITY_UI_ALPHACLIP
+				clip(col.a - 0.001);
+				#endif
+				return col;
+			}
+			ENDCG
 		}
 	}
 }

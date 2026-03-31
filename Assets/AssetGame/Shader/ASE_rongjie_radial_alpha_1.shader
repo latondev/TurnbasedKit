@@ -16,20 +16,76 @@ Shader "ASE/rongjie_radial_alpha" {
 		Pass {
 			Name "FORWARD"
 			Tags { "IsEmissive" = "true" "LIGHTMODE" = "FORWARDBASE" "QUEUE" = "Transparent+0" "RenderType" = "Custom" }
-			Blend SrcAlpha OneMinusSrcAlpha, SrcAlpha OneMinusSrcAlpha
+			Blend SrcAlpha OneMinusSrcAlpha
 			ZWrite Off
 			Cull Off
-			GpuProgramID 61506
-			// No subprograms found
+			CGPROGRAM
+			#pragma target 2.0
+			#pragma vertex ASEFallbackVert
+			#pragma fragment frag
+			#include "ShaderFallbackCommon.cginc"
+
+			sampler2D _MainTex;
+			sampler2D _NosieTex;
+			fixed4 _Side_Color;
+			fixed4 _Step_Color;
+			float _NoisePowr;
+			float _RongJie;
+			float _Side;
+			float _Step;
+
+			fixed4 frag(ASEFallbackV2F i) : SV_Target
+			{
+				fixed4 col = tex2D(_MainTex, i.uv) * i.color;
+				float2 centeredUV = i.uv - 0.5;
+				float radial = saturate(1.0 - length(centeredUV) * _RongJie);
+				float noise = tex2D(_NosieTex, i.uv).r * _NoisePowr;
+				float dissolve = saturate(radial + noise - 0.5);
+				float sideEdge = smoothstep(_Side - 0.08, _Side + 0.08, dissolve);
+				float stepEdge = smoothstep(_Step - 0.02, _Step + 0.02, dissolve);
+				col.rgb = lerp(_Step_Color.rgb, col.rgb, stepEdge);
+				col.rgb = lerp(_Side_Color.rgb, col.rgb, sideEdge);
+				col.a *= dissolve;
+				return col;
+			}
+			ENDCG
 		}
 		Pass {
-			Name "FORWARD"
+			Name "FORWARDADD"
 			Tags { "IsEmissive" = "true" "LIGHTMODE" = "FORWARDADD" "QUEUE" = "Transparent+0" "RenderType" = "Custom" }
-			Blend One One, One One
+			Blend One One
 			ZWrite Off
 			Cull Off
-			GpuProgramID 126013
-			// No subprograms found
+			CGPROGRAM
+			#pragma target 2.0
+			#pragma vertex ASEFallbackVert
+			#pragma fragment frag
+			#include "ShaderFallbackCommon.cginc"
+
+			sampler2D _MainTex;
+			sampler2D _NosieTex;
+			fixed4 _Side_Color;
+			fixed4 _Step_Color;
+			float _NoisePowr;
+			float _RongJie;
+			float _Side;
+			float _Step;
+
+			fixed4 frag(ASEFallbackV2F i) : SV_Target
+			{
+				fixed4 col = tex2D(_MainTex, i.uv) * i.color;
+				float2 centeredUV = i.uv - 0.5;
+				float radial = saturate(1.0 - length(centeredUV) * _RongJie);
+				float noise = tex2D(_NosieTex, i.uv).r * _NoisePowr;
+				float dissolve = saturate(radial + noise - 0.5);
+				float sideEdge = smoothstep(_Side - 0.08, _Side + 0.08, dissolve);
+				float stepEdge = smoothstep(_Step - 0.02, _Step + 0.02, dissolve);
+				col.rgb = lerp(_Step_Color.rgb, col.rgb, stepEdge);
+				col.rgb = lerp(_Side_Color.rgb, col.rgb, sideEdge);
+				col.a *= dissolve;
+				return col;
+			}
+			ENDCG
 		}
 	}
 	CustomEditor "ASEMaterialInspector"

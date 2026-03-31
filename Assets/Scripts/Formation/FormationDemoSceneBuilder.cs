@@ -3,6 +3,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using TMPro;
 using GameSystems.Formation;
 using System.Collections.Generic;
 using System.IO;
@@ -62,6 +63,7 @@ namespace GameSystems.Editor
             canvasObj.AddComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             canvasObj.AddComponent<GraphicRaycaster>();
 
+            
             // Setup Event System
             if (UnityEngine.Object.FindObjectOfType<UnityEngine.EventSystems.EventSystem>() == null)
             {
@@ -69,16 +71,20 @@ namespace GameSystems.Editor
                 esObj.AddComponent<UnityEngine.EventSystems.EventSystem>();
                 esObj.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
             }
+            
 
             // Create some instructions text
             GameObject textObj = new GameObject("InstructionsText");
             textObj.transform.SetParent(canvasObj.transform, false);
-            Text txt = textObj.AddComponent<Text>();
+            TextMeshProUGUI txt = textObj.AddComponent<TextMeshProUGUI>();
             txt.text = "FORMATION SYSTEM 3D DEMO\n\n- Click <color=yellow>Left</color> on empty slot to Spawn\n- <color=cyan>Drag & Drop</color> units to Swap\n- Click <color=red>Right</color> on unit to Remove";
-            txt.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
             txt.fontSize = 20;
             txt.color = Color.white;
-            txt.supportRichText = true;
+            txt.richText = true;
+            txt.alignment = TextAlignmentOptions.TopLeft;
+            txt.enableWordWrapping = true;
+            txt.overflowMode = TextOverflowModes.Overflow;
+            txt.font = ResolveTmpFontAsset();
             RectTransform txtRt = textObj.GetComponent<RectTransform>();
             txtRt.anchorMin = new Vector2(0, 1);
             txtRt.anchorMax = new Vector2(0, 1);
@@ -211,6 +217,39 @@ namespace GameSystems.Editor
             GameObject prefab = PrefabUtility.SaveAsPrefabAsset(obj, path);
             UnityEngine.Object.DestroyImmediate(obj);
             return prefab;
+        }
+
+        private static TMP_FontAsset ResolveTmpFontAsset()
+        {
+            string[] preferredPaths =
+            {
+                "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset",
+                "Assets/AssetGame/ArtWork/Font/BattleNum.asset",
+                "Assets/AssetGame/ArtWork/Font/RoleNum.asset",
+            };
+
+            for (int i = 0; i < preferredPaths.Length; i++)
+            {
+                TMP_FontAsset directFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(preferredPaths[i]);
+                if (directFont != null)
+                {
+                    return directFont;
+                }
+            }
+
+            string[] fontGuids = AssetDatabase.FindAssets("t:TMP_FontAsset");
+            if (fontGuids != null && fontGuids.Length > 0)
+            {
+                string fontPath = AssetDatabase.GUIDToAssetPath(fontGuids[0]);
+                TMP_FontAsset fontAsset = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(fontPath);
+                if (fontAsset != null)
+                {
+                    return fontAsset;
+                }
+            }
+
+            Debug.LogWarning("[FormationDemoSceneBuilder] No TMP font asset found. Instructions text will use TMP fallback.");
+            return null;
         }
     }
 }

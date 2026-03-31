@@ -81,13 +81,13 @@ public class TurnBasedExample : MonoBehaviour
 		var speedBoost = TurnBasedModifierFactory.Times(1.5f, turns: 5, priority: 50, name: "Speed Boost");
 		speed.Modifiers.Add(speedBoost as IModifier<float>);
 
-		turnTracker.RegisterTurnEndCallback((turn) =>
+		turnTracker.OnTurnEnd += (turn) =>
 		{
 			if (speedBoost is TurnBasedModifierWrapper<float> wrapper)
 			{
 				Debug.Log($"   Speed Boost: {wrapper.RemainingTurns} turns remaining");
 			}
-		});
+		};
 
 		Debug.Log($"Speed with boost: {speed.Value}");
 	}
@@ -119,7 +119,6 @@ public class TurnBasedExample : MonoBehaviour
 		defense.Modifiers.Clear();
 
 		turnTracker.Reset();
-		turnTracker.ClearCallbacks();
 
 		SetupTurnTracker();
 		SetupBasicTurnBasedModifiers();
@@ -139,7 +138,7 @@ public class TurnBasedExample : MonoBehaviour
 		damage.Modifiers.Add(critBuff as IModifier<float>);
 		damage.Modifiers.Add(baseBuff as IModifier<float>);
 
-		turnTracker.RegisterTurnEndCallback((turn) =>
+		turnTracker.OnTurnEnd += (turn) =>
 		{
 			if (turn <= 4)
 			{
@@ -155,7 +154,7 @@ public class TurnBasedExample : MonoBehaviour
 					Debug.Log($"  Base: {baseWrapper.RemainingTurns} turns left");
 				}
 			}
-		});
+		};
 	}
 
 	void DemonstrateConditionalTurnModifiers()
@@ -169,13 +168,13 @@ public class TurnBasedExample : MonoBehaviour
 
 		health.Modifiers.Add(healOverTurns);
 
-		turnTracker.RegisterTurnEndCallback((turn) =>
+		turnTracker.OnTurnEnd += (turn) =>
 		{
 			if (health.Value >= health.InitialValue + 50)
 			{
 				healOverTurns.Enabled = false;
 				Debug.Log($"<color=green>Heal stopped at turn {turn} (max health reached)</color>");
 			}
-		});
+		};
 	}
 }

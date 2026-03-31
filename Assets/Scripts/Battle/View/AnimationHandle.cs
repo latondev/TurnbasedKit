@@ -1,68 +1,163 @@
+using System;
+using Spine;
 using Spine.Unity;
 using UnityEngine;
 
- /// <summary>
-    /// Animation Handle - wrapper for skeleton animation setup
-    /// </summary>
-    public class AnimationHandle : MonoBehaviour
+/// <summary>
+/// Low-level Spine adapter used by battle views and prefabs.
+/// Owns SkeletonAnimation and forwards Spine animation events.
+/// </summary>
+public class AnimationHandle : MonoBehaviour
+{
+    [SerializeField] public SkeletonAnimation skeletonAnimation;
+    [SerializeField] private int sortingOrder = 0;
+    [SerializeField] private string sortingLayerName = "Default";
+
+    public event Action<string, string> OnEventAnimation;
+    public event Action<string> OnEndAnimation;
+
+    private bool _eventsBound;
+
+    public void Initialize()
     {
-        [SerializeField] public SkeletonAnimation skeletonAnimation;
-        [SerializeField] private int sortingOrder = 0;
-        [SerializeField] private string sortingLayerName = "Default";
-
-        public void Initialize()
+        if (skeletonAnimation == null)
         {
-            if (skeletonAnimation == null)
-            {
-                TryGetComponent(out skeletonAnimation);
-            }
+            TryGetComponent(out skeletonAnimation);
         }
 
-        public void PlayAnimation(string name, float mix, int layer, bool loop, bool isLast = false)
+        if (skeletonAnimation == null || _eventsBound)
         {
-            if (skeletonAnimation != null && !string.IsNullOrEmpty(name))
-            {
-                var animation = skeletonAnimation.Skeleton.Data.FindAnimation(name);
-                if (animation != null)
-                {
-                    skeletonAnimation.AnimationState.SetAnimation(layer, animation, loop);
-                }
-            }
+            return;
         }
 
-        public void SetSortingOrder(int order, string layer = "Unit")
-        {
-            sortingOrder = order;
-            sortingLayerName = layer;
+        skeletonAnimation.AnimationState.End += HandleEndAnimation;
+        skeletonAnimation.AnimationState.Event += HandleEventAnimation;
+        _eventsBound = true;
+    }
 
-            if (skeletonAnimation != null)
+    private void OnEnable()
+    {
+        Initialize();
+    }
+
+    public void PlayAnimation(string name, float mix, int layer, bool loop, bool isLast = false)
+    {
+        if (skeletonAnimation != null && !string.IsNullOrEmpty(name))
+        {
+            Initialize();
+
+            var animation = skeletonAnimation.Skeleton.Data.FindAnimation(name);
+            if (animation != null)
             {
-                var meshRenderer = skeletonAnimation.GetComponent<MeshRenderer>();
-                if (meshRenderer != null)
-                {
-                    meshRenderer.sortingOrder = order;
-                }
-            }
-        }
-
-        public void ResetSortingOrder()
-        {
-            SetSortingOrder(2 - (int)transform.position.y);
-        }
-
-        public void SetFlipX(bool flip)
-        {
-            if (skeletonAnimation != null)
-            {
-                skeletonAnimation.skeleton.ScaleX = flip ? -1f : 1f;
-            }
-        }
-
-        public void SetSpeed(float speed)
-        {
-            if (skeletonAnimation != null)
-            {
-                skeletonAnimation.timeScale = speed;
+                skeletonAnimation.AnimationState.SetAnimation(layer, animation, loop);
             }
         }
     }
+
+    public bool TryPlayAnimation(string primaryName, string fallbackName, float mix, int layer, bool loop, bool isLast = false)
+    {
+        if (TryPlayAnimationInternal(primaryName, mix, layer, loop, isLast))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrEmpty(fallbackName) &&
+            !string.Equals(primaryName, fallbackName, StringComparison.OrdinalIgnoreCase))
+        {
+            return TryPlayAnimationInternal(fallbackName, mix, layer, loop, isLast);
+        }
+
+        return false;
+    }
+
+    private bool TryPlayAnimationInternal(string name, float mix, int layer, bool loop, bool isLast)
+    {
+        if (skeletonAnimation == null || string.IsNullOrEmpty(name))
+        {
+            return false;
+        }
+
+        Initialize();
+
+        if (skeletonAnimation.Skeleton == null || skeletonAnimation.Skeleton.Data == null)
+        {
+            return false;
+        }
+
+        var animation = skeletonAnimation.Skeleton.Data.FindAnimation(name);
+        if (animation == null)
+        {
+            return false;
+        }
+
+        skeletonAnimation.AnimationState.SetAnimation(layer, animation, loop);
+        return true;
+    }
+
+    public string GetCurrentAnimationName(int trackIndex = 0)
+    {
+        if (skeletonAnimation == null)
+        {
+            return string.Empty;
+        }
+
+        var currentTrackEntry = skeletonAnimation.AnimationState.GetCurrent(trackIndex);
+        return currentTrackEntry != null ? currentTrackEntry.Animation.Name : string.Empty;
+    }
+
+    public void SetSortingOrder(int order, string layer = "Unit")
+    {
+        sortingOrder = order;
+        sortingLayerName = layer;
+
+        if (skeletonAnimation != null)
+        {
+            var meshRenderer = skeletonAnimation.GetComponent<MeshRenderer>();
+            if (meshRenderer != null)
+            {
+                meshRenderer.sortingOrder = order;
+            }
+        }
+    }
+
+    public void ResetSortingOrder()
+    {
+        SetSortingOrder(2 - (int)transform.position.y);
+    }
+
+    public void SetFlipX(bool flip)
+    {
+        if (skeletonAnimation != null)
+        {
+            skeletonAnimation.skeleton.ScaleX = flip ? -1f : 1f;
+        }
+    }
+
+    public void SetSpeed(float speed)
+    {
+        if (skeletonAnimation != null)
+        {
+            skeletonAnimation.timeScale = speed;
+        }
+    }
+
+    private void HandleEventAnimation(TrackEntry trackentry, Spine.Event e)
+    {
+        OnEventAnimation?.Invoke(trackentry.Animation.Name, e.Data.Name);
+    }
+
+    private void HandleEndAnimation(TrackEntry trackentry)
+    {
+        OnEndAnimation?.Invoke(trackentry.Animation.Name);
+    }
+
+    private void OnDestroy()
+    {
+        if (skeletonAnimation != null && _eventsBound)
+        {
+            skeletonAnimation.AnimationState.End -= HandleEndAnimation;
+            skeletonAnimation.AnimationState.Event -= HandleEventAnimation;
+            _eventsBound = false;
+        }
+    }
+}

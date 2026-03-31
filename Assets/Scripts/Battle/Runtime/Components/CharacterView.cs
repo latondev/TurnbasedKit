@@ -14,7 +14,7 @@ namespace GameSystems.Battle
         [SerializeField] private BehitBehavior behitBehavior;
         [SerializeField] private SkillBehavior skillBehavior;
         [SerializeField] private StatusView statusView;
-        [SerializeField] private AnimationController animationController;
+        [SerializeField] private AnimationHandle animationController;
 
         [Header("Settings")]
         [SerializeField] private ActionType actionType;
@@ -35,6 +35,36 @@ namespace GameSystems.Battle
             TryGetComponent(out skillBehavior);
             TryGetComponent(out statusView);
             TryGetComponent(out animationController);
+
+            if (attackBehavior == null)
+            {
+                attackBehavior = GetComponentInChildren<AttackBehavior>(true);
+            }
+
+            if (behitBehavior == null)
+            {
+                behitBehavior = GetComponentInChildren<BehitBehavior>(true);
+            }
+
+            if (skillBehavior == null)
+            {
+                skillBehavior = GetComponentInChildren<SkillBehavior>(true);
+            }
+
+            if (statusView == null)
+            {
+                statusView = GetComponentInChildren<StatusView>(true);
+            }
+
+            if (animationController == null)
+            {
+                animationController = GetComponentInChildren<AnimationHandle>(true);
+            }
+
+            if (animationController != null)
+            {
+                animationController.Initialize();
+            }
 
             if (attackBehavior != null)
             {

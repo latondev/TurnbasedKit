@@ -200,9 +200,59 @@ public class UnitStatControllerEditor : Editor
 		GUI.backgroundColor = new Color(1f, 0.9f, 0.3f);
 		if (GUILayout.Button("⬆ Level Up", GUILayout.Height(25))) controller.LevelUp();
 
+		GUI.backgroundColor = new Color(1f, 0.8f, 0.2f);
+		if (GUILayout.Button("⬆⬆ Level x5", GUILayout.Height(25))) controller.LevelUp(5);
+
 		GUI.backgroundColor = new Color(0.5f, 0.5f, 0.8f);
 		if (GUILayout.Button("🛡️ Toggle Regen", GUILayout.Height(25)))
 			controller.EnableRegen = !controller.EnableRegen;
+
+		GUI.backgroundColor = previousBg;
+		EditorGUILayout.EndHorizontal();
+
+		EditorGUILayout.Space(5);
+
+		EditorGUILayout.BeginHorizontal();
+
+		GUI.backgroundColor = new Color(0.45f, 0.9f, 0.55f);
+		if (GUILayout.Button("⚔️ Buff Attack", GUILayout.Height(25)))
+		{
+			controller.AddModifier(StatType.Attack, Modifier.Plus(10f, priority: 0, name: "Inspector Attack Buff"));
+			controller.AddModifier(StatType.Attack, Modifier.Times(1.2f, priority: 100, name: "Inspector Rage"));
+		}
+
+		GUI.backgroundColor = new Color(0.4f, 0.7f, 1f);
+		if (GUILayout.Button("🩹 Buff HP", GUILayout.Height(25)))
+		{
+			controller.AddMaxModifier(StatType.Health, Modifier.Plus(50f, priority: 0, name: "Inspector Vitality"));
+			controller.Heal(50f);
+		}
+
+		GUI.backgroundColor = new Color(1f, 0.55f, 0.55f);
+		if (GUILayout.Button("☠ Debuff Pack", GUILayout.Height(25)))
+		{
+			controller.AddModifier(StatType.Defense, Modifier.Minus(5f, priority: 0, name: "Inspector Armor Break"));
+			controller.AddModifier(StatType.Speed, Modifier.Divide(1.25f, priority: 0, name: "Inspector Slow"));
+			controller.AddModifier(StatType.Attack, Modifier.Minus(3f, priority: 0, name: "Inspector Weakness"));
+		}
+
+		GUI.backgroundColor = previousBg;
+		EditorGUILayout.EndHorizontal();
+
+		EditorGUILayout.Space(5);
+
+		EditorGUILayout.BeginHorizontal();
+
+		GUI.backgroundColor = new Color(1f, 0.7f, 0.45f);
+		if (GUILayout.Button("🧹 Clear Modifiers", GUILayout.Height(25))) controller.ClearAllModifiers();
+
+		GUI.backgroundColor = new Color(0.8f, 1f, 0.8f);
+		if (GUILayout.Button("♻️ Restore HP/MP/STA", GUILayout.Height(25)))
+		{
+			controller.RestoreStat(StatType.Health);
+			controller.RestoreStat(StatType.Mana);
+			controller.RestoreStat(StatType.Stamina);
+		}
 
 		GUI.backgroundColor = previousBg;
 		EditorGUILayout.EndHorizontal();

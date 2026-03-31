@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using GameSystems.Common;
+using GameSystems.Battle;
 using GameSystems.Skills;
 using GameSystems.Stats;
 
@@ -135,7 +136,7 @@ namespace GameSystems.AutoBattle
             // }
 
             // Fallback: create a basic skill if no controller
-            return new SkillData(
+            var skill = new SkillData(
                 "default_attack",
                 "Power Strike",
                 "A basic attack skill",
@@ -143,6 +144,8 @@ namespace GameSystems.AutoBattle
                 SkillElement.Physical,
                 20, 3f, 100f
             );
+            skill.SetViewSequence(SkillViewSequence.CreateBasicStrike("default_attack_view", "skill"));
+            return skill;
         }
 
         /// <summary>
@@ -218,6 +221,7 @@ namespace GameSystems.AutoBattle
                 return;
             }
 
+            IsWaitingForVisuals = false;
             InitializeBattle();
             ChangeBattleState(BattleState.InProgress);
 
@@ -235,6 +239,7 @@ namespace GameSystems.AutoBattle
                 battleCoroutine = null;
             }
 
+            IsWaitingForVisuals = false;
             ChangeBattleState(BattleState.Idle);
             LogDebug("Battle stopped");
         }
@@ -244,6 +249,8 @@ namespace GameSystems.AutoBattle
         /// </summary>
         private void InitializeBattle()
         {
+            IsWaitingForVisuals = false;
+
                 // LogDebug($"<color=green>Applied PlayerStats: {playerStats}");
                 //
                 // foreach (var unit in playerUnits)
@@ -384,7 +391,13 @@ namespace GameSystems.AutoBattle
                     BattleTurn turn = new BattleTurn(currentTurn, unit);
                     OnTurnStarted?.Invoke(turn);
 
-                    BattleAction action = DecideAction(unit);
+                    bool canAct = unit.BeginTurn();
+                    if (!canAct)
+                    {
+                        LogDebug($"{unit.UnitName} is affected by control status and skips the turn.");
+                    }
+
+                    BattleAction action = canAct ? DecideAction(unit) : null;
                     if (action != null)
                     {
                         ExecuteAction(action);
@@ -397,6 +410,10 @@ namespace GameSystems.AutoBattle
 
                     // Wait for visual animations to finish
                     while (IsWaitingForVisuals) yield return null;
+
+                    unit.EndTurn();
+
+                    if (CheckBattleEnd()) yield break;
 
                     yield return new WaitForSeconds(turnDelay / battleSpeed);
                 }
@@ -531,6 +548,7 @@ namespace GameSystems.AutoBattle
         private void EndBattle(BattleOutcome outcome)
         {
             ChangeBattleState(BattleState.Ended);
+            IsWaitingForVisuals = false;
 
             lastResult = new BattleResult
             {

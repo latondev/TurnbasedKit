@@ -1,5 +1,12 @@
 {
   "dependencies": {
+    "com.antigravity.ide": {
+      "version": "https://github.com/billythekidz/UnityAntigravityIDE.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "7d9f8edc20877c7ee65cc8e972ee49ff547ccc86"
+    },
     "com.chenpipi.project-pin-board": {
       "version": "https://github.com/ichenpipi/unity-project-pin-board.git",
       "depth": 0,

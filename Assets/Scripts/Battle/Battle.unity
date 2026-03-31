@@ -313,9 +313,94 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &210000001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 210000002}
+  - component: {fileID: 210000003}
+  - component: {fileID: 210000004}
+  m_Layer: 0
+  m_Name: StatsBattleDemoRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &210000002
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 210000001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &210000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 210000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3e8d2d8b8cce4a0a9d1a7a4a7d7cc1c1, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  canvas: {fileID: 0}
+  autoFindSceneUnits: 0
+  title: Stats Battle Demo
+  maxLogLines: 10
+  battleDemo: {fileID: 0}
+  backgroundColor: {r: 0.04, g: 0.05, b: 0.08, a: 0.95}
+  panelColor: {r: 0.1, g: 0.12, b: 0.17, a: 0.92}
+  cardColor: {r: 0.13, g: 0.15, b: 0.2, a: 0.96}
+  accentColor: {r: 0.95, g: 0.8, b: 0.3, a: 1}
+  heroColor: {r: 0.4, g: 0.78, b: 1, a: 1}
+  enemyColor: {r: 1, g: 0.45, b: 0.45, a: 1}
+  hpGoodColor: {r: 0.38, g: 0.86, b: 0.48, a: 1}
+  hpWarnColor: {r: 1, g: 0.77, b: 0.2, a: 1}
+  hpLowColor: {r: 1, g: 0.35, b: 0.35, a: 1}
+  mutedTextColor: {r: 0.84, g: 0.88, b: 0.92, a: 1}
+--- !u!114 &210000004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 210000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c5f9bf5c9f64a53a2a2cba1a6b6f2a9, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  overlay: {fileID: 0}
+  autoStart: 0
+  turnDelay: 0.75
+  battleSpeed: 1
+  maxRounds: 8
+  heroLevel: 3
+  enemyLevel: 3
+  baseSkillDamageBonus: 8
+  skillDamageMultiplier: 1.35
+  critFallbackMultiplier: 1.5
+  defenseMitigation: 0.5
+  hitBaseChance: 0.75
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 1161622622}
   - {fileID: 8516835}
+  - {fileID: 210000002}

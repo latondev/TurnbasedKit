@@ -6,13 +6,28 @@ Shader "Particles/Additive" {
 	}
 	SubShader {
 		Tags { "IGNOREPROJECTOR" = "true" "PreviewType" = "Plane" "QUEUE" = "Transparent" "RenderType" = "Transparent" }
+		Blend SrcAlpha One
+		ZWrite Off
+		Cull Off
 		Pass {
-			Tags { "IGNOREPROJECTOR" = "true" "PreviewType" = "Plane" "QUEUE" = "Transparent" "RenderType" = "Transparent" }
-			Blend SrcAlpha One, SrcAlpha One
-			ZWrite Off
-			Cull Off
-			GpuProgramID 59531
-			// No subprograms found
+			CGPROGRAM
+			#pragma target 2.0
+			#pragma multi_compile_particles
+			#pragma vertex ASEParticleVert
+			#pragma fragment frag
+			#include "ShaderFallbackCommon.cginc"
+
+			sampler2D _MainTex;
+			fixed4 _TintColor;
+			float _InvFade;
+
+			fixed4 frag(ASEParticleV2F i) : SV_Target
+			{
+				fixed4 col = tex2D(_MainTex, i.uv) * _TintColor * i.color;
+				col.a *= ASEParticleSoftFactor(i, _InvFade);
+				return ASEFinalizeAdditive(col);
+			}
+			ENDCG
 		}
 	}
 }

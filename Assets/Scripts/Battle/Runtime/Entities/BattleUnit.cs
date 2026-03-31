@@ -13,7 +13,7 @@ namespace GameSystems.AutoBattle
     /// Uses StatsSystem package (UnitStatController)
     /// </summary>
     [Serializable]
-    public class BattleUnit
+    public class BattleUnit : IDisposable
     {
         [SerializeField] private string unitId;
         [SerializeField] private string unitName;
@@ -25,17 +25,18 @@ namespace GameSystems.AutoBattle
         [SerializeField] private SkillData equippedSkill;
         [SerializeField] private int skillDamageMultiplier;
         [SerializeField] private int skillCooldown;
-        [SerializeField] private int currentCooldown;
         [SerializeField] private string skillName;
 
         [Header("Stats System - Using StatsSystem Package")]
         [SerializeField] private UnitStatController statController;
 
         [Header("Battle Info")]
-        [SerializeField] private int damageDealt;
-        [SerializeField] private int damageTaken;
-        [SerializeField] private int turnsTaken;
         [SerializeField] private List<string> actionsLog;
+
+        private readonly BattleUnitRuntimeService runtimeService;
+        private readonly BattleUnitCombatService combatService;
+        private readonly BattleUnitLogService logService;
+        private readonly BattleUnitEventBridgeService eventBridgeService;
 
         // Properties using StatsSystem
         public string UnitId => unitId;
@@ -45,29 +46,41 @@ namespace GameSystems.AutoBattle
         public bool IsAlive => isAlive;
 
         // Stats from UnitStatController
-        public int CurrentHP => (int)statController.GetStatValue(StatType.Health);
-        public int MaxHP => (int)statController.GetStatMaxValue(StatType.Health);
-        public int FinalAttack => (int)statController.GetStatValue(StatType.Attack);
-        public int FinalDefense => (int)statController.GetStatValue(StatType.Defense);
-        public int FinalSpeed => (int)statController.GetStatValue(StatType.Speed);
-        public float CritRate => statController.GetStatValue(StatType.CriticalRate);
-        public float CritDamage => statController.GetStatValue(StatType.CriticalDamage);
+        public int CurrentHP => (int)(statController?.GetStatValue(StatType.Health) ?? 0f);
+        public int MaxHP => (int)(statController?.GetStatMaxValue(StatType.Health) ?? 0f);
+        public int FinalAttack => (int)(statController?.GetStatValue(StatType.Attack) ?? 0f);
+        public int FinalDefense => (int)(statController?.GetStatValue(StatType.Defense) ?? 0f);
+        public int FinalSpeed => (int)(statController?.GetStatValue(StatType.Speed) ?? 0f);
+        public float CritRate => statController?.GetStatValue(StatType.CriticalRate) ?? 0f;
+        public float CritDamage => statController?.GetStatValue(StatType.CriticalDamage) ?? 0f;
 
-        public int DamageDealt => damageDealt;
-        public int DamageTaken => damageTaken;
-        public int TurnsTaken => turnsTaken;
-        public List<string> ActionsLog => actionsLog;
+        public int DamageDealt => combatService?.DamageDealt ?? 0;
+        public int DamageTaken => combatService?.DamageTaken ?? 0;
+        public int TurnsTaken => runtimeService?.TurnsTaken ?? 0;
+        public List<string> ActionsLog => logService?.Entries ?? (actionsLog ??= new List<string>());
         public string SkillName => skillName;
-        public bool IsSkillReady => currentCooldown <= 0;
-        public int CurrentCooldown => currentCooldown;
+        public float SkillDamageMultiplier => skillDamageMultiplier <= 0 ? 1f : skillDamageMultiplier;
+        public bool IsSkillReady => runtimeService?.IsSkillReady ?? true;
+        public int CurrentCooldown => runtimeService?.CurrentCooldown ?? 0;
         public SkillData EquippedSkill => equippedSkill;
+        public int SkillCooldown => skillCooldown;
 
         // Mana properties
-        public int CurrentMana => (int)statController.GetStatValue(StatType.Mana);
-        public int MaxMana => (int)statController.GetStatMaxValue(StatType.Mana);
+        public int CurrentMana => (int)(statController?.GetStatValue(StatType.Mana) ?? 0f);
+        public int MaxMana => (int)(statController?.GetStatMaxValue(StatType.Mana) ?? 0f);
         public bool HasMana => CurrentMana > 0;
 
         public UnitStatController StatController => statController;
+        public BattleUnitRuntimeService RuntimeService => runtimeService;
+
+        public event Action<BattleUnit, Stat> OnStatChanged;
+        public event Action<BattleUnit, StatusEffect> OnStatusApplied;
+        public event Action<BattleUnit, StatusEffect> OnStatusRemoved;
+        public event Action<BattleUnit> OnTurnStarted;
+        public event Action<BattleUnit> OnTurnEnded;
+        public event Action<BattleUnit> OnDefeated;
+        public event Action<BattleUnit> OnReset;
+        public event Action<BattleUnit, int> OnCooldownChanged;
 
         /// <summary>
         /// Create BattleUnit from CharacterDataSO - direct integration with StatsSystem
@@ -77,6 +90,10 @@ namespace GameSystems.AutoBattle
             if (characterData == null)
             {
                 Debug.LogError("BattleUnit: characterData is null!");
+                this.runtimeService = null;
+                this.combatService = null;
+                this.logService = null;
+                this.eventBridgeService = null;
                 return;
             }
 
@@ -88,18 +105,23 @@ namespace GameSystems.AutoBattle
             // Create UnitStatController for this unit
             var go = new GameObject($"StatController_{unitId}");
             this.statController = go.AddComponent<UnitStatController>();
+            this.runtimeService = new BattleUnitRuntimeService(this);
+            this.combatService = new BattleUnitCombatService(this);
+            this.logService = new BattleUnitLogService(actionsLog);
+            this.eventBridgeService = new BattleUnitEventBridgeService(this);
             //statController.Level = characterData.level;
 
             // Setup stats directly from CharacterDataSO.stats (StatsSystem)
             SetupStatsFromCharacterData(characterData);
+            runtimeService.Initialize(statController, go.AddComponent<StatusController>());
+            eventBridgeService.Initialize(runtimeService);
 
             // Setup skills
             this.equippedSkill = characterData.skillBasic;
             this.skillName = characterData.skillBasic?.SkillName ?? "Basic Attack";
             this.skillCooldown = characterData.skillBasic != null ? Mathf.RoundToInt(characterData.skillBasic.BaseCooldown) : 0;
-            this.currentCooldown = 0;
 
-            this.actionsLog = new List<string>();
+            this.actionsLog = logService.Entries;
             this.isAlive = true;
         }
 
@@ -108,6 +130,12 @@ namespace GameSystems.AutoBattle
         /// </summary>
         private void SetupStatsFromCharacterData(CharacterDataSO data)
         {
+            if (statController == null)
+            {
+                Debug.LogError($"BattleUnit: statController missing for {unitName}");
+                return;
+            }
+
             var stats = statController.Stats;
             stats.ClearStats();
 
@@ -132,16 +160,21 @@ namespace GameSystems.AutoBattle
             // Create UnitStatController for this unit
             var go = new GameObject($"StatController_{id}");
             this.statController = go.AddComponent<UnitStatController>();
+            this.runtimeService = new BattleUnitRuntimeService(this);
+            this.combatService = new BattleUnitCombatService(this);
+            this.logService = new BattleUnitLogService(actionsLog);
+            this.eventBridgeService = new BattleUnitEventBridgeService(this);
 
             // Setup stats using StatsSystem
             SetupStats(hp, atk, def, spd);
+            runtimeService.Initialize(statController, go.AddComponent<StatusController>());
+            eventBridgeService.Initialize(runtimeService);
 
             this.skillName = skillName;
             this.skillDamageMultiplier = skillDmgMult;
             this.skillCooldown = skillCd;
-            this.currentCooldown = 0;
 
-            this.actionsLog = new List<string>();
+            this.actionsLog = logService.Entries;
 
             this.isAlive = true;
         }
@@ -151,6 +184,12 @@ namespace GameSystems.AutoBattle
         /// </summary>
         private void SetupStats(int hp, int atk, int def, int spd)
         {
+            if (statController == null)
+            {
+                Debug.LogError($"BattleUnit: statController missing for {unitName}");
+                return;
+            }
+
             var stats = statController.Stats;
             stats.ClearStats();
 
@@ -173,6 +212,8 @@ namespace GameSystems.AutoBattle
         /// </summary>
         public void ApplyEquipmentBonuses(int hp, int atk, int def, int spd)
         {
+            if (statController == null) return;
+
             var hpStat = statController.GetStat(StatType.Health);
             var atkStat = statController.GetStat(StatType.Attack);
             var defStat = statController.GetStat(StatType.Defense);
@@ -191,6 +232,8 @@ namespace GameSystems.AutoBattle
         /// </summary>
         public void ApplySkillBonuses(int atkBonus, int defBonus, float crit, float critDmg)
         {
+            if (statController == null) return;
+
             var atkStat = statController.GetStat(StatType.Attack);
             var defStat = statController.GetStat(StatType.Defense);
             var critRateStat = statController.GetStat(StatType.CriticalRate);
@@ -223,11 +266,12 @@ namespace GameSystems.AutoBattle
         /// </summary>
         public bool CanCastSkill()
         {
+            if (!isAlive) return false;
+
             // Need a skill equipped
             if (equippedSkill == null) return false;
 
-            // Check cooldown (from SkillData or local cooldown)
-            if (currentCooldown > 0) return false;
+            if (runtimeService != null && !runtimeService.CanCastSkill()) return false;
 
             // Check mana
             int manaCost = equippedSkill != null ? equippedSkill.GetScaledManaCost() : 0;
@@ -241,52 +285,7 @@ namespace GameSystems.AutoBattle
         /// </summary>
         public int CastSkill(BattleUnit target)
         {
-            if (!isAlive) return 0;
-            if (equippedSkill == null)
-            {
-                LogAction("<color=red>No skill equipped!</color>");
-                return 0;
-            }
-
-            int manaCost = equippedSkill.GetScaledManaCost();
-
-            // Check mana
-            if (CurrentMana < manaCost)
-            {
-                LogAction($"<color=red>Not enough mana! Need {manaCost}, have {CurrentMana}</color>");
-                return 0;
-            }
-
-            // Check cooldown
-            if (currentCooldown > 0)
-            {
-                LogAction($"<color=orange>Skill on cooldown: {currentCooldown} turns</color>");
-                return 0;
-            }
-
-            // Deduct mana
-            statController.ModifyStat(StatType.Mana, -manaCost);
-
-            // Use skill - set cooldown
-            turnsTaken++;
-            currentCooldown = skillCooldown;
-
-            // Calculate damage using SkillData
-            float skillDamage = equippedSkill.GetTotalDamage();
-            int baseDamage = Mathf.Max(1, Mathf.RoundToInt(skillDamage) - (target.FinalDefense / 2));
-
-            // Skills have higher crit chance
-            bool isCrit = UnityEngine.Random.value < (CritRate * 2f);
-            int finalDamage = isCrit ? Mathf.RoundToInt(baseDamage * CritDamage) : baseDamage;
-
-            int actualDamage = target.TakeDamage(finalDamage);
-            damageDealt += actualDamage;
-
-            string critText = isCrit ? " [CRIT!]" : "";
-            LogAction($"💥 Used [{equippedSkill.SkillName}] on {target.unitName} for {actualDamage} damage{critText}");
-            target.LogAction($"Hit by [{equippedSkill.SkillName}] from {unitName} for {actualDamage}{critText}");
-
-            return actualDamage;
+            return combatService?.CastSkill(target) ?? 0;
         }
 
         /// <summary>
@@ -303,12 +302,7 @@ namespace GameSystems.AutoBattle
         /// </summary>
         public void SetMana(int current, int max)
         {
-            var mpStat = statController.GetStat(StatType.Mana);
-            if (mpStat != null)
-            {
-                mpStat.IncreaseMax(max - MaxMana);
-                mpStat.SetCurrent(Mathf.Min(current, MaxMana));
-            }
+            combatService?.SetMana(current, max);
         }
 
         /// <summary>
@@ -316,60 +310,7 @@ namespace GameSystems.AutoBattle
         /// </summary>
         public int Attack(BattleUnit target)
         {
-            if (!isAlive) return 0;
-
-            turnsTaken++;
-            ReduceCooldown();
-
-            // Calculate base damage
-            int baseDamage = Mathf.Max(1, FinalAttack - target.FinalDefense);
-
-            // Check for critical hit
-            bool isCrit = UnityEngine.Random.value < CritRate;
-            int finalDamage = isCrit ? Mathf.RoundToInt(baseDamage * CritDamage) : baseDamage;
-
-            // Apply damage to target
-            int actualDamage = target.TakeDamage(finalDamage);
-            damageDealt += actualDamage;
-
-            string critText = isCrit ? " [CRIT!]" : "";
-            string rangeText = attackRange == AttackRange.Ranged ? "🏹" : "⚔️";
-            LogAction($"{rangeText} Attacked {target.unitName} for {actualDamage} damage{critText}");
-            target.LogAction($"Took {actualDamage} damage from {unitName}{critText}");
-
-            return actualDamage;
-        }
-
-        /// <summary>
-        /// Uses skill attack on target (stronger, has cooldown)
-        /// </summary>
-        public int SkillAttack(BattleUnit target)
-        {
-            if (!isAlive || !IsSkillReady) return 0;
-
-            turnsTaken++;
-            currentCooldown = skillCooldown; // set cooldown
-
-            // Skill does multiplied damage, ignores part of defense
-            int baseDamage = Mathf.Max(1, (FinalAttack * skillDamageMultiplier) - (target.FinalDefense / 2));
-
-            // Skills always have higher crit chance
-            bool isCrit = UnityEngine.Random.value < (CritRate * 2f);
-            int finalDamage = isCrit ? Mathf.RoundToInt(baseDamage * CritDamage) : baseDamage;
-
-            int actualDamage = target.TakeDamage(finalDamage);
-            damageDealt += actualDamage;
-
-            string critText = isCrit ? " [CRIT!]" : "";
-            LogAction($"💥 Used [{skillName}] on {target.unitName} for {actualDamage} damage{critText}");
-            target.LogAction($"Hit by [{skillName}] from {unitName} for {actualDamage}{critText}");
-
-            return actualDamage;
-        }
-
-        private void ReduceCooldown()
-        {
-            if (currentCooldown > 0) currentCooldown--;
+            return combatService?.Attack(target) ?? 0;
         }
 
         /// <summary>
@@ -377,21 +318,7 @@ namespace GameSystems.AutoBattle
         /// </summary>
         public int TakeDamage(int damage)
         {
-            if (!isAlive) return 0;
-
-            int actualDamage = Mathf.Min(damage, CurrentHP);
-            statController.ModifyStat(StatType.Health, -actualDamage);
-            damageTaken += actualDamage;
-
-            if (CurrentHP <= 0)
-            {
-                var hpStat = statController.GetStat(StatType.Health);
-                if (hpStat != null) hpStat.SetCurrent(0);
-                isAlive = false;
-                LogAction($"<color=red>💀 {unitName} has been defeated!</color>");
-            }
-
-            return actualDamage;
+            return combatService?.TakeDamage(damage) ?? 0;
         }
 
         /// <summary>
@@ -399,13 +326,7 @@ namespace GameSystems.AutoBattle
         /// </summary>
         public int Heal(int amount)
         {
-            if (!isAlive) return 0;
-
-            int actualHeal = Mathf.Min(amount, MaxHP - CurrentHP);
-            statController.ModifyStat(StatType.Health, amount);
-
-            LogAction($"<color=green>Healed for {actualHeal} HP</color>");
-            return actualHeal;
+            return combatService?.Heal(amount) ?? 0;
         }
 
         /// <summary>
@@ -422,14 +343,19 @@ namespace GameSystems.AutoBattle
         /// </summary>
         public void Reset()
         {
-            statController.RestoreAll();
-            statController.ClearAllModifiers(); // Clear all buffs/debuffs
+            if (statController == null) return;
+
             isAlive = true;
-            damageDealt = 0;
-            damageTaken = 0;
-            turnsTaken = 0;
-            currentCooldown = 0;
-            actionsLog.Clear();
+            runtimeService?.ResetRuntime();
+            combatService?.ResetCombat();
+            if (logService != null)
+            {
+                logService.Clear();
+            }
+            else
+            {
+                actionsLog?.Clear();
+            }
 
             LogAction($"{unitName} [{attackRange}] ready for battle! HP:{CurrentHP}/{MaxHP} MP:{CurrentMana}/{MaxMana}");
         }
@@ -441,8 +367,13 @@ namespace GameSystems.AutoBattle
         /// </summary>
         public void ApplyAttackBuff(float percentageBonus, int durationTurns)
         {
-            var modifier = GameSystems.Stats.Modifier.Times(1f + percentageBonus, 0, "attack_buff");
-            statController.AddModifier(StatType.Attack, modifier);
+            runtimeService?.ApplyTimedModifier(
+                StatType.Attack,
+                (IModifier<float>)GameSystems.Stats.TurnBasedModifierFactory.Times(1f + percentageBonus, durationTurns, priority: 0, name: "attack_buff"),
+                durationTurns,
+                StatusEffectType.AttackBuff,
+                percentageBonus);
+
             LogAction($"Applied Attack Buff: +{percentageBonus*100}% for {durationTurns} turns");
         }
 
@@ -451,8 +382,13 @@ namespace GameSystems.AutoBattle
         /// </summary>
         public void ApplyDefenseBuff(float percentageBonus, int durationTurns)
         {
-            var modifier = GameSystems.Stats.Modifier.Times(1f + percentageBonus, 0, "defense_buff");
-            statController.AddModifier(StatType.Defense, modifier);
+            runtimeService?.ApplyTimedModifier(
+                StatType.Defense,
+                (IModifier<float>)GameSystems.Stats.TurnBasedModifierFactory.Times(1f + percentageBonus, durationTurns, priority: 0, name: "defense_buff"),
+                durationTurns,
+                StatusEffectType.DefenseBuff,
+                percentageBonus);
+
             LogAction($"Applied Defense Buff: +{percentageBonus*100}% for {durationTurns} turns");
         }
 
@@ -461,9 +397,99 @@ namespace GameSystems.AutoBattle
         /// </summary>
         public void ApplyAttackDebuff(float percentagePenalty, int durationTurns)
         {
-            var modifier = GameSystems.Stats.Modifier.Times(1f - percentagePenalty, 0, "attack_debuff");
-            statController.AddModifier(StatType.Attack, modifier);
+            runtimeService?.ApplyTimedModifier(
+                StatType.Attack,
+                (IModifier<float>)GameSystems.Stats.TurnBasedModifierFactory.Times(1f - percentagePenalty, durationTurns, priority: 0, name: "attack_debuff"),
+                durationTurns,
+                StatusEffectType.Weakness,
+                percentagePenalty);
+
             LogAction($"Applied Attack Debuff: -{percentagePenalty*100}% for {durationTurns} turns");
+        }
+
+        public void ApplySpeedBuff(float percentageBonus, int durationTurns)
+        {
+            runtimeService?.ApplyTimedModifier(
+                StatType.Speed,
+                (IModifier<float>)GameSystems.Stats.TurnBasedModifierFactory.Times(1f + percentageBonus, durationTurns, priority: 0, name: "speed_buff"),
+                durationTurns,
+                StatusEffectType.SpeedBuff,
+                percentageBonus);
+
+            LogAction($"Applied Speed Buff: +{percentageBonus*100}% for {durationTurns} turns");
+        }
+
+        public void ApplySpeedDebuff(float percentagePenalty, int durationTurns)
+        {
+            runtimeService?.ApplyTimedModifier(
+                StatType.Speed,
+                (IModifier<float>)GameSystems.Stats.TurnBasedModifierFactory.Times(1f - percentagePenalty, durationTurns, priority: 0, name: "speed_debuff"),
+                durationTurns,
+                StatusEffectType.Slow,
+                percentagePenalty);
+
+            LogAction($"Applied Speed Debuff: -{percentagePenalty*100}% for {durationTurns} turns");
+        }
+
+        public StatusEffect ApplyStatusEffect(StatusEffectType type, int durationTurns, float value = 0f, int stacks = 1)
+        {
+            if (runtimeService == null || durationTurns <= 0)
+            {
+                return null;
+            }
+
+            var effect = runtimeService.ApplyStatusEffect(type, durationTurns, value, stacks);
+            if (effect != null)
+            {
+                LogAction($"Applied status {type} for {durationTurns} turns");
+            }
+
+            return effect;
+        }
+
+        public void ApplyPoison(float damagePerTurn, int durationTurns)
+        {
+            ApplyStatusEffect(StatusEffectType.Poison, durationTurns, damagePerTurn);
+        }
+
+        public void ApplyBurn(float damagePerTurn, int durationTurns)
+        {
+            ApplyStatusEffect(StatusEffectType.Burn, durationTurns, damagePerTurn);
+        }
+
+        public void ApplyStun(int durationTurns)
+        {
+            ApplyStatusEffect(StatusEffectType.Stun, durationTurns);
+        }
+
+        public void ApplySilence(int durationTurns)
+        {
+            ApplyStatusEffect(StatusEffectType.Silence, durationTurns);
+        }
+
+        public bool HasStatus(StatusEffectType type)
+        {
+            return runtimeService != null && runtimeService.HasStatus(type);
+        }
+
+        public bool BeginTurn()
+        {
+            if (!isAlive)
+            {
+                return false;
+            }
+
+            return runtimeService?.BeginTurn() ?? true;
+        }
+
+        public void EndTurn()
+        {
+            if (!isAlive)
+            {
+                return;
+            }
+
+            runtimeService?.EndTurn();
         }
 
         /// <summary>
@@ -471,16 +497,78 @@ namespace GameSystems.AutoBattle
         /// </summary>
         public void ClearAllBuffs()
         {
-            statController.ClearAllModifiers();
+            if (statController == null) return;
+
+            runtimeService?.ClearAllEffects();
             LogAction("Cleared all buffs/debuffs");
         }
 
         #endregion
 
+        public void Dispose()
+        {
+            isAlive = false;
+            eventBridgeService?.Dispose();
+            runtimeService?.Dispose();
+            logService?.Dispose();
+            OnStatChanged = null;
+            OnStatusApplied = null;
+            OnStatusRemoved = null;
+            OnTurnStarted = null;
+            OnTurnEnded = null;
+            OnDefeated = null;
+            OnReset = null;
+            OnCooldownChanged = null;
+
+            if (statController != null)
+            {
+                var statControllerGo = statController.gameObject;
+                statController = null;
+
+                if (statControllerGo != null)
+                {
+                    if (Application.isPlaying)
+                    {
+                        UnityEngine.Object.Destroy(statControllerGo);
+                    }
+                    else
+                    {
+                        UnityEngine.Object.DestroyImmediate(statControllerGo);
+                    }
+                }
+            }
+        }
+
         private void LogAction(string action)
         {
+            if (logService != null)
+            {
+                logService.Add(action);
+                return;
+            }
+
+            actionsLog ??= new List<string>();
             actionsLog.Add(action);
         }
+
+        internal void LogBattleAction(string action)
+        {
+            LogAction(action);
+        }
+
+        internal void RaiseStatChanged(Stat stat) => OnStatChanged?.Invoke(this, stat);
+        internal void RaiseStatusApplied(StatusEffect status) => OnStatusApplied?.Invoke(this, status);
+        internal void RaiseStatusRemoved(StatusEffect status) => OnStatusRemoved?.Invoke(this, status);
+        internal void RaiseTurnStarted() => OnTurnStarted?.Invoke(this);
+        internal void RaiseTurnEnded() => OnTurnEnded?.Invoke(this);
+        internal void RaiseDefeated()
+        {
+            isAlive = false;
+            LogAction($"<color=red>💀 {unitName} has been defeated!</color>");
+            OnDefeated?.Invoke(this);
+        }
+        internal void RaiseReset() => OnReset?.Invoke(this);
+        internal void RaiseCooldownChanged(int cooldown) => OnCooldownChanged?.Invoke(this, cooldown);
 
         public override string ToString()
         {

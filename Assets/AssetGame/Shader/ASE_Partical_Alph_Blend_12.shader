@@ -4,28 +4,62 @@ Shader "ASE/Partical_Alph_Blend" {
 		_Color ("Color", Color) = (0,0,0,0)
 		_Opacity ("Opacity", Range(0, 1)) = 1
 		_Power ("Power", Float) = 1
+		_InvFade ("Soft Particles Factor", Range(0.01, 3)) = 1
 		[HideInInspector] _texcoord ("", 2D) = "white" {}
 		[HideInInspector] __dirty ("", Float) = 1
 	}
 	SubShader {
 		Tags { "IsEmissive" = "true" "PreviewType" = "Plane" "QUEUE" = "Transparent+0" "RenderType" = "Custom" }
+		Blend SrcAlpha OneMinusSrcAlpha
+		ZWrite Off
+		Cull Off
 		Pass {
 			Name "FORWARD"
-			Tags { "IsEmissive" = "true" "LIGHTMODE" = "FORWARDBASE" "PreviewType" = "Plane" "QUEUE" = "Transparent+0" "RenderType" = "Custom" }
-			Blend SrcAlpha OneMinusSrcAlpha, One One
-			ZWrite Off
-			Cull Off
-			GpuProgramID 33123
-			// No subprograms found
+			CGPROGRAM
+			#pragma target 2.0
+			#pragma multi_compile_particles
+			#pragma vertex ASEParticleVert
+			#pragma fragment frag
+			#include "ShaderFallbackCommon.cginc"
+
+			sampler2D _TextureSample0;
+			fixed4 _Color;
+			float _Opacity;
+			float _Power;
+			float _InvFade;
+
+			fixed4 frag(ASEParticleV2F i) : SV_Target
+			{
+				fixed4 col = tex2D(_TextureSample0, i.uv) * _Color * i.color;
+				col.rgb *= _Power;
+				col.a *= _Opacity * ASEParticleSoftFactor(i, _InvFade);
+				return col;
+			}
+			ENDCG
 		}
 		Pass {
-			Name "FORWARD"
-			Tags { "IsEmissive" = "true" "LIGHTMODE" = "FORWARDADD" "PreviewType" = "Plane" "QUEUE" = "Transparent+0" "RenderType" = "Custom" }
-			Blend One One, One One
-			ZWrite Off
-			Cull Off
-			GpuProgramID 101398
-			// No subprograms found
+			Name "FORWARDADD"
+			CGPROGRAM
+			#pragma target 2.0
+			#pragma multi_compile_particles
+			#pragma vertex ASEParticleVert
+			#pragma fragment frag
+			#include "ShaderFallbackCommon.cginc"
+
+			sampler2D _TextureSample0;
+			fixed4 _Color;
+			float _Opacity;
+			float _Power;
+			float _InvFade;
+
+			fixed4 frag(ASEParticleV2F i) : SV_Target
+			{
+				fixed4 col = tex2D(_TextureSample0, i.uv) * _Color * i.color;
+				col.rgb *= _Power;
+				col.a *= _Opacity * ASEParticleSoftFactor(i, _InvFade);
+				return col;
+			}
+			ENDCG
 		}
 	}
 	CustomEditor "ASEMaterialInspector"
