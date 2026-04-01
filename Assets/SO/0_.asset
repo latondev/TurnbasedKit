@@ -164,8 +164,8 @@ MonoBehaviour:
     skillId: 
     skillName: 
     description: 
-    category: 0
-    element: 0
+    category: 1
+    damageType: 0
     currentLevel: 0
     maxLevel: 0
     requiredLevel: 0
@@ -179,17 +179,22 @@ MonoBehaviour:
     range: 0
     maxTargets: 0
     effectType: 0
-    effectDuration: 0
+    effectDuration: 1
     effectValue: 0
     castTime: 0
     totalCasts: 0
     icon: {fileID: 0}
+    stepSelections:
+    - sequence: {fileID: 11400000, guid: bd78272dcf6194b4fb991ec4465dcbcc, type: 2}
+      stepIndex: 0
+    legacyStepSequences: []
+    viewSequence: {fileID: 0}
   skillUltimate:
     skillId: 
     skillName: 
     description: 
     category: 0
-    element: 0
+    damageType: 0
     currentLevel: 0
     maxLevel: 0
     requiredLevel: 0
@@ -208,12 +213,15 @@ MonoBehaviour:
     castTime: 0
     totalCasts: 0
     icon: {fileID: 0}
+    stepSelections: []
+    legacyStepSequences: []
+    viewSequence: {fileID: 0}
   skillPassive:
     skillId: 
     skillName: 
     description: 
     category: 0
-    element: 0
+    damageType: 0
     currentLevel: 0
     maxLevel: 0
     requiredLevel: 0
@@ -232,12 +240,15 @@ MonoBehaviour:
     castTime: 0
     totalCasts: 0
     icon: {fileID: 0}
+    stepSelections: []
+    legacyStepSequences: []
+    viewSequence: {fileID: 0}
   skillAwaken:
     skillId: 
     skillName: 
     description: 
     category: 0
-    element: 0
+    damageType: 0
     currentLevel: 0
     maxLevel: 0
     requiredLevel: 0
@@ -256,3 +267,6 @@ MonoBehaviour:
     castTime: 0
     totalCasts: 0
     icon: {fileID: 0}
+    stepSelections: []
+    legacyStepSequences: []
+    viewSequence: {fileID: 0}

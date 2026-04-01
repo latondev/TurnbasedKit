@@ -73,11 +73,17 @@ namespace GameSystems.Skills
         }
 
         /// <summary>
-        /// Gets skills by element
+        /// Gets skills by damage type
         /// </summary>
-        public List<SkillData> GetSkillsByElement(SkillElement element)
+        public List<SkillData> GetSkillsByDamageType(SkillDamageType damageType)
         {
-            return Items.Where(s => s.Element == element).ToList();
+            return Items.Where(s => s.DamageType == damageType).ToList();
+        }
+
+        [Obsolete("Use GetSkillsByDamageType instead.")]
+        public List<SkillData> GetSkillsByElement(SkillDamageType damageType)
+        {
+            return GetSkillsByDamageType(damageType);
         }
 
         /// <summary>

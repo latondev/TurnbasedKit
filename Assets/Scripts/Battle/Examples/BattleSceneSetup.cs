@@ -125,7 +125,7 @@ namespace GameSystems.Battle.Demo
         {
             string prefix = isEnemy ? "enemy" : "player";
             var skill = new SkillData($"{prefix}_power_strike", "Power Strike", "A powerful melee slash",
-                SkillCategory.Active, SkillElement.Physical, 20, 3f, 120f);
+                SkillCategory.Active, SkillDamageType.Physical, 20, 3f, 120f);
             skill.SetViewSequence(SkillViewSequence.CreateBasicStrike($"{prefix}_power_strike_view", "skill"));
             return skill;
         }
@@ -134,7 +134,7 @@ namespace GameSystems.Battle.Demo
         {
             string prefix = isEnemy ? "enemy" : "player";
             var skill = new SkillData($"{prefix}_dash_strike", "Dash Strike", "A swift dash-through slash",
-                SkillCategory.Active, SkillElement.Dark, 18, 3f, 110f);
+                SkillCategory.Active, SkillDamageType.AttackWithEffect, 18, 3f, 110f);
             skill.SetViewSequence(SkillViewSequence.CreateDashThroughStrike($"{prefix}_dash_strike_view", "skill"));
             return skill;
         }
@@ -143,7 +143,7 @@ namespace GameSystems.Battle.Demo
         {
             string prefix = isEnemy ? "enemy" : "player";
             var skill = new SkillData($"{prefix}_backstab", "Backstab", "Jump behind and strike",
-                SkillCategory.Active, SkillElement.Physical, 22, 3f, 130f);
+                SkillCategory.Active, SkillDamageType.Physical, 22, 3f, 130f);
             skill.SetViewSequence(SkillViewSequence.CreateJumpBehindStrike($"{prefix}_backstab_view", "skill"));
             return skill;
         }

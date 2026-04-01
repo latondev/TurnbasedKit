@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using GameSystems;
 using GameSystems.Battle;
 
@@ -9,13 +11,14 @@ namespace GameSystems.Skills
     /// Complete skill data with cooldown, cost, damage, effects
     /// </summary>
     [Serializable]
-    public class SkillData
+    public class SkillData : ISerializationCallbackReceiver
     {
         [SerializeField] private string skillId;
         [SerializeField] private string skillName;
         [SerializeField] private string description;
         [SerializeField] private SkillCategory category;
-        [SerializeField] private SkillElement element;
+        [FormerlySerializedAs("element")]
+        [SerializeField] private SkillDamageType damageType;
         [SerializeField] private int currentLevel;
         [SerializeField] private int maxLevel;
         
@@ -45,14 +48,22 @@ namespace GameSystems.Skills
         [SerializeField] private int totalCasts;
         
         [SerializeField] private Sprite icon;
-        [SerializeField] private SkillViewSequence viewSequence;
+        [SerializeField] private List<SkillViewStepSelection> stepSelections = new List<SkillViewStepSelection>();
+        [FormerlySerializedAs("stepSkills")]
+        [FormerlySerializedAs("viewSequences")]
+        [SerializeField, HideInInspector] private List<SkillViewSequence> legacyStepSequences = new List<SkillViewSequence>();
+        [SerializeField, HideInInspector] private SkillViewSequence viewSequence; // Legacy single sequence fallback
+
+        [NonSerialized] private SkillViewSequence runtimeSequenceCache;
 
         // Properties
         public string SkillId => skillId;
         public string SkillName => skillName;
         public string Description => description;
         public SkillCategory Category => category;
-        public SkillElement Element => element;
+        public SkillDamageType DamageType => damageType;
+        [Obsolete("Use DamageType instead.")]
+        public SkillDamageType Element => damageType;
         public int CurrentLevel => currentLevel;
         public int MaxLevel => maxLevel;
         public int RequiredLevel => requiredLevel;
@@ -69,21 +80,89 @@ namespace GameSystems.Skills
         public float CastTime => castTime;
         public int TotalCasts => totalCasts;
         public Sprite Icon => icon;
-        public SkillViewSequence ViewSequence => viewSequence;
+
+        public SkillViewSequence ViewSequence
+        {
+            get
+            {
+                if (stepSelections != null && stepSelections.Count > 0)
+                {
+                    return GetOrBuildRuntimeSequence();
+                }
+                return viewSequence; // Fallback to legacy single sequence
+            }
+        }
+
+        public IReadOnlyList<SkillViewStepSelection> StepSkills => stepSelections;
+
+        [Obsolete("Use StepSkills instead.")]
+        public IReadOnlyList<SkillViewStepSelection> ViewSequences => stepSelections;
 
         public void SetViewSequence(SkillViewSequence sequence)
         {
-            viewSequence = sequence;
+            EnsureStepSelections();
+            stepSelections.Clear();
+            AddAllStepsFromSequence(sequence, allowDuplicates: true);
+            viewSequence = sequence; // sync to legacy slot
+            legacyStepSequences?.Clear();
+            InvalidateRuntimeSequenceCache();
+        }
+
+        public void AddStepSkill(SkillViewSequence sequence)
+        {
+            EnsureStepSelections();
+            AddAllStepsFromSequence(sequence);
+            if (viewSequence == null)
+            {
+                viewSequence = sequence;
+            }
+
+            InvalidateRuntimeSequenceCache();
+        }
+
+        public void AddStepSkill(SkillViewStepSelection selection)
+        {
+            if (selection == null || !selection.IsValid)
+            {
+                return;
+            }
+
+            AddStepSelection(selection.Sequence, selection.StepIndex);
+        }
+
+        public void AddStepSelection(SkillViewSequence sequence, int stepIndex)
+        {
+            EnsureStepSelections();
+            AddSingleStepSelection(sequence, stepIndex);
+            if (viewSequence == null)
+            {
+                viewSequence = sequence;
+            }
+
+            InvalidateRuntimeSequenceCache();
+        }
+
+        public void ClearStepSkills()
+        {
+            if (stepSelections == null)
+            {
+                stepSelections = new List<SkillViewStepSelection>();
+            }
+
+            stepSelections.Clear();
+            legacyStepSequences?.Clear();
+            viewSequence = null;
+            InvalidateRuntimeSequenceCache();
         }
 
         public SkillData(string id, string name, string description, SkillCategory category, 
-            SkillElement element, int manaCost, float cooldown, float damage)
+            SkillDamageType damageType, int manaCost, float cooldown, float damage)
         {
             this.skillId = id;
             this.skillName = name;
             this.description = description;
             this.category = category;
-            this.element = element;
+            this.damageType = damageType;
             this.manaCost = manaCost;
             this.baseCooldown = cooldown;
             this.baseDamage = damage;
@@ -101,6 +180,17 @@ namespace GameSystems.Skills
             this.totalCasts = 0;
         }
 
+        public void OnBeforeSerialize()
+        {
+        }
+
+        public void OnAfterDeserialize()
+        {
+            EnsureStepSelections();
+            MigrateLegacyStepSelections();
+            InvalidateRuntimeSequenceCache();
+        }
+
         /// <summary>
         /// Unlocks the skill
         /// </summary>
@@ -109,6 +199,185 @@ namespace GameSystems.Skills
             isUnlocked = true;
             currentLevel = 1;
             Debug.Log($"<color=green>🔓 Unlocked:</color> {skillName}");
+        }
+
+        private void EnsureStepSelections()
+        {
+            if (stepSelections == null)
+            {
+                stepSelections = new List<SkillViewStepSelection>();
+            }
+        }
+
+        private void MigrateLegacyStepSelections()
+        {
+            if (legacyStepSequences == null)
+            {
+                legacyStepSequences = new List<SkillViewSequence>();
+            }
+
+            if (stepSelections.Count == 0)
+            {
+                if (legacyStepSequences.Count > 0)
+                {
+                    for (int i = 0; i < legacyStepSequences.Count; i++)
+                    {
+                        AddAllStepsFromSequence(legacyStepSequences[i], allowDuplicates: true);
+                    }
+                }
+                else if (viewSequence != null)
+                {
+                    AddAllStepsFromSequence(viewSequence, allowDuplicates: true);
+                }
+            }
+
+            if (legacyStepSequences.Count > 0)
+            {
+                legacyStepSequences.Clear();
+            }
+
+            if (stepSelections.Count > 0)
+            {
+                viewSequence = null;
+            }
+        }
+
+        private void AddAllStepsFromSequence(SkillViewSequence sequence, bool allowDuplicates = false)
+        {
+            if (sequence == null || sequence.Steps == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < sequence.Steps.Count; i++)
+            {
+                AddSingleStepSelection(sequence, i, allowDuplicates);
+            }
+        }
+
+        private void AddSingleStepSelection(SkillViewSequence sequence, int stepIndex, bool allowDuplicates = false)
+        {
+            if (sequence == null || sequence.Steps == null || stepIndex < 0 || stepIndex >= sequence.Steps.Count)
+            {
+                return;
+            }
+
+            if (!allowDuplicates && HasStepSelection(sequence, stepIndex))
+            {
+                return;
+            }
+
+            var selection = new SkillViewStepSelection();
+            selection.SetSelection(sequence, stepIndex);
+            stepSelections.Add(selection);
+        }
+
+        private bool HasStepSelection(SkillViewSequence sequence, int stepIndex)
+        {
+            if (stepSelections == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < stepSelections.Count; i++)
+            {
+                var selection = stepSelections[i];
+                if (selection != null && selection.Sequence == sequence && selection.StepIndex == stepIndex)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private SkillViewSequence GetOrBuildRuntimeSequence()
+        {
+            if (runtimeSequenceCache != null)
+            {
+                return runtimeSequenceCache;
+            }
+
+            if (stepSelections == null || stepSelections.Count == 0)
+            {
+                return viewSequence;
+            }
+
+            var runtimeSteps = new List<SkillViewStep>();
+            SkillViewSequence metadataSource = null;
+
+            for (int i = 0; i < stepSelections.Count; i++)
+            {
+                var selection = stepSelections[i];
+                if (selection == null || !selection.IsValid)
+                {
+                    continue;
+                }
+
+                if (metadataSource == null)
+                {
+                    metadataSource = selection.Sequence;
+                }
+
+                var clonedStep = selection.CloneStep();
+                if (clonedStep != null)
+                {
+                    runtimeSteps.Add(clonedStep);
+                }
+            }
+
+            if (runtimeSteps.Count == 0)
+            {
+                return viewSequence;
+            }
+
+            runtimeSequenceCache = ScriptableObject.CreateInstance<SkillViewSequence>();
+            runtimeSequenceCache.hideFlags = HideFlags.HideAndDontSave;
+            runtimeSequenceCache.name = BuildRuntimeSequenceId();
+            runtimeSequenceCache.SetSequenceId(BuildRuntimeSequenceId());
+
+            if (metadataSource != null)
+            {
+                runtimeSequenceCache.SetMetadata(
+                    metadataSource.AnimationName,
+                    metadataSource.FallbackAnimationName,
+                    metadataSource.HitEventName,
+                    metadataSource.FalldownEventName,
+                    metadataSource.IdleAnimationName);
+            }
+
+            runtimeSequenceCache.SetRuntimeSteps(runtimeSteps);
+            return runtimeSequenceCache;
+        }
+
+        private string BuildRuntimeSequenceId()
+        {
+            string baseId = !string.IsNullOrWhiteSpace(skillId) ? skillId : skillName;
+            if (string.IsNullOrWhiteSpace(baseId))
+            {
+                baseId = "runtime_skill";
+            }
+
+            return $"{baseId}_runtime";
+        }
+
+        private void InvalidateRuntimeSequenceCache()
+        {
+            if (runtimeSequenceCache == null)
+            {
+                return;
+            }
+
+            if (Application.isPlaying)
+            {
+                UnityEngine.Object.Destroy(runtimeSequenceCache);
+            }
+            else
+            {
+                UnityEngine.Object.DestroyImmediate(runtimeSequenceCache);
+            }
+
+            runtimeSequenceCache = null;
         }
 
         /// <summary>
@@ -307,37 +576,41 @@ namespace GameSystems.Skills
             };
         }
 
-        public string GetElementIcon()
+        public string GetDamageTypeIcon()
         {
-            return element switch
+            return damageType switch
             {
-                SkillElement.Fire => "🔥",
-                SkillElement.Ice => "❄️",
-                SkillElement.Lightning => "⚡",
-                SkillElement.Earth => "🌍",
-                SkillElement.Wind => "💨",
-                SkillElement.Holy => "✨",
-                SkillElement.Dark => "🌑",
-                SkillElement.Physical => "⚔️",
+                SkillDamageType.Physical => "⚔️",
+                SkillDamageType.Magic => "✨",
+                SkillDamageType.TrueDamage => "💥",
+                SkillDamageType.PercentHP => "❤️",
+                SkillDamageType.LowestHPEnemy => "⬇️",
+                SkillDamageType.HighestHPEnemy => "⬆️",
+                SkillDamageType.AttackWithEffect => "🪄",
                 _ => "•"
             };
         }
 
-        public Color GetElementColor()
+        [Obsolete("Use GetDamageTypeIcon instead.")]
+        public string GetElementIcon() => GetDamageTypeIcon();
+
+        public Color GetDamageTypeColor()
         {
-            return element switch
+            return damageType switch
             {
-                SkillElement.Fire => new Color(1f, 0.3f, 0.2f),
-                SkillElement.Ice => new Color(0.3f, 0.8f, 1f),
-                SkillElement.Lightning => new Color(1f, 1f, 0.3f),
-                SkillElement.Earth => new Color(0.6f, 0.5f, 0.3f),
-                SkillElement.Wind => new Color(0.8f, 1f, 0.8f),
-                SkillElement.Holy => new Color(1f, 1f, 0.8f),
-                SkillElement.Dark => new Color(0.5f, 0.3f, 0.6f),
-                SkillElement.Physical => new Color(0.8f, 0.8f, 0.8f),
+                SkillDamageType.Physical => new Color(0.8f, 0.8f, 0.8f),
+                SkillDamageType.Magic => new Color(0.35f, 0.55f, 1f),
+                SkillDamageType.TrueDamage => new Color(1f, 0.35f, 0.35f),
+                SkillDamageType.PercentHP => new Color(1f, 0.55f, 0.65f),
+                SkillDamageType.LowestHPEnemy => new Color(1f, 0.75f, 0.3f),
+                SkillDamageType.HighestHPEnemy => new Color(0.3f, 0.85f, 0.8f),
+                SkillDamageType.AttackWithEffect => new Color(0.7f, 0.55f, 1f),
                 _ => Color.white
             };
         }
+
+        [Obsolete("Use GetDamageTypeColor instead.")]
+        public Color GetElementColor() => GetDamageTypeColor();
 
         public Color GetCategoryColor()
         {
@@ -365,16 +638,15 @@ namespace GameSystems.Skills
         Healing = 1 << 5     // 32
     }
 
-    public enum SkillElement
+    public enum SkillDamageType
     {
         Physical,
-        Fire,
-        Ice,
-        Lightning,
-        Earth,
-        Wind,
-        Holy,
-        Dark
+        Magic,
+        TrueDamage,
+        PercentHP,
+        LowestHPEnemy,
+        HighestHPEnemy,
+        AttackWithEffect
     }
 
     public enum SkillEffectType

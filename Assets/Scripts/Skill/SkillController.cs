@@ -64,60 +64,60 @@ namespace GameSystems.Skills
 
         private void SetupDefaultSkills()
         {
-            // Fire Skills
+            // Magic Skills
             skillData.Add(new SkillData(
                 "fire_fireball", "Fireball", "Launch a blazing fireball",
-                SkillCategory.Active, SkillElement.Fire, 20, 3f, 50f
+                SkillCategory.Active, SkillDamageType.Magic, 20, 3f, 50f
             ));
 
             skillData.Add(new SkillData(
                 "fire_inferno", "Inferno", "Massive fire explosion",
-                SkillCategory.Ultimate, SkillElement.Fire, 80, 30f, 200f
+                SkillCategory.Ultimate, SkillDamageType.Magic, 80, 30f, 200f
             ));
 
-            // Ice Skills
+            // Control Skills
             skillData.Add(new SkillData(
                 "ice_frost", "Frost Bolt", "Freeze enemies with ice",
-                SkillCategory.Active, SkillElement.Ice, 15, 2.5f, 40f
+                SkillCategory.Active, SkillDamageType.Magic, 15, 2.5f, 40f
             ));
 
             skillData.Add(new SkillData(
                 "ice_blizzard", "Blizzard", "Devastating ice storm",
-                SkillCategory.Ultimate, SkillElement.Ice, 90, 35f, 250f
+                SkillCategory.Ultimate, SkillDamageType.Magic, 90, 35f, 250f
             ));
 
-            // Lightning Skills
+            // Burst Skills
             skillData.Add(new SkillData(
                 "lightning_bolt", "Lightning Bolt", "Strike with lightning",
-                SkillCategory.Active, SkillElement.Lightning, 25, 4f, 60f
+                SkillCategory.Active, SkillDamageType.Magic, 25, 4f, 60f
             ));
 
             skillData.Add(new SkillData(
                 "lightning_storm", "Thunder Storm", "Call down lightning",
-                SkillCategory.Ultimate, SkillElement.Lightning, 100, 40f, 300f
+                SkillCategory.Ultimate, SkillDamageType.Magic, 100, 40f, 300f
             ));
 
             // Healing Skills
             skillData.Add(new SkillData(
                 "heal_light", "Healing Light", "Restore health",
-                SkillCategory.Healing, SkillElement.Holy, 30, 5f, 80f
+                SkillCategory.Healing, SkillDamageType.Magic, 30, 5f, 80f
             ));
 
             // Buff Skills
             skillData.Add(new SkillData(
                 "buff_haste", "Haste", "Increase speed",
-                SkillCategory.Buff, SkillElement.Wind, 10, 1f, 0f
+                SkillCategory.Buff, SkillDamageType.AttackWithEffect, 10, 1f, 0f
             ));
 
             skillData.Add(new SkillData(
                 "buff_power", "Power Up", "Increase attack",
-                SkillCategory.Buff, SkillElement.Physical, 15, 1.5f, 0f
+                SkillCategory.Buff, SkillDamageType.Physical, 15, 1.5f, 0f
             ));
 
             // Passive Skills
             skillData.Add(new SkillData(
                 "passive_mana", "Mana Mastery", "Increase mana regen",
-                SkillCategory.Passive, SkillElement.Holy, 0, 0f, 0f
+                SkillCategory.Passive, SkillDamageType.Magic, 0, 0f, 0f
             ));
 
             // Unlock starter skills

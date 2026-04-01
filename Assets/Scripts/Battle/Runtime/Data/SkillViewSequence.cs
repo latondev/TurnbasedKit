@@ -8,12 +8,26 @@ namespace GameSystems.Battle
     [CreateAssetMenu(menuName = "Battle/Skill View Sequence", fileName = "SkillViewSequence")]
     public class SkillViewSequence : ScriptableObject
     {
-        
         [SerializeField] private string sequenceId;
+        [SerializeField] private string animationName = "skill";
+        [SerializeField] private string fallbackAnimationName = "skill";
+        [SerializeField] private string hitEventName = "hit";
+        [SerializeField] private string falldownEventName = "falldown";
+        [SerializeField] private string idleAnimationName = "idle";
         [SerializeField] private List<SkillViewStep> steps = new List<SkillViewStep>();
 
         public string SequenceId => sequenceId;
+        public string AnimationName => animationName;
+        public string FallbackAnimationName => fallbackAnimationName;
+        public string HitEventName => hitEventName;
+        public string FalldownEventName => falldownEventName;
+        public string IdleAnimationName => idleAnimationName;
         public IReadOnlyList<SkillViewStep> Steps => steps;
+
+        public void SetSequenceId(string value)
+        {
+            sequenceId = value;
+        }
 
         public void SetRuntimeSteps(IEnumerable<SkillViewStep> runtimeSteps)
         {
@@ -26,6 +40,20 @@ namespace GameSystems.Battle
             steps.AddRange(runtimeSteps);
         }
 
+        public void SetMetadata(
+            string animationName,
+            string fallbackAnimationName,
+            string hitEventName,
+            string falldownEventName,
+            string idleAnimationName)
+        {
+            this.animationName = string.IsNullOrWhiteSpace(animationName) ? this.animationName : animationName;
+            this.fallbackAnimationName = string.IsNullOrWhiteSpace(fallbackAnimationName) ? this.fallbackAnimationName : fallbackAnimationName;
+            this.hitEventName = string.IsNullOrWhiteSpace(hitEventName) ? this.hitEventName : hitEventName;
+            this.falldownEventName = string.IsNullOrWhiteSpace(falldownEventName) ? this.falldownEventName : falldownEventName;
+            this.idleAnimationName = string.IsNullOrWhiteSpace(idleAnimationName) ? this.idleAnimationName : idleAnimationName;
+        }
+
         public static SkillViewSequence CreateRuntimeSequence(string sequenceId, params SkillViewStep[] runtimeSteps)
         {
             var sequence = CreateInstance<SkillViewSequence>();
@@ -36,57 +64,72 @@ namespace GameSystems.Battle
 
         public static SkillViewSequence CreateBasicStrike(string sequenceId = "basic_strike", string attackAnimation = "skill")
         {
-            return CreateRuntimeSequence(sequenceId, BuildBasicStrikeSteps(attackAnimation));
+            var sequence = CreateRuntimeSequence(sequenceId, BuildBasicStrikeSteps(attackAnimation));
+            sequence.SetMetadata(attackAnimation, attackAnimation, "hit", "falldown", "idle");
+            return sequence;
         }
 
         public static SkillViewSequence CreateDashThroughStrike(string sequenceId = "dash_through_strike", string attackAnimation = "skill")
         {
-            return CreateRuntimeSequence(sequenceId, BuildDashThroughStrikeSteps(attackAnimation));
+            var sequence = CreateRuntimeSequence(sequenceId, BuildDashThroughStrikeSteps(attackAnimation));
+            sequence.SetMetadata(attackAnimation, attackAnimation, "hit", "falldown", "idle");
+            return sequence;
         }
 
         public static SkillViewSequence CreateStationaryCast(string sequenceId = "stationary_cast", string castAnimation = "skill")
         {
-            return CreateRuntimeSequence(sequenceId, BuildStationaryCastSteps(castAnimation));
+            var sequence = CreateRuntimeSequence(sequenceId, BuildStationaryCastSteps(castAnimation));
+            sequence.SetMetadata(castAnimation, castAnimation, "hit", "falldown", "idle");
+            return sequence;
         }
 
         public static SkillViewSequence CreateAreaBurst(string sequenceId = "area_burst", string castAnimation = "skill")
         {
-            return CreateRuntimeSequence(sequenceId, BuildAreaBurstSteps(castAnimation));
+            var sequence = CreateRuntimeSequence(sequenceId, BuildAreaBurstSteps(castAnimation));
+            sequence.SetMetadata(castAnimation, castAnimation, "hit", "falldown", "idle");
+            return sequence;
         }
 
         public static SkillViewSequence CreateJumpBehindStrike(string sequenceId = "jump_behind_strike", string attackAnimation = "skill")
         {
-            return CreateRuntimeSequence(sequenceId, BuildJumpBehindStrikeSteps(attackAnimation));
+            var sequence = CreateRuntimeSequence(sequenceId, BuildJumpBehindStrikeSteps(attackAnimation));
+            sequence.SetMetadata(attackAnimation, attackAnimation, "hit", "falldown", "idle");
+            return sequence;
         }
 
         public void ApplyBasicStrikePreset(string attackAnimation = "skill")
         {
             sequenceId = string.IsNullOrEmpty(sequenceId) ? "basic_strike" : sequenceId;
             SetRuntimeSteps(BuildBasicStrikeSteps(attackAnimation));
+            SetMetadata(attackAnimation, attackAnimation, "hit", "falldown", "idle");
         }
 
         public void ApplyDashThroughStrikePreset(string attackAnimation = "skill")
         {
             sequenceId = string.IsNullOrEmpty(sequenceId) ? "dash_through_strike" : sequenceId;
             SetRuntimeSteps(BuildDashThroughStrikeSteps(attackAnimation));
+            SetMetadata(attackAnimation, attackAnimation, "hit", "falldown", "idle");
         }
 
         public void ApplyStationaryCastPreset(string castAnimation = "skill")
         {
             sequenceId = string.IsNullOrEmpty(sequenceId) ? "stationary_cast" : sequenceId;
             SetRuntimeSteps(BuildStationaryCastSteps(castAnimation));
+            SetMetadata(castAnimation, castAnimation, "hit", "falldown", "idle");
         }
 
         public void ApplyAreaBurstPreset(string castAnimation = "skill")
         {
             sequenceId = string.IsNullOrEmpty(sequenceId) ? "area_burst" : sequenceId;
             SetRuntimeSteps(BuildAreaBurstSteps(castAnimation));
+            SetMetadata(castAnimation, castAnimation, "hit", "falldown", "idle");
         }
 
         public void ApplyJumpBehindStrikePreset(string attackAnimation = "skill")
         {
             sequenceId = string.IsNullOrEmpty(sequenceId) ? "jump_behind_strike" : sequenceId;
             SetRuntimeSteps(BuildJumpBehindStrikeSteps(attackAnimation));
+            SetMetadata(attackAnimation, attackAnimation, "hit", "falldown", "idle");
         }
 
         private static SkillViewStep[] BuildBasicStrikeSteps(string attackAnimation)
@@ -193,6 +236,28 @@ namespace GameSystems.Battle
 
         public SkillViewStep()
         {
+        }
+
+        public SkillViewStep Clone()
+        {
+            return new SkillViewStep(
+                stepType,
+                targetType,
+                animationName,
+                fallbackAnimationName,
+                loop,
+                duration,
+                delay,
+                moveDistance,
+                moveMode,
+                waitForAnimationEnd,
+                triggerHitEffect,
+                hitCount,
+                sortingOrder,
+                flipX,
+                worldPosition,
+                offset,
+                vfxPrefab);
         }
 
         public SkillViewStep(

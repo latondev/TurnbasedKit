@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using GameSystems.AutoBattle;
-using GameSystems.Stats.Demo;
+using StatsSystems.Examples;
 
 namespace GameSystems.Battle.Demo
 {

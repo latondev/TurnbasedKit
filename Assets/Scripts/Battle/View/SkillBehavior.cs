@@ -19,6 +19,7 @@ namespace GameSystems.Battle
         [Header("Settings")]
         [SerializeField] private List<string> skillAnimations = new List<string>();
         [SerializeField] private int totalHit = 1;
+        [SerializeField] private string sequenceFallbackAnimation = string.Empty;
 
         private List<Vector3> _targetPositions;
         private Coroutine _sequenceCoroutine;
@@ -46,6 +47,7 @@ namespace GameSystems.Battle
         {
             if (sequence == null || sequence.Steps == null || sequence.Steps.Count == 0 || context == null)
             {
+                sequenceFallbackAnimation = string.Empty;
                 Skill(
                     context?.TargetPositions != null && context.TargetPositions.Count > 0
                         ? context.TargetPositions
@@ -53,6 +55,8 @@ namespace GameSystems.Battle
                     context?.PrimaryTargetPosition ?? transform.position);
                 return;
             }
+
+            ApplySequenceMetadata(sequence);
 
             if (_sequenceCoroutine != null)
             {
@@ -293,8 +297,47 @@ namespace GameSystems.Battle
             }
 
             string primary = string.IsNullOrEmpty(step.AnimationName) ? skillAnimation : step.AnimationName;
-            string fallback = string.IsNullOrEmpty(step.FallbackAnimationName) ? skillAnimation : step.FallbackAnimationName;
+            string fallback = string.IsNullOrEmpty(step.FallbackAnimationName)
+                ? (string.IsNullOrEmpty(sequenceFallbackAnimation) ? skillAnimation : sequenceFallbackAnimation)
+                : step.FallbackAnimationName;
             animationHandle.TryPlayAnimation(primary, fallback, 0.1f, 1, step.Loop);
+        }
+
+        private void ApplySequenceMetadata(SkillViewSequence sequence)
+        {
+            if (sequence == null)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(sequence.AnimationName))
+            {
+                skillAnimation = sequence.AnimationName;
+            }
+
+            if (!string.IsNullOrWhiteSpace(sequence.FallbackAnimationName))
+            {
+                sequenceFallbackAnimation = sequence.FallbackAnimationName;
+            }
+            else
+            {
+                sequenceFallbackAnimation = string.Empty;
+            }
+
+            if (!string.IsNullOrWhiteSpace(sequence.HitEventName))
+            {
+                eventHit = sequence.HitEventName;
+            }
+
+            if (!string.IsNullOrWhiteSpace(sequence.FalldownEventName))
+            {
+                eventFalldown = sequence.FalldownEventName;
+            }
+
+            if (!string.IsNullOrWhiteSpace(sequence.IdleAnimationName))
+            {
+                idleAnimation = sequence.IdleAnimationName;
+            }
         }
 
         private Vector3 ResolveDestination(SkillViewStep step, SkillViewContext context)

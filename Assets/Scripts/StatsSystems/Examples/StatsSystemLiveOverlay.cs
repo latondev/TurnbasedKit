@@ -1,13 +1,14 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using GameSystems.Battle.Demo;
+using GameSystems.Stats;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
-using GameSystems.Battle.Demo;
 
-namespace GameSystems.Stats.Demo
+namespace StatsSystems.Examples
 {
 	/// <summary>
 	/// Runtime HUD for the stats battle demo.

@@ -141,7 +141,7 @@ namespace GameSystems.AutoBattle
                 "Power Strike",
                 "A basic attack skill",
                 SkillCategory.Active,
-                SkillElement.Physical,
+                SkillDamageType.Physical,
                 20, 3f, 100f
             );
             skill.SetViewSequence(SkillViewSequence.CreateBasicStrike("default_attack_view", "skill"));

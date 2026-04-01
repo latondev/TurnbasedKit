@@ -10,11 +10,21 @@ namespace GameSystems.Battle.Editor
     public class SkillViewSequenceEditor : UnityEditor.Editor
     {
         private SerializedProperty _sequenceIdProp;
+        private SerializedProperty _animationNameProp;
+        private SerializedProperty _fallbackAnimationNameProp;
+        private SerializedProperty _hitEventNameProp;
+        private SerializedProperty _falldownEventNameProp;
+        private SerializedProperty _idleAnimationNameProp;
         private SerializedProperty _stepsProp;
 
         private void OnEnable()
         {
             _sequenceIdProp = serializedObject.FindProperty("sequenceId");
+            _animationNameProp = serializedObject.FindProperty("animationName");
+            _fallbackAnimationNameProp = serializedObject.FindProperty("fallbackAnimationName");
+            _hitEventNameProp = serializedObject.FindProperty("hitEventName");
+            _falldownEventNameProp = serializedObject.FindProperty("falldownEventName");
+            _idleAnimationNameProp = serializedObject.FindProperty("idleAnimationName");
             _stepsProp = serializedObject.FindProperty("steps");
         }
 
@@ -33,6 +43,15 @@ namespace GameSystems.Battle.Editor
             {
                 EditorGUILayout.PropertyField(_sequenceIdProp);
             }
+
+            EditorGUILayout.Space(4f);
+
+            EditorGUILayout.LabelField("Spine Mapping", EditorStyles.boldLabel);
+            DrawField(_animationNameProp, "Animation Name");
+            DrawField(_fallbackAnimationNameProp, "Fallback Animation");
+            DrawField(_hitEventNameProp, "Hit Event");
+            DrawField(_falldownEventNameProp, "Falldown Event");
+            DrawField(_idleAnimationNameProp, "Idle Animation");
 
             EditorGUILayout.Space(4f);
 
@@ -98,6 +117,14 @@ namespace GameSystems.Battle.Editor
                 EditorGUIUtility.PingObject(sequence);
             }
             EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawField(SerializedProperty property, string label)
+        {
+            if (property != null)
+            {
+                EditorGUILayout.PropertyField(property, new GUIContent(label));
+            }
         }
 
         private void ApplyPreset(SkillViewSequence sequence, string undoName, System.Action applyAction)

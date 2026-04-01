@@ -23,7 +23,6 @@ public class SkillControllerEditor : Editor
     private Vector2 skillScrollPos;
 
     private SkillCategory filterCategory = SkillCategory.Active;
-    private SkillElement filterElement = SkillElement.Fire;
 
     private void OnEnable()
     {
@@ -306,8 +305,8 @@ public class SkillControllerEditor : Editor
             return;
         }
 
-        // Background color based on element
-        Color bgColor = skill.GetElementColor();
+        // Background color based on damage type
+        Color bgColor = skill.GetDamageTypeColor();
         bgColor.a = 0.3f;
 
         Color previousBg = GUI.backgroundColor;
@@ -316,16 +315,16 @@ public class SkillControllerEditor : Editor
         EditorGUILayout.BeginVertical(currentSkillStyle);
         GUI.backgroundColor = previousBg;
 
-        // Header: Name, Category, Element
+        // Header: Name, Category, Damage Type
         EditorGUILayout.BeginHorizontal();
         
         // Skill name with icon
         GUIStyle nameStyle = new GUIStyle(EditorStyles.boldLabel)
         {
             fontSize = 13,
-            normal = { textColor = skill.GetElementColor() }
+            normal = { textColor = skill.GetDamageTypeColor() }
         };
-        EditorGUILayout.LabelField($"{skill.GetElementIcon()} {skill.SkillName}", nameStyle);
+        EditorGUILayout.LabelField($"{skill.GetDamageTypeIcon()} {skill.SkillName}", nameStyle);
 
         // Category badge
         DrawCategoryBadge(skill.Category, skill.GetCategoryColor());
@@ -366,8 +365,8 @@ public class SkillControllerEditor : Editor
             EditorGUILayout.LabelField("🔒 LOCKED", lockedStyle, GUILayout.Width(120));
         }
 
-        // Element badge
-        DrawElementBadge(skill.Element, skill.GetElementColor());
+        // Damage type badge
+        DrawDamageTypeBadge(skill.DamageType, skill.GetDamageTypeColor());
 
         EditorGUILayout.EndHorizontal();
 
@@ -612,7 +611,7 @@ public class SkillControllerEditor : Editor
             EditorGUILayout.BeginVertical(skillStyle);
             
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField($"{skill.GetElementIcon()} {skill.SkillName}", GUILayout.Width(150));
+            EditorGUILayout.LabelField($"{skill.GetDamageTypeIcon()} {skill.SkillName}", GUILayout.Width(150));
             
             // Mini cooldown bar
             Rect miniCdRect = EditorGUILayout.GetControlRect(false, 15);
@@ -692,7 +691,7 @@ public class SkillControllerEditor : Editor
         Color bgColor;
         if (isCurrent)
         {
-            bgColor = skill.GetElementColor();
+            bgColor = skill.GetDamageTypeColor();
             bgColor.a = 0.4f;
         }
         else if (!skill.IsUnlocked)
@@ -728,9 +727,9 @@ public class SkillControllerEditor : Editor
         GUIStyle nameStyle = new GUIStyle(EditorStyles.label)
         {
             fontStyle = isCurrent ? FontStyle.Bold : FontStyle.Normal,
-            normal = { textColor = isCurrent ? skill.GetElementColor() : Color.white }
+            normal = { textColor = isCurrent ? skill.GetDamageTypeColor() : Color.white }
         };
-        EditorGUILayout.LabelField($"{skill.GetElementIcon()} {skill.SkillName}", nameStyle, GUILayout.Width(150));
+        EditorGUILayout.LabelField($"{skill.GetDamageTypeIcon()} {skill.SkillName}", nameStyle, GUILayout.Width(150));
 
         // Level/Status
         if (skill.IsUnlocked)
@@ -794,14 +793,14 @@ public class SkillControllerEditor : Editor
     private void DrawMiniSkillInfo(SkillData skill)
     {
         Color previousBg = GUI.backgroundColor;
-        GUI.backgroundColor = skill.GetElementColor();
+        GUI.backgroundColor = skill.GetDamageTypeColor();
         GUI.backgroundColor = new Color(GUI.backgroundColor.r, GUI.backgroundColor.g, GUI.backgroundColor.b, 0.3f);
 
         EditorGUILayout.BeginVertical(skillStyle);
         GUI.backgroundColor = previousBg;
 
         EditorGUILayout.BeginHorizontal();
-        EditorGUILayout.LabelField($"{skill.GetElementIcon()} {skill.SkillName}", GUILayout.Width(150));
+        EditorGUILayout.LabelField($"{skill.GetDamageTypeIcon()} {skill.SkillName}", GUILayout.Width(150));
         
         if (skill.IsUnlocked)
         {
@@ -832,7 +831,7 @@ public class SkillControllerEditor : Editor
         GUI.backgroundColor = previousBg;
     }
 
-    private void DrawElementBadge(SkillElement element, Color color)
+    private void DrawDamageTypeBadge(SkillDamageType damageType, Color color)
     {
         Color previousBg = GUI.backgroundColor;
         GUI.backgroundColor = color;
@@ -843,7 +842,7 @@ public class SkillControllerEditor : Editor
             fontStyle = FontStyle.Bold
         };
 
-        GUILayout.Label($"{GetElementIconString(element)} {element}", badgeStyle, GUILayout.Width(90));
+        GUILayout.Label($"{GetDamageTypeIconString(damageType)} {GetDamageTypeLabelString(damageType)}", badgeStyle, GUILayout.Width(160));
         GUI.backgroundColor = previousBg;
     }
 
@@ -861,19 +860,33 @@ public class SkillControllerEditor : Editor
         };
     }
 
-    private string GetElementIconString(SkillElement element)
+    private string GetDamageTypeIconString(SkillDamageType damageType)
     {
-        return element switch
+        return damageType switch
         {
-            SkillElement.Fire => "🔥",
-            SkillElement.Ice => "❄️",
-            SkillElement.Lightning => "⚡",
-            SkillElement.Earth => "🌍",
-            SkillElement.Wind => "💨",
-            SkillElement.Holy => "✨",
-            SkillElement.Dark => "🌑",
-            SkillElement.Physical => "⚔️",
+            SkillDamageType.Physical => "⚔️",
+            SkillDamageType.Magic => "✨",
+            SkillDamageType.TrueDamage => "💥",
+            SkillDamageType.PercentHP => "❤️",
+            SkillDamageType.LowestHPEnemy => "⬇️",
+            SkillDamageType.HighestHPEnemy => "⬆️",
+            SkillDamageType.AttackWithEffect => "🪄",
             _ => "•"
+        };
+    }
+
+    private string GetDamageTypeLabelString(SkillDamageType damageType)
+    {
+        return damageType switch
+        {
+            SkillDamageType.Physical => "Physical",
+            SkillDamageType.Magic => "Magic",
+            SkillDamageType.TrueDamage => "True Damage",
+            SkillDamageType.PercentHP => "% HP",
+            SkillDamageType.LowestHPEnemy => "Lowest HP Enemy",
+            SkillDamageType.HighestHPEnemy => "Highest HP Enemy",
+            SkillDamageType.AttackWithEffect => "Attack + Effect",
+            _ => "Unknown"
         };
     }
 

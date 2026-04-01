@@ -1,9 +1,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using GameSystems.Stats;
 using UnityEngine;
 
-namespace GameSystems.Stats.Demo
+namespace StatsSystems.Examples
 {
 	/// <summary>
 	/// Small 1v1 battle demo built on top of UnitStatController.
