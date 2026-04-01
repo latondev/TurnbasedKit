@@ -1,0 +1,200 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9018a70d42068ac4b800cedc734acb8a, type: 3}
+  m_Name: 1_NewUnit
+  m_EditorClassIdentifier: 
+  id: 1
+  nameHero: NewUnit
+  type: 0
+  iconAvatar: {fileID: 0}
+  fullAvatar: {fileID: 0}
+  cardAvatar: {fileID: 0}
+  rarity: 0
+  level: 1
+  isUnlock: 0
+  stats:
+  - statType: 0
+    baseValue: 1000
+    maxValue: 1000
+    currentValue: 1000
+    canRegenerate: 1
+    regenRate: 0
+  - statType: 1
+    baseValue: 100
+    maxValue: 100
+    currentValue: 100
+    canRegenerate: 1
+    regenRate: 5
+  - statType: 4
+    baseValue: 100
+    maxValue: 100
+    currentValue: 100
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 5
+    baseValue: 50
+    maxValue: 50
+    currentValue: 50
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 6
+    baseValue: 50
+    maxValue: 50
+    currentValue: 50
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 7
+    baseValue: 5
+    maxValue: 5
+    currentValue: 5
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 8
+    baseValue: 150
+    maxValue: 150
+    currentValue: 150
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 9
+    baseValue: 100
+    maxValue: 100
+    currentValue: 100
+    canRegenerate: 0
+    regenRate: 0
+  - statType: 10
+    baseValue: 5
+    maxValue: 5
+    currentValue: 5
+    canRegenerate: 0
+    regenRate: 0
+  skillBasic:
+    skillId: 
+    skillName: 
+    description: 
+    category: 0
+    damageType: 0
+    currentLevel: 0
+    maxLevel: 0
+    requiredLevel: 0
+    manaCost: 0
+    isUnlocked: 0
+    baseCooldown: 0
+    currentCooldown: 0
+    isOnCooldown: 0
+    baseDamage: 0
+    damagePerLevel: 0
+    range: 0
+    maxTargets: 0
+    effectType: 0
+    effectDuration: 0
+    effectValue: 0
+    castTime: 0
+    totalCasts: 0
+    icon: {fileID: 0}
+    stepSelections:
+    - sequence: {fileID: 11400000, guid: bd78272dcf6194b4fb991ec4465dcbcc, type: 2}
+      stepIndex: 0
+    - sequence: {fileID: 11400000, guid: bd78272dcf6194b4fb991ec4465dcbcc, type: 2}
+      stepIndex: 1
+    - sequence: {fileID: 11400000, guid: bd78272dcf6194b4fb991ec4465dcbcc, type: 2}
+      stepIndex: 2
+    - sequence: {fileID: 11400000, guid: bd78272dcf6194b4fb991ec4465dcbcc, type: 2}
+      stepIndex: 3
+    - sequence: {fileID: 11400000, guid: bd78272dcf6194b4fb991ec4465dcbcc, type: 2}
+      stepIndex: 4
+    - sequence: {fileID: 11400000, guid: bd78272dcf6194b4fb991ec4465dcbcc, type: 2}
+      stepIndex: 5
+    - sequence: {fileID: 11400000, guid: bd78272dcf6194b4fb991ec4465dcbcc, type: 2}
+      stepIndex: 6
+    legacyStepSequences: []
+    viewSequence: {fileID: 0}
+  skillUltimate:
+    skillId: 
+    skillName: 
+    description: 
+    category: 0
+    damageType: 0
+    currentLevel: 0
+    maxLevel: 0
+    requiredLevel: 0
+    manaCost: 0
+    isUnlocked: 0
+    baseCooldown: 0
+    currentCooldown: 0
+    isOnCooldown: 0
+    baseDamage: 0
+    damagePerLevel: 0
+    range: 0
+    maxTargets: 0
+    effectType: 0
+    effectDuration: 0
+    effectValue: 0
+    castTime: 0
+    totalCasts: 0
+    icon: {fileID: 0}
+    stepSelections: []
+    legacyStepSequences: []
+    viewSequence: {fileID: 0}
+  skillPassive:
+    skillId: 
+    skillName: 
+    description: 
+    category: 0
+    damageType: 0
+    currentLevel: 0
+    maxLevel: 0
+    requiredLevel: 0
+    manaCost: 0
+    isUnlocked: 0
+    baseCooldown: 0
+    currentCooldown: 0
+    isOnCooldown: 0
+    baseDamage: 0
+    damagePerLevel: 0
+    range: 0
+    maxTargets: 0
+    effectType: 0
+    effectDuration: 0
+    effectValue: 0
+    castTime: 0
+    totalCasts: 0
+    icon: {fileID: 0}
+    stepSelections: []
+    legacyStepSequences: []
+    viewSequence: {fileID: 0}
+  skillAwaken:
+    skillId: 
+    skillName: 
+    description: 
+    category: 0
+    damageType: 0
+    currentLevel: 0
+    maxLevel: 0
+    requiredLevel: 0
+    manaCost: 0
+    isUnlocked: 0
+    baseCooldown: 0
+    currentCooldown: 0
+    isOnCooldown: 0
+    baseDamage: 0
+    damagePerLevel: 0
+    range: 0
+    maxTargets: 0
+    effectType: 0
+    effectDuration: 0
+    effectValue: 0
+    castTime: 0
+    totalCasts: 0
+    icon: {fileID: 0}
+    stepSelections: []
+    legacyStepSequences: []
+    viewSequence: {fileID: 0}

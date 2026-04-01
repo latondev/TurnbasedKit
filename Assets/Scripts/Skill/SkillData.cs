@@ -155,6 +155,11 @@ namespace GameSystems.Skills
             InvalidateRuntimeSequenceCache();
         }
 
+        public void InvalidateViewSequenceCache()
+        {
+            InvalidateRuntimeSequenceCache();
+        }
+
         public SkillData(string id, string name, string description, SkillCategory category, 
             SkillDamageType damageType, int manaCost, float cooldown, float damage)
         {
@@ -368,14 +373,11 @@ namespace GameSystems.Skills
                 return;
             }
 
-            if (Application.isPlaying)
-            {
-                UnityEngine.Object.Destroy(runtimeSequenceCache);
-            }
-            else
-            {
-                UnityEngine.Object.DestroyImmediate(runtimeSequenceCache);
-            }
+#if UNITY_EDITOR
+            UnityEngine.Object.DestroyImmediate(runtimeSequenceCache);
+#else
+            UnityEngine.Object.Destroy(runtimeSequenceCache);
+#endif
 
             runtimeSequenceCache = null;
         }

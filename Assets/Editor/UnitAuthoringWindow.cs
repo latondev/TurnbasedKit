@@ -16,6 +16,14 @@ namespace GameSystems.Battle.Editor
 {
     public class UnitAuthoringWindow : EditorWindow
     {
+        private enum PreviewSkillSlot
+        {
+            Basic,
+            Ultimate,
+            Passive,
+            Awaken
+        }
+
         private static readonly Color AccentColor = new Color(0.98f, 0.56f, 0.24f);
         private static readonly Color AccentSoftColor = new Color(0.98f, 0.56f, 0.24f, 0.16f);
         private static readonly Color PanelColor = new Color(0.14f, 0.15f, 0.18f, 1f);
@@ -28,7 +36,9 @@ namespace GameSystems.Battle.Editor
         [SerializeField] private GameObject prefabAsset;
         [SerializeField] private Vector2 scrollPosition;
         [SerializeField] private int currentTab = 0;
-        private readonly string[] tabNames = { "Asset Setup", "Character Data", "Skeleton Data", "Prefab Authoring", "Skill sequences", "Asset Previews" };
+        [SerializeField] private SkillViewSequence selectedLibrarySequence;
+        [SerializeField] private float previewPlaybackSpeed = 1f;
+        private readonly string[] tabNames = { "Asset Setup", "Character Data", "Skeleton Data", "Prefab Authoring", "Skill sequences", "Skill Sequence Preview" };
         [SerializeField] private string skillSearchFilter = string.Empty;
         [SerializeField] private string animationSearchFilter = string.Empty;
         [SerializeField] private string eventSearchFilter = string.Empty;
@@ -69,6 +79,10 @@ namespace GameSystems.Battle.Editor
         private readonly List<AnimationInfo> animationInfos = new List<AnimationInfo>();
         private readonly Dictionary<string, string> animationUsageCache = new Dictionary<string, string>();
         private readonly List<string> eventNames = new List<string>();
+        private SkillSequencePreviewController previewController;
+        private GameObject previewBoundPrefab;
+        private SkillViewSequence previewBoundSequence;
+        [SerializeField] private PreviewSkillSlot selectedPreviewSkillSlot = PreviewSkillSlot.Basic;
         [MenuItem("Tools/Battle/Unit Authoring")]
         public static void ShowWindow()
         {
@@ -78,15 +92,59 @@ namespace GameSystems.Battle.Editor
 
         private void OnEnable()
         {
+            EditorApplication.update -= HandleEditorUpdate;
+            EditorApplication.update += HandleEditorUpdate;
+
+            if (previewController == null)
+            {
+                previewController = new SkillSequencePreviewController();
+            }
+
+            previewController.SetRepaintCallback(Repaint);
+            previewController.Speed = previewPlaybackSpeed;
+
             if (prefabAsset != null && workingPrefabRoot == null)
             {
                 LoadPrefabWorkingCopy(prefabAsset);
             }
+
+            RefreshSequenceLibrary();
         }
 
         private void OnDisable()
         {
+            EditorApplication.update -= HandleEditorUpdate;
+            if (previewController != null)
+            {
+                previewController.Dispose();
+                previewController = null;
+            }
+
             UnloadPrefabWorkingCopy();
+        }
+
+        private void HandleEditorUpdate()
+        {
+            if (previewController == null)
+            {
+                return;
+            }
+
+            if (currentTab != 5)
+            {
+                if (previewController.IsPlaying)
+                {
+                    previewController.Pause();
+                }
+                return;
+            }
+
+            if (!previewController.IsPlaying)
+            {
+                return;
+            }
+
+            previewController.Tick();
         }
 
         private void OnGUI()
@@ -116,7 +174,7 @@ namespace GameSystems.Battle.Editor
                 case 2: DrawSkeletonSection(); break;
                 case 3: DrawPrefabSection(); break;
                 case 4: DrawSkillSequencesSection(); break;
-                case 5: DrawPreviewsTab(); break;
+                case 5: DrawSkillSequencePreviewTab(); break;
             }
             
             EditorGUILayout.EndScrollView();
@@ -517,14 +575,16 @@ namespace GameSystems.Battle.Editor
 
             EditorGUILayout.Space(4f);
             EditorGUILayout.LabelField("Skills", sectionHeaderStyle);
-            DrawSkillProperty(characterSo, "skillBasic", "Basic Skill");
-            DrawSkillProperty(characterSo, "skillUltimate", "Ultimate Skill");
-            DrawSkillProperty(characterSo, "skillPassive", "Passive Skill");
-            DrawSkillProperty(characterSo, "skillAwaken", "Awaken Skill");
+            DrawSkillProperty(characterSo, "skillBasic", "Basic Skill", PreviewSkillSlot.Basic);
+            DrawSkillProperty(characterSo, "skillUltimate", "Ultimate Skill", PreviewSkillSlot.Ultimate);
+            DrawSkillProperty(characterSo, "skillPassive", "Passive Skill", PreviewSkillSlot.Passive);
+            DrawSkillProperty(characterSo, "skillAwaken", "Awaken Skill", PreviewSkillSlot.Awaken);
 
             if (characterSo.ApplyModifiedProperties())
             {
                 EditorUtility.SetDirty(characterData);
+                InvalidateCharacterSkillSequenceCaches();
+                SyncPreviewSkillSelectionFromCharacterData();
             }
 
             EditorGUILayout.BeginHorizontal();
@@ -571,7 +631,6 @@ namespace GameSystems.Battle.Editor
 
         // Global Sequence Editor State
         private Vector2 sequenceListScrollPosition;
-        private SkillViewSequence selectedLibrarySequence;
         private List<SkillViewSequence> allLibrarySequences = new List<SkillViewSequence>();
 
         private void RefreshSequenceLibrary()
@@ -585,6 +644,14 @@ namespace GameSystems.Battle.Editor
                 if (seq != null) allLibrarySequences.Add(seq);
             }
             allLibrarySequences.Sort((a,b) => string.Compare(a.name, b.name, StringComparison.Ordinal));
+
+            if (allLibrarySequences.Count > 0)
+            {
+                if (selectedLibrarySequence == null || !allLibrarySequences.Contains(selectedLibrarySequence))
+                {
+                    selectedLibrarySequence = allLibrarySequences[0];
+                }
+            }
         }
 
         private void CreateNewLibrarySequence()
@@ -750,12 +817,24 @@ namespace GameSystems.Battle.Editor
             }
         }
 
-        private void DrawSkillProperty(SerializedObject serializedObject, string propertyName, string label)
+        private void DrawSkillProperty(SerializedObject serializedObject, string propertyName, string label, PreviewSkillSlot previewSlot)
         {
             var property = serializedObject.FindProperty(propertyName);
             if (property != null)
             {
                 EditorGUILayout.PropertyField(property, new GUIContent(label), true);
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Preview", secondaryButtonStyle, GUILayout.Width(72f)))
+                {
+                    selectedPreviewSkillSlot = previewSlot;
+                    previewBoundSequence = null;
+                    currentTab = 5;
+                    SyncPreviewSkillSelectionFromCharacterData();
+                    Repaint();
+                    GUI.FocusControl(null);
+                }
+                EditorGUILayout.EndHorizontal();
             }
         }
 
@@ -801,6 +880,10 @@ namespace GameSystems.Battle.Editor
             if (sequenceSo.ApplyModifiedProperties())
             {
                 EditorUtility.SetDirty(sequence);
+                if (previewController != null && previewController.Sequence == sequence)
+                {
+                    previewController.Restart();
+                }
             }
 
             EditorGUILayout.EndVertical();
@@ -990,38 +1073,246 @@ namespace GameSystems.Battle.Editor
 
 
 
-        private void DrawPreviewsTab()
+        private void DrawSkillSequencePreviewTab()
         {
-            EditorGUILayout.BeginVertical(cardStyle);
-            EditorGUILayout.LabelField("Asset Previews", sectionHeaderStyle);
-            EditorGUILayout.LabelField("Large previews of the currently bound assets.", subtitleStyle);
+            EditorGUILayout.BeginVertical(sectionBodyStyle);
+            EditorGUILayout.LabelField("Skill Sequence Preview", sectionHeaderStyle);
+            EditorGUILayout.LabelField("Live preview of the selected skill slot from Character Data on the current prefab host.", subtitleStyle);
             EditorGUILayout.Space(8f);
 
+            if (previewController == null)
+            {
+                previewController = new SkillSequencePreviewController();
+                previewController.SetRepaintCallback(Repaint);
+                previewController.Speed = previewPlaybackSpeed;
+            }
+
+            previewController.SetRepaintCallback(Repaint);
+
+            if (previewBoundPrefab != prefabAsset)
+            {
+                previewBoundPrefab = prefabAsset;
+                previewController.BindPrefab(prefabAsset);
+            }
+
+            DrawPreviewSkillSlotSelector();
+
+            SkillData previewSkillData = GetSelectedPreviewSkillData();
+            SkillViewSequence previewSequence = previewSkillData != null ? previewSkillData.ViewSequence : null;
+
+            if (previewBoundSequence != previewSequence)
+            {
+                previewBoundSequence = previewSequence;
+                previewController.SetSequence(previewSequence);
+            }
+
+            if (Mathf.Abs(previewController.Speed - previewPlaybackSpeed) > 0.0001f)
+            {
+                previewController.Speed = previewPlaybackSpeed;
+            }
+
             EditorGUILayout.BeginHorizontal();
-            
-            EditorGUILayout.BeginVertical(GUILayout.ExpandWidth(true));
-            DrawAssetPreviewPanel(
-                "Character Data SO",
-                characterData,
-                characterData != null ? characterData.name : "No CharacterDataSO selected",
-                characterData != null ? $"Id: {characterData.id}" : null,
-                256f);
-            EditorGUILayout.EndVertical();
+            EditorGUILayout.LabelField("Skill", GUILayout.Width(70f));
+            EditorGUILayout.LabelField(
+                previewSkillData != null
+                    ? (!string.IsNullOrWhiteSpace(previewSkillData.SkillName) ? previewSkillData.SkillName : previewSkillData.SkillId)
+                    : "None selected",
+                EditorStyles.boldLabel);
+            if (GUILayout.Button("Focus", secondaryButtonStyle, GUILayout.Width(60f)))
+            {
+                currentTab = 1;
+                GUI.FocusControl(null);
+            }
+            EditorGUILayout.EndHorizontal();
 
-            EditorGUILayout.Space(12f);
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Prefab", GUILayout.Width(70f));
+            EditorGUILayout.LabelField(prefabAsset != null ? prefabAsset.name : "No prefab bound", EditorStyles.boldLabel);
+            EditorGUILayout.EndHorizontal();
 
-            EditorGUILayout.BeginVertical(GUILayout.ExpandWidth(true));
-            DrawAssetPreviewPanel(
-                "Prefab Asset",
-                prefabAsset,
-                prefabAsset != null ? prefabAsset.name : "No prefab selected",
-                prefabAsset != null ? workingPrefabPath : null,
-                256f);
+            EditorGUILayout.BeginHorizontal();
+            if (previewController.IsPlaying)
+            {
+                if (GUILayout.Button("Pause", primaryButtonStyle, GUILayout.Height(28f)))
+                {
+                    previewController.Pause();
+                }
+            }
+            else
+            {
+                if (GUILayout.Button("Play", primaryButtonStyle, GUILayout.Height(28f)))
+                {
+                    previewController.TogglePlayback();
+                }
+            }
+
+            if (GUILayout.Button("Restart", secondaryButtonStyle, GUILayout.Height(28f)))
+            {
+                previewController.Restart();
+            }
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Speed", GUILayout.Width(70f));
+            previewPlaybackSpeed = EditorGUILayout.Slider(previewPlaybackSpeed, 0.25f, 3f);
+            EditorGUILayout.LabelField(string.Format("{0:0.00}x", previewPlaybackSpeed), GUILayout.Width(48f));
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.Space(8f);
+
+            Rect previewRect = GUILayoutUtility.GetRect(1f, 320f, GUILayout.ExpandWidth(true));
+            previewRect.height = 320f;
+            EditorGUI.DrawRect(previewRect, PanelAltColor);
+            previewController.DrawPreview(previewRect);
+
+            EditorGUILayout.Space(8f);
+
+            EditorGUILayout.LabelField("Step Preview", sectionHeaderStyle);
+
+            if (characterData == null)
+            {
+                EditorGUILayout.HelpBox("Assign a CharacterDataSO first.", MessageType.Info);
+                EditorGUILayout.EndVertical();
+                return;
+            }
+
+            if (previewSkillData == null)
+            {
+                EditorGUILayout.HelpBox("Select a skill slot from Character Data to preview its steps.", MessageType.Info);
+                EditorGUILayout.EndVertical();
+                return;
+            }
+
+            if (previewSequence == null || previewSequence.Steps == null || previewSequence.Steps.Count == 0)
+            {
+                EditorGUILayout.HelpBox("The selected skill has no preview steps.", MessageType.Warning);
+                EditorGUILayout.EndVertical();
+                return;
+            }
+
+            EditorGUILayout.BeginVertical(sectionBodyStyle);
+            EditorGUILayout.LabelField(string.Format("Status: {0}", previewController.StatusText), EditorStyles.miniBoldLabel);
+            EditorGUILayout.LabelField(string.Format("Current step: {0}", previewController.CurrentStepIndex >= 0 ? (previewController.CurrentStepIndex + 1).ToString() : "-"), EditorStyles.miniLabel);
+
+            for (int i = 0; i < previewSequence.Steps.Count; i++)
+            {
+                var step = previewSequence.Steps[i];
+                Rect rowRect = GUILayoutUtility.GetRect(1f, 24f, GUILayout.ExpandWidth(true));
+                bool isCurrent = previewController.CurrentStepIndex == i;
+                bool isCompleted = previewController.CurrentStepIndex > i;
+
+                Color rowColor = isCurrent ? AccentSoftColor : (isCompleted ? new Color(1f, 1f, 1f, 0.04f) : PanelColor);
+                EditorGUI.DrawRect(rowRect, rowColor);
+
+                string stepLabel = step != null
+                    ? string.Format("{0}. {1}  |  delay {2:0.##}  |  duration {3:0.##}", i + 1, step.StepType, step.Delay, step.Duration)
+                    : string.Format("{0}. (null step)", i + 1);
+
+                Rect labelRect = new Rect(rowRect.x + 8f, rowRect.y + 3f, rowRect.width - 16f, rowRect.height - 6f);
+                GUI.Label(labelRect, stepLabel, isCurrent ? sectionHeaderStyle : EditorStyles.miniLabel);
+            }
+
             EditorGUILayout.EndVertical();
+            EditorGUILayout.EndVertical();
+        }
+
+        private void DrawPreviewSkillSlotSelector()
+        {
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Skill Slot", GUILayout.Width(70f));
+
+            string[] labels = BuildPreviewSkillSlotLabels();
+            int nextIndex = EditorGUILayout.Popup((int)selectedPreviewSkillSlot, labels);
+            nextIndex = Mathf.Clamp(nextIndex, 0, labels.Length - 1);
+
+            if ((PreviewSkillSlot)nextIndex != selectedPreviewSkillSlot)
+            {
+                selectedPreviewSkillSlot = (PreviewSkillSlot)nextIndex;
+                previewBoundSequence = null;
+                SyncPreviewSkillSelectionFromCharacterData();
+                Repaint();
+            }
 
             EditorGUILayout.EndHorizontal();
-            
-            EditorGUILayout.EndVertical();
+        }
+
+        private string[] BuildPreviewSkillSlotLabels()
+        {
+            return new[]
+            {
+                BuildPreviewSkillSlotLabel(PreviewSkillSlot.Basic),
+                BuildPreviewSkillSlotLabel(PreviewSkillSlot.Ultimate),
+                BuildPreviewSkillSlotLabel(PreviewSkillSlot.Passive),
+                BuildPreviewSkillSlotLabel(PreviewSkillSlot.Awaken),
+            };
+        }
+
+        private string BuildPreviewSkillSlotLabel(PreviewSkillSlot slot)
+        {
+            SkillData skillData = GetSkillDataForSlot(slot);
+            string slotName = slot.ToString();
+
+            if (skillData == null)
+            {
+                return $"{slotName}: <None>";
+            }
+
+            string skillName = !string.IsNullOrWhiteSpace(skillData.SkillName) ? skillData.SkillName : skillData.SkillId;
+            return !string.IsNullOrWhiteSpace(skillName) ? $"{slotName}: {skillName}" : $"{slotName}: <Unnamed>";
+        }
+
+        private SkillData GetSkillDataForSlot(PreviewSkillSlot slot)
+        {
+            if (characterData == null)
+            {
+                return null;
+            }
+
+            switch (slot)
+            {
+                case PreviewSkillSlot.Basic:
+                    return characterData.skillBasic;
+                case PreviewSkillSlot.Ultimate:
+                    return characterData.skillUltimate;
+                case PreviewSkillSlot.Passive:
+                    return characterData.skillPassive;
+                case PreviewSkillSlot.Awaken:
+                    return characterData.skillAwaken;
+                default:
+                    return characterData.skillBasic;
+            }
+        }
+
+        private SkillData GetSelectedPreviewSkillData()
+        {
+            return GetSkillDataForSlot(selectedPreviewSkillSlot);
+        }
+
+        private void SyncPreviewSkillSelectionFromCharacterData()
+        {
+            SkillData previewSkillData = GetSelectedPreviewSkillData();
+            SkillViewSequence previewSequence = previewSkillData != null ? previewSkillData.ViewSequence : null;
+            previewBoundSequence = previewSequence;
+
+            if (previewController == null)
+            {
+                return;
+            }
+
+            previewController.SetSequence(previewSequence);
+        }
+
+        private void InvalidateCharacterSkillSequenceCaches()
+        {
+            if (characterData == null)
+            {
+                return;
+            }
+
+            characterData.skillBasic?.InvalidateViewSequenceCache();
+            characterData.skillUltimate?.InvalidateViewSequenceCache();
+            characterData.skillPassive?.InvalidateViewSequenceCache();
+            characterData.skillAwaken?.InvalidateViewSequenceCache();
         }
 
         private void DrawAssetPreviewPanel(string title, UnityEngine.Object asset, string line1, string line2, float previewHeight = 132f)
@@ -1220,11 +1511,20 @@ namespace GameSystems.Battle.Editor
         {
             if (prefabAsset == newPrefab && workingPrefabRoot != null)
             {
+                if (previewController != null)
+                {
+                    previewController.BindPrefab(prefabAsset);
+                }
                 return;
             }
 
             prefabAsset = newPrefab;
             LoadPrefabWorkingCopy(newPrefab);
+
+            if (previewController != null)
+            {
+                previewController.BindPrefab(prefabAsset);
+            }
         }
 
         private void LoadPrefabWorkingCopy(GameObject sourcePrefab)
