@@ -13,18 +13,27 @@ namespace GameSystems.Battle.Editor
     {
         private const int PreviewLayer = 30;
         private static readonly Color PreviewBackground = new Color(0.13f, 0.14f, 0.17f, 1f);
-        private static readonly Vector3 ActorStartPosition = new Vector3(-0.5f, 0f, 0f);
-        private static readonly Vector3 PrimaryTargetPosition = new Vector3(1.75f, 0f, 0f);
+        private static readonly Vector3 ActorStartPosition = new Vector3(-1.8f, -0.8f, 0f);
+        private static readonly Vector3 PrimaryTargetPosition = new Vector3(1.75f, -0.8f, 0f);
         private static readonly Vector3 PreviewCameraPosition = new Vector3(0.6f, 0.15f, -10f);
-        private const double MinTickInterval = 1d / 30d;
+        private static readonly Quaternion TargetPreviewRotation = Quaternion.Euler(0f, 180f, 0f);
+        private const float TargetPreviewScaleMultiplier = 1.35f;
+        private const double MinTickInterval = 1d / 60d;
+        private const double SequenceRestartDelay = 0.7d;
+        private const double EventPopupDuration = 0.85d;
         private const float PreviewCameraSize = 3.0f;
 
         private readonly List<GameObject> spawnedVfxObjects = new List<GameObject>();
+        private readonly List<EventPopup> eventPopups = new List<EventPopup>();
+        private static GUIStyle eventPopupStyle;
 
         private PreviewRenderUtility previewUtility;
         private GameObject prefabSource;
         private GameObject previewGameObject;
+        private GameObject targetPrefabSource;
+        private GameObject previewTargetGameObject;
         private SkeletonAnimation skeletonAnimation;
+        private SkeletonAnimation targetSkeletonAnimation;
         private AnimationHandle animationHandle;
         private SkillViewSequence sequence;
         private Action repaintCallback;
@@ -35,6 +44,7 @@ namespace GameSystems.Battle.Editor
         private int currentStepIndex = -1;
         private bool currentStepHasDuration;
         private double stepStartedAt;
+        private double restartAt;
         private double pausedAt;
         private double lastRenderAt;
         private double lastTickAt;
@@ -43,6 +53,10 @@ namespace GameSystems.Battle.Editor
         private Vector3 stepMoveEndPosition;
         private string statusText = "Idle";
         private bool previewHostReleased;
+        private bool showEventPopups;
+        private bool loopPlayback;
+        private bool targetPreviewRegistered;
+        private bool terminalIdleLoopActive;
 
         public SkillViewSequence Sequence
         {
@@ -59,9 +73,24 @@ namespace GameSystems.Battle.Editor
             get { return previewGameObject != null; }
         }
 
+        public bool HasTargetPreviewObject
+        {
+            get { return previewTargetGameObject != null; }
+        }
+
         public bool IsPlaying
         {
             get { return isPlaying && !isPaused && !sequenceFinished; }
+        }
+
+        public bool IsIdleLoopActive
+        {
+            get { return terminalIdleLoopActive && !isPaused; }
+        }
+
+        public bool HasPendingRestart
+        {
+            get { return (sequenceFinished || terminalIdleLoopActive) && restartAt > 0d; }
         }
 
         public int CurrentStepIndex
@@ -72,6 +101,50 @@ namespace GameSystems.Battle.Editor
         public string StatusText
         {
             get { return statusText; }
+        }
+
+        public bool ShowEventPopups
+        {
+            get { return showEventPopups; }
+            set
+            {
+                if (showEventPopups == value)
+                {
+                    return;
+                }
+
+                showEventPopups = value;
+                if (showEventPopups)
+                {
+                    BindAnimationEvents();
+                }
+                else
+                {
+                    UnbindAnimationEvents();
+                }
+            }
+        }
+
+        public bool LoopPlayback
+        {
+            get { return loopPlayback; }
+            set
+            {
+                if (loopPlayback == value)
+                {
+                    return;
+                }
+
+                loopPlayback = value;
+                if (!loopPlayback)
+                {
+                    restartAt = -1d;
+                }
+                else if (sequenceFinished && sequence != null && previewGameObject != null)
+                {
+                    restartAt = EditorApplication.timeSinceStartup + SequenceRestartDelay;
+                }
+            }
         }
 
         public float Speed
@@ -112,16 +185,31 @@ namespace GameSystems.Battle.Editor
                 {
                     return;
                 }
-
-                if (sourcePrefab != null && previewHostReleased)
-                {
-                    return;
-                }
             }
 
             prefabSource = sourcePrefab;
             RebuildPreviewObject();
             ResetPlayback(true);
+        }
+
+        public void SetTargetPrefab(GameObject sourcePrefab)
+        {
+            if (targetPrefabSource == sourcePrefab)
+            {
+                if (sourcePrefab != null && previewTargetGameObject != null)
+                {
+                    RegisterTargetPreviewObject();
+                    return;
+                }
+
+                if (sourcePrefab == null && previewTargetGameObject == null)
+                {
+                    return;
+                }
+            }
+
+            targetPrefabSource = sourcePrefab;
+            RebuildTargetPreviewObject();
         }
 
         public void SetSequence(SkillViewSequence nextSequence)
@@ -137,7 +225,12 @@ namespace GameSystems.Battle.Editor
 
         public void TogglePlayback()
         {
-            if (sequenceFinished || currentStepIndex < 0 || sequence == null || previewGameObject == null)
+            if (
+                sequenceFinished
+                || currentStepIndex < 0
+                || sequence == null
+                || previewGameObject == null
+            )
             {
                 Restart();
                 return;
@@ -185,6 +278,10 @@ namespace GameSystems.Battle.Editor
             double now = EditorApplication.timeSinceStartup;
             double pausedDuration = now - pausedAt;
             stepStartedAt += pausedDuration;
+            if (restartAt > 0d)
+            {
+                restartAt += pausedDuration;
+            }
             lastRenderAt = now;
             isPaused = false;
             isPlaying = true;
@@ -195,12 +292,48 @@ namespace GameSystems.Battle.Editor
 
         public void Tick()
         {
-            if (sequence == null || sequence.Steps == null || previewGameObject == null || !isPlaying || isPaused || sequenceFinished)
+            if (sequence == null || sequence.Steps == null || previewGameObject == null || isPaused)
             {
                 return;
             }
 
             double now = EditorApplication.timeSinceStartup;
+
+            if (terminalIdleLoopActive)
+            {
+                if (restartAt > 0d && now >= restartAt)
+                {
+                    restartAt = -1d;
+                    ResetPlayback(true);
+                    return;
+                }
+
+                if (lastTickAt > 0d && now - lastTickAt < MinTickInterval)
+                {
+                    return;
+                }
+
+                lastTickAt = now;
+                RequestRepaint();
+                return;
+            }
+
+            if (sequenceFinished)
+            {
+                if (restartAt > 0d && now >= restartAt)
+                {
+                    restartAt = -1d;
+                    ResetPlayback(true);
+                }
+
+                return;
+            }
+
+            if (!isPlaying)
+            {
+                return;
+            }
+
             if (lastTickAt > 0d && now - lastTickAt < MinTickInterval)
             {
                 return;
@@ -214,6 +347,11 @@ namespace GameSystems.Battle.Editor
                 {
                     RequestRepaint();
                 }
+
+                if (sequenceFinished)
+                {
+                    return;
+                }
             }
 
             bool changed = false;
@@ -221,7 +359,11 @@ namespace GameSystems.Battle.Editor
 
             while (safetyCounter++ < 256)
             {
-                if (sequence == null || currentStepIndex < 0 || currentStepIndex >= sequence.Steps.Count)
+                if (
+                    sequence == null
+                    || currentStepIndex < 0
+                    || currentStepIndex >= sequence.Steps.Count
+                )
                 {
                     FinishPlayback();
                     changed = true;
@@ -232,18 +374,32 @@ namespace GameSystems.Battle.Editor
                 if (currentStep == null)
                 {
                     changed |= AdvanceToNextStep(now);
+                    if (sequenceFinished)
+                    {
+                        changed = true;
+                        break;
+                    }
                     continue;
                 }
 
                 if (UpdateCurrentStep(currentStep, now))
                 {
                     changed = true;
+                    if (sequenceFinished)
+                    {
+                        break;
+                    }
                     break;
                 }
 
                 if (IsImmediateStep(currentStep))
                 {
                     changed |= AdvanceToNextStep(now);
+                    if (sequenceFinished)
+                    {
+                        changed = true;
+                        break;
+                    }
                     continue;
                 }
 
@@ -252,12 +408,18 @@ namespace GameSystems.Battle.Editor
 
             if (safetyCounter > 256)
             {
-                Debug.LogWarning("[SkillSequencePreview] Preview tick safety limit reached. Stopping playback to avoid editor stall.");
+                Debug.LogWarning(
+                    "[SkillSequencePreview] Preview tick safety limit reached. Stopping playback to avoid editor stall."
+                );
                 FinishPlayback();
                 changed = true;
             }
 
             if (changed)
+            {
+                RequestRepaint();
+            }
+            else if (showEventPopups && eventPopups.Count > 0)
             {
                 RequestRepaint();
             }
@@ -274,7 +436,11 @@ namespace GameSystems.Battle.Editor
             if (previewUtility == null || previewGameObject == null)
             {
                 EditorGUI.DrawRect(rect, PreviewBackground);
-                GUI.Label(rect, "Select a prefab with SkeletonAnimation", EditorStyles.centeredGreyMiniLabel);
+                GUI.Label(
+                    rect,
+                    "Select a prefab with SkeletonAnimation",
+                    EditorStyles.centeredGreyMiniLabel
+                );
                 return;
             }
 
@@ -286,16 +452,26 @@ namespace GameSystems.Battle.Editor
             {
                 GUI.DrawTexture(rect, previewTexture, ScaleMode.StretchToFill, false);
             }
+
+            DrawEventPopups(rect);
         }
 
         public void Dispose()
         {
+            UnbindAnimationEvents();
             DestroySpawnedVfx();
+            ClearEventPopups();
 
             if (previewGameObject != null)
             {
                 UnityEngine.Object.DestroyImmediate(previewGameObject);
                 previewGameObject = null;
+            }
+
+            if (previewTargetGameObject != null)
+            {
+                UnityEngine.Object.DestroyImmediate(previewTargetGameObject);
+                previewTargetGameObject = null;
             }
 
             if (previewUtility != null)
@@ -305,14 +481,19 @@ namespace GameSystems.Battle.Editor
             }
 
             skeletonAnimation = null;
+            targetSkeletonAnimation = null;
             animationHandle = null;
             prefabSource = null;
+            targetPrefabSource = null;
             previewHostReleased = false;
+            targetPreviewRegistered = false;
         }
 
         private void RebuildPreviewObject()
         {
             DestroySpawnedVfx();
+            UnbindAnimationEvents();
+            ClearEventPopups();
 
             if (previewGameObject != null)
             {
@@ -334,9 +515,10 @@ namespace GameSystems.Battle.Editor
 
             try
             {
-                SkeletonAnimation sourceSkeleton = prefabSource != null
-                    ? prefabSource.GetComponentInChildren<SkeletonAnimation>(true)
-                    : null;
+                SkeletonAnimation sourceSkeleton =
+                    prefabSource != null
+                        ? prefabSource.GetComponentInChildren<SkeletonAnimation>(true)
+                        : null;
 
                 if (sourceSkeleton != null)
                 {
@@ -366,7 +548,9 @@ namespace GameSystems.Battle.Editor
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[SkillSequencePreview] Failed to instantiate prefab preview: {ex.Message}");
+                Debug.LogWarning(
+                    $"[SkillSequencePreview] Failed to instantiate prefab preview: {ex.Message}"
+                );
                 statusText = "Failed to create preview object";
                 RequestRepaint();
                 return;
@@ -385,7 +569,9 @@ namespace GameSystems.Battle.Editor
 
             if (skeletonAnimation == null)
             {
-                skeletonAnimation = previewGameObject.GetComponentInChildren<SkeletonAnimation>(true);
+                skeletonAnimation = previewGameObject.GetComponentInChildren<SkeletonAnimation>(
+                    true
+                );
             }
 
             if (animationHandle == null)
@@ -403,6 +589,7 @@ namespace GameSystems.Battle.Editor
                 animationHandle.skeletonAnimation = skeletonAnimation;
                 animationHandle.Initialize();
                 animationHandle.SetSpeed(speed);
+                BindAnimationEvents();
             }
 
             if (previewUtility != null)
@@ -411,8 +598,73 @@ namespace GameSystems.Battle.Editor
                 ConfigurePreviewCamera();
             }
 
+            RegisterTargetPreviewObject();
+
             previewHostReleased = false;
-            statusText = skeletonAnimation != null ? BuildStatusText() : "Prefab has no SkeletonAnimation";
+            statusText =
+                skeletonAnimation != null ? BuildStatusText() : "Prefab has no SkeletonAnimation";
+            RequestRepaint();
+        }
+
+        private void RebuildTargetPreviewObject()
+        {
+            if (previewTargetGameObject != null)
+            {
+                UnityEngine.Object.DestroyImmediate(previewTargetGameObject);
+                previewTargetGameObject = null;
+            }
+
+            targetSkeletonAnimation = null;
+            targetPreviewRegistered = false;
+
+            if (targetPrefabSource == null)
+            {
+                RequestRepaint();
+                return;
+            }
+
+            EnsurePreviewUtility();
+
+            try
+            {
+                previewTargetGameObject =
+                    PrefabUtility.InstantiatePrefab(targetPrefabSource) as GameObject;
+                if (previewTargetGameObject == null)
+                {
+                    previewTargetGameObject = UnityEngine.Object.Instantiate(targetPrefabSource);
+                }
+
+                StripRuntimeBehaviours(previewTargetGameObject);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning(
+                    $"[SkillSequencePreview] Failed to instantiate target preview: {ex.Message}"
+                );
+                RequestRepaint();
+                return;
+            }
+
+            if (previewTargetGameObject == null)
+            {
+                RequestRepaint();
+                return;
+            }
+
+            previewTargetGameObject.hideFlags = HideFlags.HideAndDontSave;
+            SetLayerRecursively(previewTargetGameObject, PreviewLayer);
+            previewTargetGameObject.transform.position = PrimaryTargetPosition;
+            previewTargetGameObject.transform.rotation = TargetPreviewRotation;
+            previewTargetGameObject.transform.localScale *= TargetPreviewScaleMultiplier;
+
+            targetSkeletonAnimation =
+                previewTargetGameObject.GetComponentInChildren<SkeletonAnimation>(true);
+            if (targetSkeletonAnimation != null)
+            {
+                targetSkeletonAnimation.Initialize(true);
+            }
+
+            RegisterTargetPreviewObject();
             RequestRepaint();
         }
 
@@ -451,6 +703,22 @@ namespace GameSystems.Battle.Editor
             ConfigurePreviewCamera();
         }
 
+        private void RegisterTargetPreviewObject()
+        {
+            if (
+                previewUtility == null
+                || previewTargetGameObject == null
+                || targetPreviewRegistered
+            )
+            {
+                return;
+            }
+
+            previewUtility.AddSingleGO(previewTargetGameObject);
+            targetPreviewRegistered = true;
+            ConfigurePreviewCamera();
+        }
+
         private void ConfigurePreviewCamera()
         {
             if (previewUtility == null)
@@ -485,9 +753,11 @@ namespace GameSystems.Battle.Editor
             isPlaying = autoPlay && sequence != null && previewGameObject != null;
             isPaused = false;
             sequenceFinished = false;
+            terminalIdleLoopActive = false;
             currentStepIndex = -1;
             currentStepHasDuration = false;
             stepStartedAt = EditorApplication.timeSinceStartup;
+            restartAt = -1d;
             pausedAt = stepStartedAt;
             lastRenderAt = stepStartedAt;
             lastTickAt = stepStartedAt;
@@ -499,7 +769,13 @@ namespace GameSystems.Battle.Editor
                 previewGameObject.transform.position = ActorStartPosition;
             }
 
+            if (autoPlay && animationHandle != null)
+            {
+                animationHandle.ResetAnimationState();
+            }
+
             ClearSpawnedVfx();
+            ClearEventPopups();
             statusText = sequence != null ? BuildStatusText() : "Idle";
 
             if (autoPlay && sequence != null && previewGameObject != null)
@@ -540,6 +816,7 @@ namespace GameSystems.Battle.Editor
             switch (currentStep.StepType)
             {
                 case SkillViewStepType.MoveToTarget:
+                    PlayStepAnimation(currentStep, 1);
                     PrepareMoveToTarget(currentStep);
                     currentStepHasDuration = currentStep.Duration > 0f;
                     if (!currentStepHasDuration)
@@ -552,6 +829,7 @@ namespace GameSystems.Battle.Editor
                     break;
 
                 case SkillViewStepType.MoveBack:
+                    PlayStepAnimation(currentStep, 2);
                     PrepareMoveBack(currentStep);
                     currentStepHasDuration = currentStep.Duration > 0f;
                     if (!currentStepHasDuration)
@@ -564,8 +842,9 @@ namespace GameSystems.Battle.Editor
                     break;
 
                 case SkillViewStepType.PlayAnimation:
-                    PlayAnimation(currentStep);
-                    currentStepHasDuration = currentStep.WaitForAnimationEnd && currentStep.Duration > 0f;
+                    PlayStepAnimation(currentStep, 1);
+                    currentStepHasDuration =
+                        currentStep.WaitForAnimationEnd && currentStep.Duration > 0f;
                     break;
 
                 case SkillViewStepType.Wait:
@@ -602,6 +881,7 @@ namespace GameSystems.Battle.Editor
                     break;
 
                 case SkillViewStepType.SetIdleAnimation:
+                    currentStepHasDuration = currentStep.Duration > 0f;
                     PlayIdleAnimation(currentStep);
                     break;
             }
@@ -627,7 +907,11 @@ namespace GameSystems.Battle.Editor
                 float progress = GetProgress(now, step.Duration);
                 if (previewGameObject != null)
                 {
-                    previewGameObject.transform.position = Vector3.Lerp(stepMoveStartPosition, stepMoveEndPosition, progress);
+                    previewGameObject.transform.position = Vector3.Lerp(
+                        stepMoveStartPosition,
+                        stepMoveEndPosition,
+                        progress
+                    );
                 }
 
                 if (progress >= 1f)
@@ -645,7 +929,11 @@ namespace GameSystems.Battle.Editor
                 float progress = GetProgress(now, step.Duration);
                 if (previewGameObject != null)
                 {
-                    previewGameObject.transform.position = Vector3.Lerp(stepMoveStartPosition, ActorStartPosition, progress);
+                    previewGameObject.transform.position = Vector3.Lerp(
+                        stepMoveStartPosition,
+                        ActorStartPosition,
+                        progress
+                    );
                 }
 
                 if (progress >= 1f)
@@ -659,6 +947,16 @@ namespace GameSystems.Battle.Editor
             }
 
             if (step.StepType == SkillViewStepType.PlayAnimation && currentStepHasDuration)
+            {
+                if (GetProgress(now, step.Duration) >= 1f)
+                {
+                    return AdvanceToNextStep(now);
+                }
+
+                return true;
+            }
+
+            if (step.StepType == SkillViewStepType.SetIdleAnimation && currentStepHasDuration)
             {
                 if (GetProgress(now, step.Duration) >= 1f)
                 {
@@ -713,8 +1011,9 @@ namespace GameSystems.Battle.Editor
                 case SkillViewStepType.ResetSortingOrder:
                 case SkillViewStepType.SetSortingOrder:
                 case SkillViewStepType.SetFlipX:
-                case SkillViewStepType.SetIdleAnimation:
                     return true;
+                case SkillViewStepType.SetIdleAnimation:
+                    return step.Duration <= 0f;
                 default:
                     return true;
             }
@@ -742,7 +1041,7 @@ namespace GameSystems.Battle.Editor
             stepMoveEndPosition = ActorStartPosition;
         }
 
-        private void PlayAnimation(SkillViewStep step)
+        private void PlayStepAnimation(SkillViewStep step, int layer)
         {
             if (animationHandle == null)
             {
@@ -751,7 +1050,7 @@ namespace GameSystems.Battle.Editor
 
             string primary = ResolveAnimationName(step);
             string fallback = ResolveFallbackAnimationName(step);
-            animationHandle.TryPlayAnimation(primary, fallback, 0.1f, 0, step.Loop);
+            animationHandle.TryPlayAnimation(primary, fallback, 0.1f, layer, step.Loop);
         }
 
         private void PlayIdleAnimation(SkillViewStep step)
@@ -761,11 +1060,30 @@ namespace GameSystems.Battle.Editor
                 return;
             }
 
-            string idleName = string.IsNullOrWhiteSpace(sequence != null ? sequence.IdleAnimationName : null)
-                ? "idle"
-                : sequence.IdleAnimationName;
+            animationHandle.ClearTrack(1);
+            animationHandle.ClearTrack(2);
 
-            animationHandle.TryPlayAnimation(idleName, idleName, 0.1f, 0, true);
+            string idleName = !string.IsNullOrWhiteSpace(step != null ? step.AnimationName : null)
+                ? step.AnimationName
+                : (
+                    !string.IsNullOrWhiteSpace(sequence != null ? sequence.IdleAnimationName : null)
+                        ? sequence.IdleAnimationName
+                        : "idle"
+                );
+
+            string fallbackName = !string.IsNullOrWhiteSpace(
+                step != null ? step.FallbackAnimationName : null
+            )
+                ? step.FallbackAnimationName
+                : idleName;
+
+            animationHandle.TryPlayAnimation(
+                idleName,
+                fallbackName,
+                step != null ? step.Duration : 0.1f,
+                0,
+                true
+            );
         }
 
         private string ResolveAnimationName(SkillViewStep step)
@@ -800,7 +1118,9 @@ namespace GameSystems.Battle.Editor
                 return step.FallbackAnimationName;
             }
 
-            if (!string.IsNullOrWhiteSpace(sequence != null ? sequence.FallbackAnimationName : null))
+            if (
+                !string.IsNullOrWhiteSpace(sequence != null ? sequence.FallbackAnimationName : null)
+            )
             {
                 return sequence.FallbackAnimationName;
             }
@@ -845,9 +1165,10 @@ namespace GameSystems.Battle.Editor
                 return PrimaryTargetPosition + step.Offset;
             }
 
-            float signedDistance = step.MoveMode == SkillViewMoveMode.ThroughTarget
-                ? -Mathf.Abs(step.MoveDistance)
-                : Mathf.Abs(step.MoveDistance);
+            float signedDistance =
+                step.MoveMode == SkillViewMoveMode.ThroughTarget
+                    ? -Mathf.Abs(step.MoveDistance)
+                    : Mathf.Abs(step.MoveDistance);
 
             return PrimaryTargetPosition - (direction * signedDistance) + step.Offset;
         }
@@ -860,7 +1181,11 @@ namespace GameSystems.Battle.Editor
             }
 
             Vector3 spawnPosition = ResolveDestination(step);
-            ParticleSystem instance = UnityEngine.Object.Instantiate(step.VfxPrefab, spawnPosition, Quaternion.identity);
+            ParticleSystem instance = UnityEngine.Object.Instantiate(
+                step.VfxPrefab,
+                spawnPosition,
+                Quaternion.identity
+            );
             if (instance == null)
             {
                 return;
@@ -886,14 +1211,14 @@ namespace GameSystems.Battle.Editor
             camera.orthographicSize = PreviewCameraSize;
 
             double now = EditorApplication.timeSinceStartup;
+            if (lastRenderAt <= 0d)
+            {
+                lastRenderAt = now;
+            }
+
+            float deltaTime = (float)(now - lastRenderAt);
             if (skeletonAnimation != null)
             {
-                if (lastRenderAt <= 0d)
-                {
-                    lastRenderAt = now;
-                }
-
-                float deltaTime = (float)(now - lastRenderAt);
                 if (isPlaying && !isPaused && !sequenceFinished)
                 {
                     skeletonAnimation.Update(deltaTime);
@@ -906,18 +1231,103 @@ namespace GameSystems.Battle.Editor
                 skeletonAnimation.LateUpdate();
             }
 
+            if (targetSkeletonAnimation != null)
+            {
+                if (isPaused)
+                {
+                    targetSkeletonAnimation.Update(0f);
+                }
+                else
+                {
+                    targetSkeletonAnimation.Update(deltaTime);
+                }
+
+                targetSkeletonAnimation.LateUpdate();
+            }
+
             lastRenderAt = now;
             camera.Render();
         }
 
         private void FinishPlayback()
         {
-            StopPlayback("Finished", true);
+            if (HasTerminalIdleLoopStep(sequence))
+            {
+                isPlaying = true;
+                isPaused = false;
+                sequenceFinished = false;
+                terminalIdleLoopActive = true;
+                restartAt =
+                    loopPlayback
+                    && sequence != null
+                    && sequence.Steps != null
+                    && sequence.Steps.Count > 0
+                        ? EditorApplication.timeSinceStartup + SequenceRestartDelay
+                        : -1d;
+                currentStepIndex =
+                    sequence != null && sequence.Steps != null && sequence.Steps.Count > 0
+                        ? sequence.Steps.Count - 1
+                        : -1;
+                statusText = "Idle Loop";
+                RequestRepaint();
+                return;
+            }
+
+            StopPlayback("Finished", false);
+
+            if (
+                loopPlayback
+                && sequence != null
+                && sequence.Steps != null
+                && sequence.Steps.Count > 0
+            )
+            {
+                restartAt = EditorApplication.timeSinceStartup + SequenceRestartDelay;
+            }
         }
 
         public void Stop()
         {
             StopPlayback("Stopped", false);
+        }
+
+        private void BindAnimationEvents()
+        {
+            if (animationHandle == null || !showEventPopups)
+            {
+                return;
+            }
+
+            animationHandle.OnEventAnimation -= HandlePreviewEvent;
+            animationHandle.OnEventAnimation += HandlePreviewEvent;
+        }
+
+        private void UnbindAnimationEvents()
+        {
+            if (animationHandle == null)
+            {
+                return;
+            }
+
+            animationHandle.OnEventAnimation -= HandlePreviewEvent;
+        }
+
+        private void HandlePreviewEvent(string animationName, string eventName)
+        {
+            if (!showEventPopups || string.IsNullOrWhiteSpace(eventName))
+            {
+                return;
+            }
+
+            Vector3 popupWorldPosition =
+                previewGameObject != null
+                    ? previewGameObject.transform.position + new Vector3(1.2f, 0.6f, 0f)
+                    : ActorStartPosition + new Vector3(1.2f, 0.6f, 0f);
+
+            eventPopups.Add(
+                new EventPopup(eventName, popupWorldPosition, EditorApplication.timeSinceStartup)
+            );
+            RequestRepaint();
         }
 
         private void ClearSpawnedVfx()
@@ -933,14 +1343,22 @@ namespace GameSystems.Battle.Editor
             spawnedVfxObjects.Clear();
         }
 
+        private void ClearEventPopups()
+        {
+            eventPopups.Clear();
+        }
+
         private void StopPlayback(string nextStatus, bool releasePreviewHost)
         {
             isPlaying = false;
             isPaused = false;
             sequenceFinished = true;
-            currentStepIndex = sequence != null && sequence.Steps != null && sequence.Steps.Count > 0
-                ? sequence.Steps.Count - 1
-                : -1;
+            terminalIdleLoopActive = false;
+            restartAt = -1d;
+            currentStepIndex =
+                sequence != null && sequence.Steps != null && sequence.Steps.Count > 0
+                    ? sequence.Steps.Count - 1
+                    : -1;
 
             ClearSpawnedVfx();
             if (releasePreviewHost)
@@ -954,6 +1372,7 @@ namespace GameSystems.Battle.Editor
 
         private void ReleasePreviewHost()
         {
+            UnbindAnimationEvents();
             if (previewGameObject != null)
             {
                 UnityEngine.Object.DestroyImmediate(previewGameObject);
@@ -966,11 +1385,38 @@ namespace GameSystems.Battle.Editor
                 previewUtility = null;
             }
 
+            targetPreviewRegistered = false;
+
             skeletonAnimation = null;
+            targetSkeletonAnimation = null;
             animationHandle = null;
             lastRenderAt = 0d;
             lastTickAt = 0d;
+            restartAt = -1d;
             previewHostReleased = true;
+            terminalIdleLoopActive = false;
+            ClearEventPopups();
+        }
+
+        private bool HasTerminalIdleLoopStep(SkillViewSequence nextSequence)
+        {
+            if (nextSequence == null || nextSequence.Steps == null)
+            {
+                return false;
+            }
+
+            for (int i = nextSequence.Steps.Count - 1; i >= 0; i--)
+            {
+                SkillViewStep step = nextSequence.Steps[i];
+                if (step == null)
+                {
+                    continue;
+                }
+
+                return step.StepType == SkillViewStepType.SetIdleAnimation && step.Loop;
+            }
+
+            return false;
         }
 
         private void DestroySpawnedVfx()
@@ -1014,6 +1460,11 @@ namespace GameSystems.Battle.Editor
                 return "Finished";
             }
 
+            if (terminalIdleLoopActive)
+            {
+                return "Idle Loop";
+            }
+
             if (isPaused)
             {
                 return "Paused";
@@ -1024,7 +1475,11 @@ namespace GameSystems.Battle.Editor
                 return "Stopped";
             }
 
-            if (currentStepIndex < 0 || sequence.Steps == null || currentStepIndex >= sequence.Steps.Count)
+            if (
+                currentStepIndex < 0
+                || sequence.Steps == null
+                || currentStepIndex >= sequence.Steps.Count
+            )
             {
                 return "Ready";
             }
@@ -1034,9 +1489,14 @@ namespace GameSystems.Battle.Editor
 
         private string BuildStatusText(SkillViewStep step)
         {
-            string sequenceName = sequence != null
-                ? (!string.IsNullOrWhiteSpace(sequence.SequenceId) ? sequence.SequenceId : sequence.name)
-                : "No sequence";
+            string sequenceName =
+                sequence != null
+                    ? (
+                        !string.IsNullOrWhiteSpace(sequence.SequenceId)
+                            ? sequence.SequenceId
+                            : sequence.name
+                    )
+                    : "No sequence";
 
             if (step == null)
             {
@@ -1047,7 +1507,85 @@ namespace GameSystems.Battle.Editor
                 "{0} - Step {1}: {2}",
                 sequenceName,
                 currentStepIndex + 1,
-                step.StepType);
+                step.StepType
+            );
+        }
+
+        private void DrawEventPopups(Rect previewRect)
+        {
+            if (!showEventPopups || eventPopups.Count == 0)
+            {
+                return;
+            }
+
+            double now = EditorApplication.timeSinceStartup;
+            for (int i = eventPopups.Count - 1; i >= 0; i--)
+            {
+                EventPopup popup = eventPopups[i];
+                double elapsed = now - popup.StartedAt;
+                if (elapsed >= EventPopupDuration)
+                {
+                    eventPopups.RemoveAt(i);
+                    continue;
+                }
+
+                float t = Mathf.Clamp01((float)(elapsed / EventPopupDuration));
+                float alpha = 1f - t;
+                float rise = Mathf.Lerp(0f, 28f, t);
+                GUIStyle popupStyle = GetEventPopupStyle();
+                Vector2 textSize = popupStyle.CalcSize(new GUIContent(popup.Text));
+                Vector2 screenPoint = ProjectWorldToPreviewPoint(previewRect, popup.WorldPosition);
+                Vector2 center = new Vector2(screenPoint.x, screenPoint.y - rise);
+                Rect labelRect = new Rect(
+                    center.x - textSize.x * 0.5f,
+                    center.y - textSize.y * 0.5f,
+                    textSize.x + 16f,
+                    textSize.y + 6f
+                );
+
+                Color previousColor = GUI.color;
+                GUI.color = new Color(0f, 0f, 0f, alpha * 0.65f);
+                GUI.Label(
+                    new Rect(labelRect.x + 1f, labelRect.y + 1f, labelRect.width, labelRect.height),
+                    popup.Text,
+                    popupStyle
+                );
+                GUI.color = new Color(1f, 0.78f, 0.22f, alpha);
+                GUI.Label(labelRect, popup.Text, popupStyle);
+                GUI.color = previousColor;
+            }
+        }
+
+        private static GUIStyle GetEventPopupStyle()
+        {
+            if (eventPopupStyle != null)
+            {
+                return eventPopupStyle;
+            }
+
+            eventPopupStyle = new GUIStyle(GUI.skin != null ? GUI.skin.label : EditorStyles.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 12,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = Color.white },
+            };
+
+            return eventPopupStyle;
+        }
+
+        private Vector2 ProjectWorldToPreviewPoint(Rect previewRect, Vector3 worldPosition)
+        {
+            if (previewUtility == null || previewUtility.camera == null)
+            {
+                return previewRect.center;
+            }
+
+            Vector3 screenPoint = previewUtility.camera.WorldToScreenPoint(worldPosition);
+            return new Vector2(
+                previewRect.x + screenPoint.x,
+                previewRect.y + (previewRect.height - screenPoint.y)
+            );
         }
 
         private void RequestRepaint()
@@ -1055,6 +1593,20 @@ namespace GameSystems.Battle.Editor
             if (repaintCallback != null)
             {
                 repaintCallback.Invoke();
+            }
+        }
+
+        private sealed class EventPopup
+        {
+            public string Text { get; }
+            public Vector3 WorldPosition { get; }
+            public double StartedAt { get; }
+
+            public EventPopup(string text, Vector3 worldPosition, double startedAt)
+            {
+                Text = text;
+                WorldPosition = worldPosition;
+                StartedAt = startedAt;
             }
         }
     }

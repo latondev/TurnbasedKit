@@ -49,7 +49,8 @@ public class AnimationHandle : MonoBehaviour
             var animation = skeletonAnimation.Skeleton.Data.FindAnimation(name);
             if (animation != null)
             {
-                skeletonAnimation.AnimationState.SetAnimation(layer, animation, loop);
+                var trackEntry = skeletonAnimation.AnimationState.SetAnimation(layer, animation, loop);
+                ApplyMixDuration(trackEntry, mix);
             }
         }
     }
@@ -90,8 +91,19 @@ public class AnimationHandle : MonoBehaviour
             return false;
         }
 
-        skeletonAnimation.AnimationState.SetAnimation(layer, animation, loop);
+        var trackEntry = skeletonAnimation.AnimationState.SetAnimation(layer, animation, loop);
+        ApplyMixDuration(trackEntry, mix);
         return true;
+    }
+
+    private static void ApplyMixDuration(TrackEntry trackEntry, float mix)
+    {
+        if (trackEntry == null)
+        {
+            return;
+        }
+
+        trackEntry.MixDuration = Mathf.Max(0f, mix);
     }
 
     public string GetCurrentAnimationName(int trackIndex = 0)
@@ -138,6 +150,39 @@ public class AnimationHandle : MonoBehaviour
         if (skeletonAnimation != null)
         {
             skeletonAnimation.timeScale = speed;
+        }
+    }
+
+    public void ResetAnimationState()
+    {
+        if (skeletonAnimation == null)
+        {
+            return;
+        }
+
+        Initialize();
+        if (skeletonAnimation.AnimationState != null)
+        {
+            skeletonAnimation.AnimationState.ClearTracks();
+            if (skeletonAnimation.Skeleton != null)
+            {
+                skeletonAnimation.Skeleton.SetToSetupPose();
+                skeletonAnimation.AnimationState.Apply(skeletonAnimation.Skeleton);
+            }
+        }
+    }
+
+    public void ClearTrack(int trackIndex)
+    {
+        if (skeletonAnimation == null)
+        {
+            return;
+        }
+
+        Initialize();
+        if (skeletonAnimation.AnimationState != null)
+        {
+            skeletonAnimation.AnimationState.ClearTrack(trackIndex);
         }
     }
 

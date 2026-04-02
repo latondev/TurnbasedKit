@@ -31,14 +31,19 @@ namespace GameSystems.Battle.Editor
         private static readonly Color GoodColor = new Color(0.28f, 0.72f, 0.38f);
         private static readonly Color WarnColor = new Color(0.88f, 0.62f, 0.18f);
         private static readonly Color BadColor = new Color(0.82f, 0.28f, 0.28f);
+        private static readonly GUIContent PreviewPlayContent = new GUIContent("▶", "Preview animation");
 
         [SerializeField] private CharacterDataSO characterData;
         [SerializeField] private GameObject prefabAsset;
         [SerializeField] private Vector2 scrollPosition;
+        [SerializeField] private Vector2 skeletonDetailsScrollPosition;
         [SerializeField] private int currentTab = 0;
         [SerializeField] private SkillViewSequence selectedLibrarySequence;
         [SerializeField] private float previewPlaybackSpeed = 1f;
-        private readonly string[] tabNames = { "Asset Setup", "Character Data", "Skeleton Data", "Prefab Authoring", "Skill sequences", "Skill Sequence Preview" };
+        [SerializeField] private bool previewSequenceLoop = false;
+        [SerializeField] private GameObject previewTargetPrefab;
+        [SerializeField] private bool previewTargetPrefabInitialized = false;
+        private readonly string[] tabNames = { "Asset Setup", "Character Data", "Skeleton Data", "Prefab Authoring", "Skill sequences", "Skill Step Preview" };
         [SerializeField] private string skillSearchFilter = string.Empty;
         [SerializeField] private string animationSearchFilter = string.Empty;
         [SerializeField] private string eventSearchFilter = string.Empty;
@@ -63,6 +68,7 @@ namespace GameSystems.Battle.Editor
         private GUIStyle primaryButtonStyle;
         private GUIStyle secondaryButtonStyle;
         private GUIStyle dangerButtonStyle;
+        private GUIStyle previewIconButtonStyle;
         private GUIStyle panelLabelStyle;
         private GUIStyle searchFieldStyle;
         private GUIStyle tabNormalStyle;
@@ -80,8 +86,12 @@ namespace GameSystems.Battle.Editor
         private readonly Dictionary<string, string> animationUsageCache = new Dictionary<string, string>();
         private readonly List<string> eventNames = new List<string>();
         private SkillSequencePreviewController previewController;
+        private SkillSequencePreviewController skeletonPreviewController;
         private GameObject previewBoundPrefab;
+        private GameObject skeletonPreviewBoundPrefab;
         private SkillViewSequence previewBoundSequence;
+        private SkillViewSequence previewOverrideSequence;
+        private string previewOverrideLabel;
         [SerializeField] private PreviewSkillSlot selectedPreviewSkillSlot = PreviewSkillSlot.Basic;
         [MenuItem("Tools/Battle/Unit Authoring")]
         public static void ShowWindow()
@@ -103,6 +113,16 @@ namespace GameSystems.Battle.Editor
             previewController.SetRepaintCallback(Repaint);
             previewController.Speed = previewPlaybackSpeed;
 
+            if (skeletonPreviewController == null)
+            {
+                skeletonPreviewController = new SkillSequencePreviewController();
+            }
+
+            skeletonPreviewController.SetRepaintCallback(Repaint);
+            skeletonPreviewController.Speed = previewPlaybackSpeed;
+
+            EnsureDefaultPreviewTargetPrefab();
+
             if (prefabAsset != null && workingPrefabRoot == null)
             {
                 LoadPrefabWorkingCopy(prefabAsset);
@@ -114,6 +134,13 @@ namespace GameSystems.Battle.Editor
         private void OnDisable()
         {
             EditorApplication.update -= HandleEditorUpdate;
+            SkillViewStepDrawer.SetAnimationOptions(null);
+            ClearPreviewAnimationOverride(false);
+            if (skeletonPreviewController != null)
+            {
+                skeletonPreviewController.Dispose();
+                skeletonPreviewController = null;
+            }
             if (previewController != null)
             {
                 previewController.Dispose();
@@ -125,31 +152,45 @@ namespace GameSystems.Battle.Editor
 
         private void HandleEditorUpdate()
         {
-            if (previewController == null)
+            if (previewController != null)
             {
-                return;
-            }
-
-            if (currentTab != 5)
-            {
-                if (previewController.IsPlaying)
+                bool shouldTickSkillPreview = currentTab == 5;
+                if (!shouldTickSkillPreview)
                 {
-                    previewController.Pause();
+                    if (previewController.IsPlaying)
+                    {
+                        previewController.Pause();
+                    }
                 }
-                return;
+
+                if (shouldTickSkillPreview && (previewController.IsPlaying || previewController.HasPendingRestart))
+                {
+                    previewController.Tick();
+                }
             }
 
-            if (!previewController.IsPlaying)
+            if (skeletonPreviewController != null)
             {
-                return;
-            }
+                bool shouldTickSkeletonPreview = currentTab == 2 && previewOverrideSequence != null;
+                if (!shouldTickSkeletonPreview)
+                {
+                    if (skeletonPreviewController.IsPlaying)
+                    {
+                        skeletonPreviewController.Pause();
+                    }
+                }
 
-            previewController.Tick();
+                if (shouldTickSkeletonPreview && skeletonPreviewController.IsPlaying)
+                {
+                    skeletonPreviewController.Tick();
+                }
+            }
         }
 
         private void OnGUI()
         {
             BuildStyles();
+            SkillViewStepDrawer.SetAnimationOptions(animationNames);
             DrawHeader();
 
             EditorGUILayout.Space(6f);
@@ -165,8 +206,12 @@ namespace GameSystems.Battle.Editor
 
             EditorGUILayout.Space(4f);
             EditorGUILayout.BeginVertical();
-            scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
-            
+            bool useMainScroll = currentTab != 2;
+            if (useMainScroll)
+            {
+                scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
+            }
+
             switch (currentTab)
             {
                 case 0: DrawAssetBindingTab(); break;
@@ -176,14 +221,21 @@ namespace GameSystems.Battle.Editor
                 case 4: DrawSkillSequencesSection(); break;
                 case 5: DrawSkillSequencePreviewTab(); break;
             }
-            
-            EditorGUILayout.EndScrollView();
+
+            if (useMainScroll)
+            {
+                EditorGUILayout.EndScrollView();
+            }
+
             EditorGUILayout.EndVertical();
 
             EditorGUILayout.EndHorizontal();
 
-            EditorGUILayout.Space(8f);
-            DrawBottomActions();
+            if (currentTab != 2)
+            {
+                EditorGUILayout.Space(8f);
+                DrawBottomActions();
+            }
         }
 
         private void DrawSidebar()
@@ -308,96 +360,111 @@ namespace GameSystems.Battle.Editor
         private void DrawSkeletonSection()
         {
             EditorGUILayout.BeginVertical(cardStyle);
-            EditorGUILayout.LabelField("Skeleton Data", sectionHeaderStyle);
-            EditorGUILayout.LabelField("Source animations and Spine events are read from the prefab's SkeletonAnimation.", subtitleStyle);
-            EditorGUILayout.Space(4f);
-            if (skeletonAnimation == null)
+            try
             {
-                EditorGUILayout.HelpBox("No SkeletonAnimation found in the selected prefab.", MessageType.Warning);
-                EditorGUILayout.EndVertical();
-                return;
-            }
-
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.BeginVertical(GUILayout.ExpandWidth(true));
-            string skeletonDataAssetName = skeletonDataAsset != null ? skeletonDataAsset.name : "None";
-            EditorGUILayout.LabelField($"Skeleton Host: {skeletonAnimation.name}", sectionHeaderStyle);
-            DrawKeyValueRow("Skeleton Data", skeletonDataAssetName);
-            DrawKeyValueRow("Animation Count", animationNames.Count.ToString());
-            DrawKeyValueRow("Event Count", eventNames.Count.ToString());
-            EditorGUILayout.EndVertical();
-
-            EditorGUILayout.Space(12f);
-
-            EditorGUILayout.BeginVertical(GUILayout.Width(290f));
-            DrawAssetPreviewPanel(
-                "Skeleton Preview",
-                skeletonDataAsset != null ? skeletonDataAsset : skeletonAnimation,
-                skeletonDataAsset != null ? skeletonDataAsset.name : skeletonAnimation.name,
-                skeletonDataAsset != null ? $"Animations: {animationNames.Count}" : $"Events: {eventNames.Count}");
-            EditorGUILayout.EndVertical();
-            EditorGUILayout.EndHorizontal();
-
-            EditorGUILayout.Space(8f);
-
-            // ANIMATIONS DETAILS
-            EditorGUILayout.LabelField("Animations Detail", sectionHeaderStyle);
-            EditorGUILayout.LabelField("Available animations, duration, and what components/skills use them.", subtitleStyle);
-            EditorGUILayout.Space(4f);
-
-            BuildAnimationUsageCache();
-
-            Rect listRect = EditorGUILayout.BeginVertical(sectionBodyStyle);
-            
-            // Draw table header
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Animation Name", EditorStyles.miniBoldLabel, GUILayout.Width(160f));
-            EditorGUILayout.LabelField("Duration", EditorStyles.miniBoldLabel, GUILayout.Width(60f));
-            EditorGUILayout.LabelField("Events", EditorStyles.miniBoldLabel, GUILayout.Width(120f));
-            EditorGUILayout.LabelField("Usage Info", EditorStyles.miniBoldLabel, GUILayout.ExpandWidth(true));
-            EditorGUILayout.EndHorizontal();
-
-            EditorGUILayout.Space(2f);
-
-            EditorGUI.DrawRect(new Rect(listRect.x, listRect.y + 24f, listRect.width, 1f), new Color(1f, 1f, 1f, 0.1f));
-
-            for (int i = 0; i < animationInfos.Count; i++)
-            {
-                var anim = animationInfos[i];
-                string usageList = animationUsageCache.TryGetValue(anim.Name, out var useStr) ? useStr : "-";
-
-                Rect rowRect = EditorGUILayout.GetControlRect(false, 20f);
-                if (i % 2 == 0)
+                EditorGUILayout.LabelField("Skeleton Data", sectionHeaderStyle);
+                EditorGUILayout.Space(4f);
+                if (skeletonAnimation == null)
                 {
-                    EditorGUI.DrawRect(rowRect, new Color(0, 0, 0, 0.15f));
+                    EditorGUILayout.HelpBox("No SkeletonAnimation found in the selected prefab.", MessageType.Warning);
+                    return;
                 }
 
-                Rect nameRect = new Rect(rowRect.x + 4f, rowRect.y + 2f, 156f, 18f);
-                Rect durRect = new Rect(rowRect.x + 164f, rowRect.y + 2f, 60f, 18f);
-                Rect eventRect = new Rect(rowRect.x + 228f, rowRect.y + 2f, 116f, 18f);
-                Rect useRect = new Rect(rowRect.x + 348f, rowRect.y + 2f, rowRect.width - 348f, 18f);
+                EnsurePreviewController();
 
-                GUI.Label(nameRect, anim.Name, EditorStyles.miniLabel);
-                GUI.Label(durRect, $"{anim.Duration:F2}s", EditorStyles.miniLabel);
-                
-                GUIStyle eventStyle = new GUIStyle(EditorStyles.miniLabel);
-                if (anim.EventNames == "-") eventStyle.normal.textColor = new Color(0.5f, 0.5f, 0.5f);
-                else eventStyle.normal.textColor = new Color(0.9f, 0.7f, 0.2f);
-                GUI.Label(eventRect, anim.EventNames, eventStyle);
-                
-                GUIStyle useStyle = new GUIStyle(EditorStyles.miniLabel);
-                if (usageList == "-") useStyle.normal.textColor = new Color(0.5f, 0.5f, 0.5f);
-                else useStyle.normal.textColor = new Color(0.7f, 0.9f, 0.7f);
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.BeginVertical(GUILayout.ExpandWidth(true));
+                string skeletonDataAssetName = skeletonDataAsset != null ? skeletonDataAsset.name : "None";
+                EditorGUILayout.LabelField($"Skeleton Host: {skeletonAnimation.name}", sectionHeaderStyle);
+                DrawKeyValueRow("Skeleton Data", skeletonDataAssetName);
+                DrawKeyValueRow("Animation Count", animationNames.Count.ToString());
+                DrawKeyValueRow("Event Count", eventNames.Count.ToString());
+                EditorGUILayout.EndVertical();
 
-                GUI.Label(useRect, usageList, useStyle);
+                EditorGUILayout.Space(8f);
+
+                float previewWidth = Mathf.Clamp(position.width * 0.33f, 300f, 420f);
+                EditorGUILayout.BeginVertical(GUILayout.Width(previewWidth));
+                DrawSkeletonAnimationPreviewPanel();
+                EditorGUILayout.EndVertical();
+                EditorGUILayout.EndHorizontal();
+
+                EditorGUILayout.Space(6f);
+
+                EditorGUILayout.BeginVertical(GUILayout.ExpandHeight(true));
+                skeletonDetailsScrollPosition = EditorGUILayout.BeginScrollView(skeletonDetailsScrollPosition, GUILayout.ExpandHeight(true));
+
+                EditorGUILayout.LabelField("Animations Detail", sectionHeaderStyle);
+                EditorGUILayout.Space(2f);
+
+                BuildAnimationUsageCache();
+
+                Rect listRect = EditorGUILayout.BeginVertical(sectionBodyStyle);
+
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Animation Name", EditorStyles.miniBoldLabel, GUILayout.Width(160f));
+                EditorGUILayout.LabelField("Duration", EditorStyles.miniBoldLabel, GUILayout.Width(60f));
+                EditorGUILayout.LabelField("Events", EditorStyles.miniBoldLabel, GUILayout.Width(120f));
+                EditorGUILayout.LabelField("Usage Info", EditorStyles.miniBoldLabel, GUILayout.ExpandWidth(true));
+                EditorGUILayout.LabelField("Play", EditorStyles.miniBoldLabel, GUILayout.Width(38f));
+                EditorGUILayout.EndHorizontal();
+
+                EditorGUILayout.Space(2f);
+
+                EditorGUI.DrawRect(new Rect(listRect.x, listRect.y + 24f, listRect.width, 1f), new Color(1f, 1f, 1f, 0.1f));
+
+                for (int i = 0; i < animationInfos.Count; i++)
+                {
+                    var anim = animationInfos[i];
+                    string usageList = animationUsageCache.TryGetValue(anim.Name, out var useStr) ? useStr : "-";
+
+                    Rect rowRect = EditorGUILayout.GetControlRect(false, 20f);
+                    if (i % 2 == 0)
+                    {
+                        EditorGUI.DrawRect(rowRect, new Color(0, 0, 0, 0.15f));
+                    }
+
+                    Rect nameRect = new Rect(rowRect.x + 4f, rowRect.y + 2f, 156f, 18f);
+                    Rect durRect = new Rect(rowRect.x + 164f, rowRect.y + 2f, 60f, 18f);
+                    Rect eventRect = new Rect(rowRect.x + 228f, rowRect.y + 2f, 116f, 18f);
+                    Rect previewRect = new Rect(rowRect.xMax - 28f, rowRect.y + 1f, 24f, 18f);
+                    Rect useRect = new Rect(rowRect.x + 348f, rowRect.y + 2f, Mathf.Max(32f, previewRect.x - (rowRect.x + 348f) - 8f), 18f);
+
+                    GUI.Label(nameRect, anim.Name, EditorStyles.miniLabel);
+                    GUI.Label(durRect, $"{anim.Duration:F2}s", EditorStyles.miniLabel);
+
+                    GUIStyle eventStyle = new GUIStyle(EditorStyles.miniLabel);
+                    if (anim.EventNames == "-") eventStyle.normal.textColor = new Color(0.5f, 0.5f, 0.5f);
+                    else eventStyle.normal.textColor = new Color(0.9f, 0.7f, 0.2f);
+                    GUI.Label(eventRect, anim.EventNames, eventStyle);
+
+                    GUIStyle useStyle = new GUIStyle(EditorStyles.miniLabel);
+                    if (usageList == "-") useStyle.normal.textColor = new Color(0.5f, 0.5f, 0.5f);
+                    else useStyle.normal.textColor = new Color(0.7f, 0.9f, 0.7f);
+
+                    GUI.Label(useRect, usageList, useStyle);
+
+                    bool previousEnabled = GUI.enabled;
+                    GUI.enabled = skeletonAnimation != null && !string.IsNullOrWhiteSpace(anim.Name);
+                    if (GUI.Button(previewRect, PreviewPlayContent, previewIconButtonStyle))
+                    {
+                        PreviewSkeletonAnimation(anim.Name, anim.Duration);
+                    }
+                    GUI.enabled = previousEnabled;
+                }
+                EditorGUILayout.EndVertical();
+
+                EditorGUILayout.Space(8f);
+                DrawPreviewList("Event Preview", eventNames, 20);
+
+                EditorGUILayout.EndScrollView();
+                EditorGUILayout.EndVertical();
+                EditorGUILayout.Space(4f);
             }
-            EditorGUILayout.EndVertical();
-
-            EditorGUILayout.Space(8f);
-            DrawPreviewList("Event Preview", eventNames, 20);
-
-            EditorGUILayout.EndVertical();
-            EditorGUILayout.Space(4f);
+            finally
+            {
+                EditorGUILayout.EndVertical();
+            }
         }
 
         private void BuildAnimationUsageCache()
@@ -583,7 +650,6 @@ namespace GameSystems.Battle.Editor
             if (characterSo.ApplyModifiedProperties())
             {
                 EditorUtility.SetDirty(characterData);
-                InvalidateCharacterSkillSequenceCaches();
                 SyncPreviewSkillSelectionFromCharacterData();
             }
 
@@ -828,7 +894,6 @@ namespace GameSystems.Battle.Editor
                 if (GUILayout.Button("Preview", secondaryButtonStyle, GUILayout.Width(72f)))
                 {
                     selectedPreviewSkillSlot = previewSlot;
-                    previewBoundSequence = null;
                     currentTab = 5;
                     SyncPreviewSkillSelectionFromCharacterData();
                     Repaint();
@@ -927,13 +992,21 @@ namespace GameSystems.Battle.Editor
             var sortingLayerName = handleSo.FindProperty("sortingLayerName");
             if (sortingLayerName != null)
             {
-                sortingLayerName.stringValue = EditorGUILayout.TextField("Sorting Layer", sortingLayerName.stringValue);
+                string nextSortingLayerName = EditorGUILayout.TextField("Sorting Layer", sortingLayerName.stringValue);
+                if (nextSortingLayerName != sortingLayerName.stringValue)
+                {
+                    sortingLayerName.stringValue = nextSortingLayerName;
+                }
             }
 
             var sortingOrder = handleSo.FindProperty("sortingOrder");
             if (sortingOrder != null)
             {
-                sortingOrder.intValue = EditorGUILayout.IntField("Sorting Order", sortingOrder.intValue);
+                int nextSortingOrder = EditorGUILayout.IntField("Sorting Order", sortingOrder.intValue);
+                if (nextSortingOrder != sortingOrder.intValue)
+                {
+                    sortingOrder.intValue = nextSortingOrder;
+                }
             }
 
             if (handleSo.ApplyModifiedProperties())
@@ -984,7 +1057,11 @@ namespace GameSystems.Battle.Editor
 
             if (options == null || options.Count == 0)
             {
-                property.stringValue = EditorGUILayout.TextField(label, property.stringValue);
+                string nextValue = EditorGUILayout.TextField(label, property.stringValue);
+                if (nextValue != property.stringValue)
+                {
+                    property.stringValue = nextValue;
+                }
                 return;
             }
 
@@ -996,9 +1073,13 @@ namespace GameSystems.Battle.Editor
             }
 
             int nextIndex = EditorGUILayout.Popup(label, currentIndex, popupOptions);
-            if (nextIndex >= 0 && nextIndex < popupOptions.Length)
+            if (nextIndex >= 0 && nextIndex < popupOptions.Length && nextIndex != currentIndex)
             {
-                property.stringValue = nextIndex == 0 ? string.Empty : popupOptions[nextIndex];
+                string nextValue = nextIndex == 0 ? string.Empty : popupOptions[nextIndex];
+                if (property.stringValue != nextValue)
+                {
+                    property.stringValue = nextValue;
+                }
             }
         }
 
@@ -1076,144 +1157,165 @@ namespace GameSystems.Battle.Editor
         private void DrawSkillSequencePreviewTab()
         {
             EditorGUILayout.BeginVertical(sectionBodyStyle);
-            EditorGUILayout.LabelField("Skill Sequence Preview", sectionHeaderStyle);
-            EditorGUILayout.LabelField("Live preview of the selected skill slot from Character Data on the current prefab host.", subtitleStyle);
-            EditorGUILayout.Space(8f);
-
-            if (previewController == null)
+            try
             {
-                previewController = new SkillSequencePreviewController();
-                previewController.SetRepaintCallback(Repaint);
-                previewController.Speed = previewPlaybackSpeed;
-            }
+                EditorGUILayout.LabelField("Skill Step Preview", sectionHeaderStyle);
+                EditorGUILayout.LabelField("Live preview of the selected skill slot on the current prefab host.", subtitleStyle);
+                EditorGUILayout.Space(8f);
 
-            previewController.SetRepaintCallback(Repaint);
+                EnsurePreviewController();
 
-            if (previewBoundPrefab != prefabAsset)
-            {
-                previewBoundPrefab = prefabAsset;
-                previewController.BindPrefab(prefabAsset);
-            }
-
-            DrawPreviewSkillSlotSelector();
-
-            SkillData previewSkillData = GetSelectedPreviewSkillData();
-            SkillViewSequence previewSequence = previewSkillData != null ? previewSkillData.ViewSequence : null;
-
-            if (previewBoundSequence != previewSequence)
-            {
-                previewBoundSequence = previewSequence;
-                previewController.SetSequence(previewSequence);
-            }
-
-            if (Mathf.Abs(previewController.Speed - previewPlaybackSpeed) > 0.0001f)
-            {
-                previewController.Speed = previewPlaybackSpeed;
-            }
-
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Skill", GUILayout.Width(70f));
-            EditorGUILayout.LabelField(
-                previewSkillData != null
-                    ? (!string.IsNullOrWhiteSpace(previewSkillData.SkillName) ? previewSkillData.SkillName : previewSkillData.SkillId)
-                    : "None selected",
-                EditorStyles.boldLabel);
-            if (GUILayout.Button("Focus", secondaryButtonStyle, GUILayout.Width(60f)))
-            {
-                currentTab = 1;
-                GUI.FocusControl(null);
-            }
-            EditorGUILayout.EndHorizontal();
-
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Prefab", GUILayout.Width(70f));
-            EditorGUILayout.LabelField(prefabAsset != null ? prefabAsset.name : "No prefab bound", EditorStyles.boldLabel);
-            EditorGUILayout.EndHorizontal();
-
-            EditorGUILayout.BeginHorizontal();
-            if (previewController.IsPlaying)
-            {
-                if (GUILayout.Button("Pause", primaryButtonStyle, GUILayout.Height(28f)))
+                if (previewBoundPrefab != prefabAsset || !previewController.HasPreviewObject)
                 {
-                    previewController.Pause();
+                    previewBoundPrefab = prefabAsset;
+                    previewController.BindPrefab(prefabAsset);
                 }
-            }
-            else
-            {
-                if (GUILayout.Button("Play", primaryButtonStyle, GUILayout.Height(28f)))
+
+                DrawPreviewSkillSlotSelector();
+
+                SkillData previewSkillData = GetSelectedPreviewSkillData();
+                SkillViewSequence previewSequence = previewSkillData != null ? previewSkillData.ViewSequence : null;
+
+                if (previewBoundSequence != previewSequence)
                 {
-                    previewController.TogglePlayback();
+                    previewBoundSequence = previewSequence;
+                    previewController.SetSequence(previewSequence);
                 }
-            }
 
-            if (GUILayout.Button("Restart", secondaryButtonStyle, GUILayout.Height(28f)))
-            {
-                previewController.Restart();
-            }
-            EditorGUILayout.EndHorizontal();
+                if (Mathf.Abs(previewController.Speed - previewPlaybackSpeed) > 0.0001f)
+                {
+                    previewController.Speed = previewPlaybackSpeed;
+                }
+                previewController.LoopPlayback = previewSequenceLoop;
+                previewController.SetTargetPrefab(previewTargetPrefab);
 
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Speed", GUILayout.Width(70f));
-            previewPlaybackSpeed = EditorGUILayout.Slider(previewPlaybackSpeed, 0.25f, 3f);
-            EditorGUILayout.LabelField(string.Format("{0:0.00}x", previewPlaybackSpeed), GUILayout.Width(48f));
-            EditorGUILayout.EndHorizontal();
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Target", GUILayout.Width(70f));
+                GameObject nextTargetPrefab = (GameObject)EditorGUILayout.ObjectField(
+                    previewTargetPrefab,
+                    typeof(GameObject),
+                    false);
+                if (nextTargetPrefab != previewTargetPrefab)
+                {
+                    previewTargetPrefab = nextTargetPrefab;
+                    previewTargetPrefabInitialized = true;
+                    previewController.SetTargetPrefab(previewTargetPrefab);
+                }
+                EditorGUILayout.EndHorizontal();
 
-            EditorGUILayout.Space(8f);
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Skill", GUILayout.Width(70f));
+                EditorGUILayout.LabelField(
+                    previewSkillData != null
+                        ? (!string.IsNullOrWhiteSpace(previewSkillData.SkillName) ? previewSkillData.SkillName : previewSkillData.SkillId)
+                        : "None selected",
+                    EditorStyles.boldLabel);
+                if (GUILayout.Button("Focus", secondaryButtonStyle, GUILayout.Width(60f)))
+                {
+                    currentTab = 1;
+                    GUI.FocusControl(null);
+                }
+                EditorGUILayout.EndHorizontal();
 
-            Rect previewRect = GUILayoutUtility.GetRect(1f, 320f, GUILayout.ExpandWidth(true));
-            previewRect.height = 320f;
-            EditorGUI.DrawRect(previewRect, PanelAltColor);
-            previewController.DrawPreview(previewRect);
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Prefab", GUILayout.Width(70f));
+                EditorGUILayout.LabelField(prefabAsset != null ? prefabAsset.name : "No prefab bound", EditorStyles.boldLabel);
+                EditorGUILayout.EndHorizontal();
 
-            EditorGUILayout.Space(8f);
+                EditorGUILayout.BeginHorizontal();
+                if (previewController.IsPlaying)
+                {
+                    if (GUILayout.Button("Pause", primaryButtonStyle, GUILayout.Height(28f)))
+                    {
+                        previewController.Pause();
+                    }
+                }
+                else
+                {
+                    if (GUILayout.Button("Play", primaryButtonStyle, GUILayout.Height(28f)))
+                    {
+                        previewController.TogglePlayback();
+                    }
+                }
 
-            EditorGUILayout.LabelField("Step Preview", sectionHeaderStyle);
+                if (GUILayout.Button("Restart", secondaryButtonStyle, GUILayout.Height(28f)))
+                {
+                    previewController.Restart();
+                }
 
-            if (characterData == null)
-            {
-                EditorGUILayout.HelpBox("Assign a CharacterDataSO first.", MessageType.Info);
+                previewSequenceLoop = EditorGUILayout.ToggleLeft("Loop", previewSequenceLoop, GUILayout.Width(52f));
+                EditorGUILayout.EndHorizontal();
+
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Speed", GUILayout.Width(70f));
+                previewPlaybackSpeed = EditorGUILayout.Slider(previewPlaybackSpeed, 0.25f, 3f);
+                EditorGUILayout.LabelField(string.Format("{0:0.00}x", previewPlaybackSpeed), GUILayout.Width(48f));
+                EditorGUILayout.EndHorizontal();
+
+                EditorGUILayout.Space(8f);
+
+                Rect previewRect = GUILayoutUtility.GetRect(1f, 320f, GUILayout.ExpandWidth(true));
+                previewRect.height = 320f;
+                EditorGUI.DrawRect(previewRect, PanelAltColor);
+                previewController.DrawPreview(previewRect);
+
+                EditorGUILayout.Space(8f);
+
+                EditorGUILayout.LabelField("Step Preview", sectionHeaderStyle);
+
+                if (characterData == null)
+                {
+                    EditorGUILayout.HelpBox("Assign a CharacterDataSO first.", MessageType.Info);
+                    return;
+                }
+
+                if (previewSkillData == null)
+                {
+                    EditorGUILayout.HelpBox("Select a skill slot from Character Data to preview its steps.", MessageType.Info);
+                    return;
+                }
+
+                if (previewSequence == null || previewSequence.Steps == null || previewSequence.Steps.Count == 0)
+                {
+                    EditorGUILayout.HelpBox("The selected skill has no preview steps.", MessageType.Warning);
+                    return;
+                }
+
+                EditorGUILayout.BeginVertical(sectionBodyStyle);
+                EditorGUILayout.LabelField(string.Format("Status: {0}", previewController.StatusText), EditorStyles.miniBoldLabel);
+                EditorGUILayout.LabelField(string.Format("Current step: {0}", previewController.CurrentStepIndex >= 0 ? (previewController.CurrentStepIndex + 1).ToString() : "-"), EditorStyles.miniLabel);
+
+                for (int i = 0; i < previewSequence.Steps.Count; i++)
+                {
+                    var step = previewSequence.Steps[i];
+                    Rect rowRect = GUILayoutUtility.GetRect(1f, 24f, GUILayout.ExpandWidth(true));
+                    bool isCurrent = previewController.CurrentStepIndex == i;
+                    bool isCompleted = previewController.CurrentStepIndex > i;
+
+                    Color rowColor = isCurrent ? AccentSoftColor : (isCompleted ? new Color(1f, 1f, 1f, 0.04f) : PanelColor);
+                    EditorGUI.DrawRect(rowRect, rowColor);
+
+                    string stepLabel = step != null
+                        ? string.Format(
+                            "{0}. {1}  |  anim {2}  |  loop {3}  |  delay {4:0.##}  |  duration {5:0.##}",
+                            i + 1,
+                            step.StepType,
+                            string.IsNullOrWhiteSpace(step.AnimationName) ? "-" : step.AnimationName,
+                            step.Loop ? "on" : "off",
+                            step.Delay,
+                            step.Duration)
+                        : string.Format("{0}. (null step)", i + 1);
+
+                    Rect labelRect = new Rect(rowRect.x + 8f, rowRect.y + 3f, rowRect.width - 16f, rowRect.height - 6f);
+                    GUI.Label(labelRect, stepLabel, isCurrent ? sectionHeaderStyle : EditorStyles.miniLabel);
+                }
+
                 EditorGUILayout.EndVertical();
-                return;
             }
-
-            if (previewSkillData == null)
+            finally
             {
-                EditorGUILayout.HelpBox("Select a skill slot from Character Data to preview its steps.", MessageType.Info);
                 EditorGUILayout.EndVertical();
-                return;
             }
-
-            if (previewSequence == null || previewSequence.Steps == null || previewSequence.Steps.Count == 0)
-            {
-                EditorGUILayout.HelpBox("The selected skill has no preview steps.", MessageType.Warning);
-                EditorGUILayout.EndVertical();
-                return;
-            }
-
-            EditorGUILayout.BeginVertical(sectionBodyStyle);
-            EditorGUILayout.LabelField(string.Format("Status: {0}", previewController.StatusText), EditorStyles.miniBoldLabel);
-            EditorGUILayout.LabelField(string.Format("Current step: {0}", previewController.CurrentStepIndex >= 0 ? (previewController.CurrentStepIndex + 1).ToString() : "-"), EditorStyles.miniLabel);
-
-            for (int i = 0; i < previewSequence.Steps.Count; i++)
-            {
-                var step = previewSequence.Steps[i];
-                Rect rowRect = GUILayoutUtility.GetRect(1f, 24f, GUILayout.ExpandWidth(true));
-                bool isCurrent = previewController.CurrentStepIndex == i;
-                bool isCompleted = previewController.CurrentStepIndex > i;
-
-                Color rowColor = isCurrent ? AccentSoftColor : (isCompleted ? new Color(1f, 1f, 1f, 0.04f) : PanelColor);
-                EditorGUI.DrawRect(rowRect, rowColor);
-
-                string stepLabel = step != null
-                    ? string.Format("{0}. {1}  |  delay {2:0.##}  |  duration {3:0.##}", i + 1, step.StepType, step.Delay, step.Duration)
-                    : string.Format("{0}. (null step)", i + 1);
-
-                Rect labelRect = new Rect(rowRect.x + 8f, rowRect.y + 3f, rowRect.width - 16f, rowRect.height - 6f);
-                GUI.Label(labelRect, stepLabel, isCurrent ? sectionHeaderStyle : EditorStyles.miniLabel);
-            }
-
-            EditorGUILayout.EndVertical();
-            EditorGUILayout.EndVertical();
         }
 
         private void DrawPreviewSkillSlotSelector()
@@ -1302,17 +1404,112 @@ namespace GameSystems.Battle.Editor
             previewController.SetSequence(previewSequence);
         }
 
-        private void InvalidateCharacterSkillSequenceCaches()
+        private void EnsurePreviewController()
         {
-            if (characterData == null)
+            if (previewController == null)
+            {
+                previewController = new SkillSequencePreviewController();
+            }
+
+            previewController.SetRepaintCallback(Repaint);
+            previewController.Speed = previewPlaybackSpeed;
+            previewController.ShowEventPopups = true;
+        }
+
+        private void EnsureDefaultPreviewTargetPrefab()
+        {
+            if (previewTargetPrefabInitialized)
             {
                 return;
             }
 
-            characterData.skillBasic?.InvalidateViewSequenceCache();
-            characterData.skillUltimate?.InvalidateViewSequenceCache();
-            characterData.skillPassive?.InvalidateViewSequenceCache();
-            characterData.skillAwaken?.InvalidateViewSequenceCache();
+            if (previewTargetPrefab == null)
+            {
+                previewTargetPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                    "Assets/AssetGame/ArtWork/Prefab/Role/tian_jiang.prefab"
+                );
+            }
+
+            previewTargetPrefabInitialized = true;
+        }
+
+        private void EnsureSkeletonPreviewController()
+        {
+            if (skeletonPreviewController == null)
+            {
+                skeletonPreviewController = new SkillSequencePreviewController();
+            }
+
+            skeletonPreviewController.SetRepaintCallback(Repaint);
+            skeletonPreviewController.Speed = previewPlaybackSpeed;
+            skeletonPreviewController.ShowEventPopups = false;
+        }
+
+        private void PreviewSkeletonAnimation(string animationName, float duration)
+        {
+            if (string.IsNullOrWhiteSpace(animationName))
+            {
+                return;
+            }
+
+            if (prefabAsset == null)
+            {
+                EditorUtility.DisplayDialog("Preview Animation", "Assign a prefab first so the preview host can be created.", "OK");
+                return;
+            }
+
+            EnsureSkeletonPreviewController();
+
+            if (skeletonPreviewBoundPrefab != prefabAsset || !skeletonPreviewController.HasPreviewObject)
+            {
+                skeletonPreviewBoundPrefab = prefabAsset;
+                skeletonPreviewController.BindPrefab(prefabAsset);
+            }
+
+            ClearPreviewAnimationOverride(false);
+
+            float previewDuration = Mathf.Max(duration, 0.35f);
+            var runtimeSequence = SkillViewSequence.CreateRuntimeSequence(
+                $"preview_{animationName}",
+                new SkillViewStep(
+                    SkillViewStepType.PlayAnimation,
+                    SkillViewTargetType.Actor,
+                    animationName,
+                    animationName,
+                    false,
+                    previewDuration,
+                    0f,
+                    1f,
+                    SkillViewMoveMode.Direct,
+                    true,
+                    false,
+                    1));
+
+            runtimeSequence.hideFlags = HideFlags.HideAndDontSave;
+            runtimeSequence.SetMetadata(animationName, animationName, "hit", "falldown", "idle");
+
+            previewOverrideSequence = runtimeSequence;
+            previewOverrideLabel = $"Animation preview: {animationName}";
+            skeletonPreviewController.SetSequence(previewOverrideSequence);
+            skeletonPreviewController.Restart();
+
+            currentTab = 2;
+            Repaint();
+        }
+
+        private void ClearPreviewAnimationOverride(bool restoreSelectedSequence = true)
+        {
+            if (previewOverrideSequence != null)
+            {
+                if (skeletonPreviewController != null && skeletonPreviewController.Sequence == previewOverrideSequence)
+                {
+                    skeletonPreviewController.SetSequence(null);
+                }
+
+                UnityEngine.Object.DestroyImmediate(previewOverrideSequence);
+                previewOverrideSequence = null;
+                previewOverrideLabel = null;
+            }
         }
 
         private void DrawAssetPreviewPanel(string title, UnityEngine.Object asset, string line1, string line2, float previewHeight = 132f)
@@ -1346,6 +1543,47 @@ namespace GameSystems.Battle.Editor
             {
                 Rect textRect2 = new Rect(previewRect.x + 8f, previewRect.yMax - 16f, previewRect.width - 16f, 16f);
                 GUI.Label(textRect2, line2, EditorStyles.miniLabel);
+            }
+
+            EditorGUILayout.EndVertical();
+        }
+
+        private void DrawSkeletonAnimationPreviewPanel()
+        {
+            EditorGUILayout.BeginVertical(sectionBodyStyle);
+            EditorGUILayout.LabelField("Animation Preview", sectionHeaderStyle);
+            EditorGUILayout.LabelField(
+                previewOverrideSequence != null
+                    ? previewOverrideLabel ?? "Animation preview"
+                    : "Click Preview on an animation row to play it here.",
+                subtitleStyle);
+            EditorGUILayout.Space(6f);
+
+            bool hasAnimationPreview = previewOverrideSequence != null && skeletonPreviewController != null && skeletonPreviewController.HasPreviewObject;
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Speed", GUILayout.Width(70f));
+            previewPlaybackSpeed = EditorGUILayout.Slider(previewPlaybackSpeed, 0.25f, 3f);
+            EditorGUILayout.LabelField(string.Format("{0:0.00}x", previewPlaybackSpeed), GUILayout.Width(48f));
+            EditorGUILayout.EndHorizontal();
+
+            if (skeletonPreviewController != null && Mathf.Abs(skeletonPreviewController.Speed - previewPlaybackSpeed) > 0.0001f)
+            {
+                skeletonPreviewController.Speed = previewPlaybackSpeed;
+            }
+
+            float previewRectHeight = Mathf.Clamp(position.height * 0.30f, 190f, 280f);
+            Rect previewRect = GUILayoutUtility.GetRect(1f, previewRectHeight, GUILayout.ExpandWidth(true));
+            previewRect.height = previewRectHeight;
+            EditorGUI.DrawRect(previewRect, PanelAltColor);
+
+            if (hasAnimationPreview)
+            {
+                skeletonPreviewController.DrawPreview(previewRect);
+            }
+            else
+            {
+                EditorGUI.LabelField(previewRect, "No animation selected", EditorStyles.centeredGreyMiniLabel);
             }
 
             EditorGUILayout.EndVertical();
@@ -1515,15 +1753,24 @@ namespace GameSystems.Battle.Editor
                 {
                     previewController.BindPrefab(prefabAsset);
                 }
+                if (skeletonPreviewController != null)
+                {
+                    skeletonPreviewController.BindPrefab(prefabAsset);
+                }
                 return;
             }
 
             prefabAsset = newPrefab;
+            ClearPreviewAnimationOverride(false);
             LoadPrefabWorkingCopy(newPrefab);
 
             if (previewController != null)
             {
                 previewController.BindPrefab(prefabAsset);
+            }
+            if (skeletonPreviewController != null)
+            {
+                skeletonPreviewController.BindPrefab(prefabAsset);
             }
         }
 
@@ -1646,6 +1893,7 @@ namespace GameSystems.Battle.Editor
                 && primaryButtonStyle != null
                 && secondaryButtonStyle != null
                 && dangerButtonStyle != null
+                && previewIconButtonStyle != null
                 && panelLabelStyle != null
                 && searchFieldStyle != null
                 && tabNormalStyle != null
@@ -1719,6 +1967,16 @@ namespace GameSystems.Battle.Editor
 
             dangerButtonStyle = new GUIStyle(secondaryButtonStyle);
 
+            previewIconButtonStyle = new GUIStyle(EditorStyles.miniButton)
+            {
+                fontSize = 11,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter,
+                fixedHeight = 18f,
+                padding = new RectOffset(0, 0, 0, 0),
+                margin = new RectOffset(0, 0, 0, 0)
+            };
+
             panelLabelStyle = new GUIStyle(EditorStyles.label)
             {
                 fontSize = 10,
@@ -1770,6 +2028,8 @@ namespace GameSystems.Battle.Editor
 
         private void UnloadPrefabWorkingCopy()
         {
+            ClearPreviewAnimationOverride(false);
+
             if (workingPrefabRoot != null)
             {
                 PrefabUtility.UnloadPrefabContents(workingPrefabRoot);
@@ -1787,6 +2047,19 @@ namespace GameSystems.Battle.Editor
             animationNames.Clear();
             eventNames.Clear();
             animationInfos.Clear();
+
+            if (previewController != null)
+            {
+                previewBoundPrefab = null;
+                previewBoundSequence = null;
+                previewController.BindPrefab(null);
+            }
+
+            if (skeletonPreviewController != null)
+            {
+                skeletonPreviewBoundPrefab = null;
+                skeletonPreviewController.BindPrefab(null);
+            }
         }
     }
 }

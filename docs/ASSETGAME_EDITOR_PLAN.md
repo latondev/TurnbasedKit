@@ -101,6 +101,46 @@ Behavior:
 - Cleans up the preview object, spawned VFX, and render utility on disposal.
 - Stops and releases the preview host when playback finishes to avoid editor stalls.
 
+### Skill data model (`Assets/Scripts/Skill/SkillData.cs` + `Assets/Scripts/Battle/Runtime/Data/SkillViewSequence.cs`)
+Purpose:
+
+- `SkillData` giữ metadata của skill: id, tên, damage, cooldown, effect, `castTime`, icon, và danh sách step được chọn.
+- `SkillData.StepSkills` là nguồn authoring chính hiện tại. Mỗi entry là một `SkillViewStepSelection`, trỏ tới 1 step cụ thể trong 1 `SkillViewSequence`.
+- `SkillData.ViewSequence` không phải data gốc nữa; nó build một runtime `SkillViewSequence` từ các selection đang có.
+- `viewSequence` và `legacyStepSequences` chỉ còn là fallback/migration cho data cũ.
+- `runtimeSequenceCache` là cache không serialize, sẽ bị invalidate khi selection đổi hoặc khi deserialize xong.
+
+### `SkillViewStep` fields
+`SkillViewStep` là đơn vị step trong `SkillViewSequence`. Cùng một model này được `SkillBehavior` runtime và `SkillSequencePreviewController` editor dùng chung.
+
+- `stepType`: loại hành động của step. Các giá trị hiện có là `MoveToTarget`, `MoveBack`, `PlayAnimation`, `Wait`, `SpawnVfx`, `TriggerHit`, `SetFlipX`, `ResetSortingOrder`, `SetSortingOrder`, `SetIdleAnimation`.
+- `targetType`: đích áp dụng của step. `PrimaryTarget` là mục tiêu chính, `AllTargets` là tất cả target, `Actor` là vị trí của người dùng skill, `WorldPosition` là tọa độ world cố định.
+- `moveMode`: cách tính vị trí di chuyển khi `stepType == MoveToTarget`. `Direct` đi tới gần target theo `moveDistance`, `ThroughTarget` đi xuyên qua target, `OffsetFromTarget` bỏ qua `moveDistance` và lấy `offset` quanh target.
+- `animationName`: tên animation chính dùng cho `PlayAnimation` và cũng là tên hiển thị trong editor.
+- `fallbackAnimationName`: tên animation dự phòng nếu `animationName` không tồn tại. Nếu để trống thì runtime sẽ rơi về metadata của sequence hoặc quay lại animation chính.
+- `loop`: bật loop cho animation. Có ý nghĩa với `PlayAnimation` và `SetIdleAnimation`.
+- `delay`: độ trễ trước khi step bắt đầu. Runtime và preview đều chờ theo giá trị này, rồi mới xử lý step tiếp theo.
+- `duration`: thời lượng của step. Dùng để canh thời gian di chuyển ở `MoveToTarget`/`MoveBack`, thời gian chờ ở `Wait`, và thời gian giữ step ở `PlayAnimation` khi `waitForAnimationEnd` bật. Field này là per-step timing, không phải `SkillData.castTime`.
+- `moveDistance`: khoảng cách lệch so với target khi di chuyển. Chỉ có ý nghĩa khi `moveMode` là `Direct` hoặc `ThroughTarget`.
+- `sortingOrder`: sorting order sẽ set cho `SetSortingOrder`.
+- `flipX`: cờ lật trục X khi `SetFlipX`.
+- `worldPosition`: vị trí world-space cố định khi `targetType == WorldPosition`.
+- `offset`: vector offset cộng thêm sau khi resolve target. Runtime dùng nó cho movement và VFX spawn.
+- `vfxPrefab`: `ParticleSystem` sẽ được spawn khi `stepType == SpawnVfx`.
+- `waitForAnimationEnd`: cờ cho `PlayAnimation`. Nếu bật thì step sẽ giữ nhịp theo `duration`; nếu tắt thì step coi như immediate sau khi trigger animation.
+- `triggerHitEffect`: cờ truyền xuống listener của `OnEndStepAction` để consumer biết có cần bật hit effect hay không.
+- `hitCount`: số hit được report khi `TriggerHit` chạy. Nếu giá trị này `<= 0`, runtime sẽ fallback về số target hiện có trong context.
+
+### Inspector notes
+
+- `SkillViewStepDrawer` chỉ hiện `duration` cho `MoveToTarget`, `MoveBack`, `PlayAnimation`, và `Wait`.
+- `moveMode` chỉ hiện cho `MoveToTarget`.
+- `moveDistance` chỉ hiện cho `MoveToTarget`.
+- `sortingOrder` chỉ hiện cho `SetSortingOrder`.
+- `flipX` chỉ hiện cho `SetFlipX`.
+- `worldPosition` chỉ hiện cho `SpawnVfx`.
+- `offset` chỉ hiện cho `MoveToTarget` và `SpawnVfx` trong inspector, nhưng runtime cũng dùng nó khi resolve target.
+
 ## Dependencies
 This folder depends on:
 

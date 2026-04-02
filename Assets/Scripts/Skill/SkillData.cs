@@ -4,6 +4,9 @@ using UnityEngine;
 using UnityEngine.Serialization;
 using GameSystems;
 using GameSystems.Battle;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace GameSystems.Skills
 {
@@ -55,6 +58,10 @@ namespace GameSystems.Skills
         [SerializeField, HideInInspector] private SkillViewSequence viewSequence; // Legacy single sequence fallback
 
         [NonSerialized] private SkillViewSequence runtimeSequenceCache;
+#if UNITY_EDITOR
+        private static readonly List<SkillViewSequence> pendingRuntimeSequenceCacheDestructions = new List<SkillViewSequence>();
+        private static bool pendingRuntimeSequenceCacheDestructionScheduled;
+#endif
 
         // Properties
         public string SkillId => skillId;
@@ -373,14 +380,56 @@ namespace GameSystems.Skills
                 return;
             }
 
-#if UNITY_EDITOR
-            UnityEngine.Object.DestroyImmediate(runtimeSequenceCache);
-#else
-            UnityEngine.Object.Destroy(runtimeSequenceCache);
-#endif
-
+            var cacheToDestroy = runtimeSequenceCache;
             runtimeSequenceCache = null;
+
+#if UNITY_EDITOR
+            QueueRuntimeSequenceCacheDestruction(cacheToDestroy);
+            return;
+#else
+            UnityEngine.Object.Destroy(cacheToDestroy);
+#endif
         }
+
+#if UNITY_EDITOR
+        private static void QueueRuntimeSequenceCacheDestruction(SkillViewSequence cacheToDestroy)
+        {
+            if (cacheToDestroy == null)
+            {
+                return;
+            }
+
+            if (!pendingRuntimeSequenceCacheDestructions.Contains(cacheToDestroy))
+            {
+                pendingRuntimeSequenceCacheDestructions.Add(cacheToDestroy);
+            }
+
+            if (pendingRuntimeSequenceCacheDestructionScheduled)
+            {
+                return;
+            }
+
+            pendingRuntimeSequenceCacheDestructionScheduled = true;
+            EditorApplication.delayCall += FlushPendingRuntimeSequenceCacheDestructions;
+        }
+
+        private static void FlushPendingRuntimeSequenceCacheDestructions()
+        {
+            EditorApplication.delayCall -= FlushPendingRuntimeSequenceCacheDestructions;
+            pendingRuntimeSequenceCacheDestructionScheduled = false;
+
+            for (int i = 0; i < pendingRuntimeSequenceCacheDestructions.Count; i++)
+            {
+                var cache = pendingRuntimeSequenceCacheDestructions[i];
+                if (cache != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(cache);
+                }
+            }
+
+            pendingRuntimeSequenceCacheDestructions.Clear();
+        }
+#endif
 
         /// <summary>
         /// Levels up the skill

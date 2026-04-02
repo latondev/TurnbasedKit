@@ -87,7 +87,7 @@ namespace GameSystems.Battle
                 {
                     if (animationHandle != null)
                     {
-                        animationHandle.TryPlayAnimation(idleAnimation, idleAnimation, 0.1f, 0, true);
+                        PlayIdleAnimation(null);
                         animationHandle.ResetSortingOrder();
                         animationHandle.SetSortingOrder(2 - (int)transform.position.y);
                     }
@@ -175,17 +175,19 @@ namespace GameSystems.Battle
                 {
                     case SkillViewStepType.MoveToTarget:
                     {
+                        PlaySequenceAnimation(step, 1);
                         yield return MoveToTargetStep(ResolveDestination(step, context), step.Duration);
                         break;
                     }
                     case SkillViewStepType.MoveBack:
                     {
+                        PlaySequenceAnimation(step, 2);
                         yield return MoveBackStep(step.Duration);
                         break;
                     }
                     case SkillViewStepType.PlayAnimation:
                     {
-                        PlaySequenceAnimation(step);
+                        PlaySequenceAnimation(step, 1);
                         if (step.WaitForAnimationEnd && step.Duration > 0f)
                         {
                             yield return new WaitForSeconds(step.Duration / Mathf.Max(0.01f, speed));
@@ -231,9 +233,10 @@ namespace GameSystems.Battle
                     }
                     case SkillViewStepType.SetIdleAnimation:
                     {
-                        if (animationHandle != null)
+                        PlayIdleAnimation(step);
+                        if (step.Duration > 0f)
                         {
-                            animationHandle.TryPlayAnimation(idleAnimation, idleAnimation, 0.1f, 0, true);
+                            yield return new WaitForSeconds(step.Duration / Mathf.Max(0.01f, speed));
                         }
                         break;
                     }
@@ -242,7 +245,7 @@ namespace GameSystems.Battle
 
             if (animationHandle != null)
             {
-                animationHandle.TryPlayAnimation(idleAnimation, idleAnimation, 0.1f, 0, true);
+                PlayIdleAnimation(null);
                 animationHandle.ResetSortingOrder();
                 animationHandle.SetSortingOrder(2 - (int)transform.position.y);
             }
@@ -289,7 +292,7 @@ namespace GameSystems.Battle
             speed = previousSpeed;
         }
 
-        private void PlaySequenceAnimation(SkillViewStep step)
+        private void PlaySequenceAnimation(SkillViewStep step, int layer)
         {
             if (animationHandle == null)
             {
@@ -300,7 +303,27 @@ namespace GameSystems.Battle
             string fallback = string.IsNullOrEmpty(step.FallbackAnimationName)
                 ? (string.IsNullOrEmpty(sequenceFallbackAnimation) ? skillAnimation : sequenceFallbackAnimation)
                 : step.FallbackAnimationName;
-            animationHandle.TryPlayAnimation(primary, fallback, 0.1f, 1, step.Loop);
+            animationHandle.TryPlayAnimation(primary, fallback, 0.1f, layer, step.Loop);
+        }
+
+        private void PlayIdleAnimation(SkillViewStep step)
+        {
+            if (animationHandle == null)
+            {
+                return;
+            }
+
+            animationHandle.ClearTrack(1);
+            animationHandle.ClearTrack(2);
+
+            string primary = step != null && !string.IsNullOrWhiteSpace(step.AnimationName)
+                ? step.AnimationName
+                : (!string.IsNullOrWhiteSpace(idleAnimation) ? idleAnimation : "idle");
+            string fallback = step != null && !string.IsNullOrWhiteSpace(step.FallbackAnimationName)
+                ? step.FallbackAnimationName
+                : primary;
+
+            animationHandle.TryPlayAnimation(primary, fallback, step != null ? step.Duration : 0.1f, 0, true);
         }
 
         private void ApplySequenceMetadata(SkillViewSequence sequence)

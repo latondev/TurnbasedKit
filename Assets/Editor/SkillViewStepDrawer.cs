@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using GameSystems.Battle;
 using UnityEditor;
 using UnityEngine;
@@ -7,6 +9,13 @@ namespace GameSystems.Battle.Editor
     [CustomPropertyDrawer(typeof(SkillViewStep))]
     public class SkillViewStepDrawer : PropertyDrawer
     {
+        private static IReadOnlyList<string> animationOptions = Array.Empty<string>();
+
+        public static void SetAnimationOptions(IReadOnlyList<string> options)
+        {
+            animationOptions = options ?? Array.Empty<string>();
+        }
+
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
             if (!property.isExpanded) return EditorGUIUtility.singleLineHeight;
@@ -77,8 +86,8 @@ namespace GameSystems.Battle.Editor
                 if (ShowMoveMode(stepType)) DrawField(ref fieldRect, property.FindPropertyRelative("moveMode"));
                 if (ShowAnimationParams(stepType))
                 {
-                    DrawField(ref fieldRect, animationNameProp);
-                    DrawField(ref fieldRect, property.FindPropertyRelative("fallbackAnimationName"));
+                    DrawAnimationField(ref fieldRect, animationNameProp, "Animation Name");
+                    DrawAnimationField(ref fieldRect, property.FindPropertyRelative("fallbackAnimationName"), "Fallback Animation");
                 }
                 if (ShowLoop(stepType)) DrawField(ref fieldRect, property.FindPropertyRelative("loop"));
                 
@@ -108,11 +117,75 @@ namespace GameSystems.Battle.Editor
             rect.y += EditorGUIUtility.singleLineHeight + 2f;
         }
 
+        private void DrawAnimationField(ref Rect rect, SerializedProperty property, string label)
+        {
+            if (property == null)
+            {
+                return;
+            }
+
+            if (animationOptions == null || animationOptions.Count == 0)
+            {
+                EditorGUI.PropertyField(rect, property, new GUIContent(label), true);
+                rect.y += EditorGUIUtility.singleLineHeight + 2f;
+                return;
+            }
+
+            string[] popupOptions = BuildPopupOptions(animationOptions, property.stringValue);
+            int currentIndex = Array.IndexOf(popupOptions, property.stringValue);
+            if (currentIndex < 0)
+            {
+                currentIndex = 0;
+            }
+
+            Rect fieldRect = EditorGUI.PrefixLabel(rect, new GUIContent(label));
+            int nextIndex = EditorGUI.Popup(fieldRect, currentIndex, popupOptions);
+            if (nextIndex >= 0 && nextIndex < popupOptions.Length && nextIndex != currentIndex)
+            {
+                string nextValue = nextIndex == 0 ? string.Empty : popupOptions[nextIndex];
+                if (property.stringValue != nextValue)
+                {
+                    property.stringValue = nextValue;
+                }
+            }
+
+            rect.y += EditorGUIUtility.singleLineHeight + 2f;
+        }
+
+        private static string[] BuildPopupOptions(IReadOnlyList<string> options, string currentValue)
+        {
+            var list = new List<string> { "<None>" };
+
+            if (!string.IsNullOrWhiteSpace(currentValue) && !list.Contains(currentValue))
+            {
+                list.Add(currentValue);
+            }
+
+            if (options != null)
+            {
+                for (int i = 0; i < options.Count; i++)
+                {
+                    string option = options[i];
+                    if (string.IsNullOrWhiteSpace(option))
+                    {
+                        continue;
+                    }
+
+                    if (!list.Contains(option))
+                    {
+                        list.Add(option);
+                    }
+                }
+            }
+
+            return list.ToArray();
+        }
+
         private bool ShowTargetType(SkillViewStepType type) => type != SkillViewStepType.Wait && type != SkillViewStepType.ResetSortingOrder && type != SkillViewStepType.SetSortingOrder && type != SkillViewStepType.SetIdleAnimation && type != SkillViewStepType.SetFlipX;
         private bool ShowMoveMode(SkillViewStepType type) => type == SkillViewStepType.MoveToTarget;
         private bool ShowAnimationParams(SkillViewStepType type) => type == SkillViewStepType.MoveToTarget || type == SkillViewStepType.MoveBack || type == SkillViewStepType.PlayAnimation || type == SkillViewStepType.SetIdleAnimation;
         private bool ShowLoop(SkillViewStepType type) => type == SkillViewStepType.PlayAnimation || type == SkillViewStepType.SetIdleAnimation;
-        private bool ShowDuration(SkillViewStepType type) => type == SkillViewStepType.MoveToTarget || type == SkillViewStepType.MoveBack || type == SkillViewStepType.PlayAnimation || type == SkillViewStepType.Wait;
+        private bool ShowDuration(SkillViewStepType type) => type == SkillViewStepType.MoveToTarget || type == SkillViewStepType.MoveBack || type == SkillViewStepType.PlayAnimation || type == SkillViewStepType.Wait || type == SkillViewStepType.SetIdleAnimation;
         private bool ShowMoveDistance(SkillViewStepType type) => type == SkillViewStepType.MoveToTarget;
         private bool ShowSortingOrder(SkillViewStepType type) => type == SkillViewStepType.SetSortingOrder;
         private bool ShowFlipX(SkillViewStepType type) => type == SkillViewStepType.SetFlipX;
