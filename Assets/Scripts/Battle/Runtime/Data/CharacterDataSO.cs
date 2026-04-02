@@ -9,8 +9,10 @@ using GameSystems.Stats;
 namespace GameSystems.Battle
 {
     [CreateAssetMenu(fileName = "CharacterData", menuName = "ScriptableObjects/CharacterDataSO", order = 1)]
-    public class CharacterDataSO : ScriptableObject
+    public class CharacterDataSO : ScriptableObject, ISerializationCallbackReceiver
     {
+        private const int CurrentActionSchemaVersion = 2;
+
         public int id;
         public string nameHero;
 
@@ -35,18 +37,188 @@ namespace GameSystems.Battle
         public SkillData skillUltimate;
         public SkillData skillPassive;
         public SkillData skillAwaken;
+        [SerializeField] private List<CombatActionData> actions = new List<CombatActionData>();
+        [SerializeField, HideInInspector] private int actionSchemaVersion;
 
         // Properties
         public IReadOnlyList<StatData> Stats => stats.AsReadOnly();
+        public IReadOnlyList<CombatActionData> Actions => actions;
 
         private void OnValidate()
         {
+            EnsureActionsData();
+
             // Delay rename to avoid calling AssetDatabase during asset importing
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.delayCall += () => {
                 ChangeAssetName(id + "_" + nameHero);
             };
 #endif
+        }
+
+        public void OnBeforeSerialize() { }
+
+        public void OnAfterDeserialize()
+        {
+            if (actions == null)
+            {
+                actions = new List<CombatActionData>();
+            }
+        }
+
+        public void EnsureActionsData()
+        {
+            if (actions == null)
+            {
+                actions = new List<CombatActionData>();
+            }
+
+            bool requiresSchemaUpgrade = actionSchemaVersion < CurrentActionSchemaVersion;
+
+            for (int i = actions.Count - 1; i >= 0; i--)
+            {
+                if (actions[i] == null)
+                {
+                    actions.RemoveAt(i);
+                }
+            }
+
+            if (actions.Count == 0 || requiresSchemaUpgrade)
+            {
+                AddActionFromLegacySkill(
+                    skillBasic,
+                    CombatActionKind.SkillBasic,
+                    "skill_basic",
+                    "Basic Skill"
+                );
+                AddActionFromLegacySkill(
+                    skillUltimate,
+                    CombatActionKind.SkillUltimate,
+                    "skill_ultimate",
+                    "Ultimate Skill"
+                );
+                AddActionFromLegacySkill(
+                    skillPassive,
+                    CombatActionKind.SkillPassive,
+                    "skill_passive",
+                    "Passive Skill"
+                );
+                AddActionFromLegacySkill(
+                    skillAwaken,
+                    CombatActionKind.SkillAwaken,
+                    "skill_awaken",
+                    "Awaken Skill"
+                );
+            }
+
+            if (requiresSchemaUpgrade)
+            {
+                MigrateMissingActionStepsFromLegacySkill(skillBasic, CombatActionKind.SkillBasic);
+                MigrateMissingActionStepsFromLegacySkill(skillUltimate, CombatActionKind.SkillUltimate);
+                MigrateMissingActionStepsFromLegacySkill(skillPassive, CombatActionKind.SkillPassive);
+                MigrateMissingActionStepsFromLegacySkill(skillAwaken, CombatActionKind.SkillAwaken);
+            }
+
+            if (FindActionByKindInternal(CombatActionKind.BasicAttack) == null)
+            {
+                var basicAttackAction = new CombatActionData();
+                basicAttackAction.SetActionKind(CombatActionKind.BasicAttack);
+                basicAttackAction.SetActionId("basic_attack");
+                basicAttackAction.SetDisplayName("Basic Attack");
+                basicAttackAction.SetMetadata("attack", "war_attack", "hit", "falldown", "idle");
+                basicAttackAction.EnsureDefaults();
+                actions.Insert(0, basicAttackAction);
+            }
+
+            for (int i = 0; i < actions.Count; i++)
+            {
+                var action = actions[i];
+                if (action == null)
+                {
+                    continue;
+                }
+
+                action.EnsureDefaults();
+            }
+
+            if (actionSchemaVersion != CurrentActionSchemaVersion)
+            {
+                actionSchemaVersion = CurrentActionSchemaVersion;
+            }
+
+        }
+
+        public CombatActionData GetAction(CombatActionKind kind)
+        {
+            EnsureActionsData();
+            return FindActionByKindInternal(kind);
+        }
+
+        public CombatActionData GetActionBySkill(SkillData skill)
+        {
+            EnsureActionsData();
+            if (skill == null || actions == null)
+            {
+                return null;
+            }
+
+            for (int i = 0; i < actions.Count; i++)
+            {
+                var action = actions[i];
+                if (action != null && action.SkillRef == skill)
+                {
+                    return action;
+                }
+            }
+
+            return null;
+        }
+
+        public CombatActionData ResolveActionForBattle(
+            GameSystems.AutoBattle.ActionType actionType,
+            SkillData equippedSkill = null
+        )
+        {
+            EnsureActionsData();
+
+            if (actionType == GameSystems.AutoBattle.ActionType.Attack)
+            {
+                return FindActionByKindInternal(CombatActionKind.BasicAttack);
+            }
+
+            CombatActionData bySkill = GetActionBySkill(equippedSkill);
+            if (bySkill != null)
+            {
+                return bySkill;
+            }
+
+            CombatActionData basicSkill = FindActionByKindInternal(CombatActionKind.SkillBasic);
+            if (basicSkill != null)
+            {
+                return basicSkill;
+            }
+
+            for (int i = 0; i < actions.Count; i++)
+            {
+                var action = actions[i];
+                if (action == null)
+                {
+                    continue;
+                }
+
+                if (
+                    action.ActionKind == CombatActionKind.SkillBasic
+                    || action.ActionKind == CombatActionKind.SkillUltimate
+                    || action.ActionKind == CombatActionKind.SkillPassive
+                    || action.ActionKind == CombatActionKind.SkillAwaken
+                    || action.ActionKind == CombatActionKind.Custom
+                )
+                {
+                    return action;
+                }
+            }
+
+            return FindActionByKindInternal(CombatActionKind.BasicAttack);
         }
 
         [ContextMenu("SaveJson")]
@@ -72,6 +244,123 @@ namespace GameSystems.Battle
                 }
             }
 #endif
+        }
+
+        private CombatActionData FindActionByKindInternal(CombatActionKind kind)
+        {
+            if (actions == null)
+            {
+                return null;
+            }
+
+            for (int i = 0; i < actions.Count; i++)
+            {
+                var action = actions[i];
+                if (action != null && action.ActionKind == kind)
+                {
+                    return action;
+                }
+            }
+
+            return null;
+        }
+
+        private bool AddActionFromLegacySkill(
+            SkillData legacySkill,
+            CombatActionKind kind,
+            string actionId,
+            string displayName
+        )
+        {
+            if (legacySkill == null)
+            {
+                return false;
+            }
+
+            if (FindActionByKindInternal(kind) != null)
+            {
+                return false;
+            }
+
+            var action = new CombatActionData();
+            action.SetActionKind(kind);
+            action.SetActionId(actionId);
+            action.SetDisplayName(displayName);
+            action.SetSkillRef(legacySkill);
+            ApplyLegacySkillVisualData(action, legacySkill, overwriteExistingSteps: true);
+
+            actions.Add(action);
+            return true;
+        }
+
+        private void MigrateMissingActionStepsFromLegacySkill(SkillData legacySkill, CombatActionKind kind)
+        {
+            if (legacySkill == null)
+            {
+                return;
+            }
+
+            CombatActionData action = FindActionByKindInternal(kind);
+            if (action == null || HasActionSteps(action))
+            {
+                return;
+            }
+
+            if (action.SkillRef == null)
+            {
+                action.SetSkillRef(legacySkill);
+            }
+
+            ApplyLegacySkillVisualData(action, legacySkill, overwriteExistingSteps: false);
+        }
+
+        private static bool HasActionSteps(CombatActionData action)
+        {
+            return action != null && action.StepSelections != null && action.StepSelections.Count > 0;
+        }
+
+        private static void ApplyLegacySkillVisualData(
+            CombatActionData action,
+            SkillData legacySkill,
+            bool overwriteExistingSteps
+        )
+        {
+            if (action == null || legacySkill == null)
+            {
+                return;
+            }
+
+            bool actionAlreadyHasSteps = HasActionSteps(action);
+            if (overwriteExistingSteps || !actionAlreadyHasSteps)
+            {
+                action.SetStepSelectionsFrom(legacySkill.LegacyStepSelections);
+                actionAlreadyHasSteps = HasActionSteps(action);
+            }
+
+            if (actionAlreadyHasSteps)
+            {
+                return;
+            }
+
+            SkillViewSequence sequence = legacySkill.ViewSequence;
+            bool canStoreLegacySequence = sequence != null
+                && (sequence.hideFlags & HideFlags.HideAndDontSave) == 0;
+
+            if (canStoreLegacySequence)
+            {
+                action.SetLegacyViewSequence(sequence);
+                action.SetMetadata(
+                    sequence.AnimationName,
+                    sequence.FallbackAnimationName,
+                    sequence.HitEventName,
+                    sequence.FalldownEventName,
+                    sequence.IdleAnimationName
+                );
+            }
+            else
+            {
+                action.EnsureDefaults();
+            }
         }
 
         /// <summary>

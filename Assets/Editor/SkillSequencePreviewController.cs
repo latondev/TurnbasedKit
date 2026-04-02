@@ -95,7 +95,7 @@ namespace GameSystems.Battle.Editor
 
         public int CurrentStepIndex
         {
-            get { return currentStepIndex; }
+            get { return (sequenceFinished || terminalIdleLoopActive) ? -1 : currentStepIndex; }
         }
 
         public string StatusText
@@ -226,7 +226,8 @@ namespace GameSystems.Battle.Editor
         public void TogglePlayback()
         {
             if (
-                sequenceFinished
+                terminalIdleLoopActive
+                || sequenceFinished
                 || currentStepIndex < 0
                 || sequence == null
                 || previewGameObject == null
@@ -842,7 +843,14 @@ namespace GameSystems.Battle.Editor
                     break;
 
                 case SkillViewStepType.PlayAnimation:
-                    PlayStepAnimation(currentStep, 1);
+                    if (currentStep.Loop && IsTerminalLoopStep(currentStepIndex, currentStep))
+                    {
+                        PlayTerminalLoopAnimation(currentStep);
+                    }
+                    else
+                    {
+                        PlayStepAnimation(currentStep, 1);
+                    }
                     currentStepHasDuration =
                         currentStep.WaitForAnimationEnd && currentStep.Duration > 0f;
                     break;
@@ -1051,6 +1059,27 @@ namespace GameSystems.Battle.Editor
             string primary = ResolveAnimationName(step);
             string fallback = ResolveFallbackAnimationName(step);
             animationHandle.TryPlayAnimation(primary, fallback, 0.1f, layer, step.Loop);
+        }
+
+        private void PlayTerminalLoopAnimation(SkillViewStep step)
+        {
+            if (animationHandle == null)
+            {
+                return;
+            }
+
+            animationHandle.ClearTrack(1);
+            animationHandle.ClearTrack(2);
+
+            string primary = ResolveAnimationName(step);
+            string fallback = ResolveFallbackAnimationName(step);
+            animationHandle.TryPlayAnimation(
+                primary,
+                fallback,
+                step != null ? step.Duration : 0.1f,
+                0,
+                true
+            );
         }
 
         private void PlayIdleAnimation(SkillViewStep step)
@@ -1413,7 +1442,33 @@ namespace GameSystems.Battle.Editor
                     continue;
                 }
 
-                return step.StepType == SkillViewStepType.SetIdleAnimation && step.Loop;
+                if (!step.Loop)
+                {
+                    return false;
+                }
+
+                return step.StepType == SkillViewStepType.SetIdleAnimation
+                    || step.StepType == SkillViewStepType.PlayAnimation;
+            }
+
+            return false;
+        }
+
+        private bool IsTerminalLoopStep(int stepIndex, SkillViewStep step)
+        {
+            if (sequence == null || sequence.Steps == null || step == null || !step.Loop)
+            {
+                return false;
+            }
+
+            for (int i = sequence.Steps.Count - 1; i >= 0; i--)
+            {
+                if (sequence.Steps[i] == null)
+                {
+                    continue;
+                }
+
+                return i == stepIndex;
             }
 
             return false;

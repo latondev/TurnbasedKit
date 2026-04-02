@@ -174,33 +174,30 @@ namespace GameSystems.Battle.Demo
                 }
             }
 
+            actorView.SetActionStepCallback(ApplyVisualHit);
+
+            var context = new SkillViewContext(
+                action.actor,
+                action.target,
+                actorView.transform.position,
+                targetView.transform.position,
+                new List<Vector3> { targetView.transform.position },
+                action
+            );
+
+            CombatActionData visualAction = action.actor.ResolveVisualAction(action.type);
+            if (visualAction != null)
+            {
+                actorView.PlayAction(visualAction, context);
+                return;
+            }
+
             if (action.type == GameSystems.AutoBattle.ActionType.Skill)
             {
-                var attackBehavior = actorView.GetComponentInChildren<AttackBehavior>();
-                var skillBehavior = actorView.GetComponentInChildren<SkillBehavior>();
-                var sequence = action.actor.EquippedSkill?.ViewSequence;
-                bool hasTriggerStep = SequenceHasTriggerStep(sequence);
-
-                if (skillBehavior != null)
-                {
-                    skillBehavior.OnEndStepAction = ApplyVisualHit;
-                }
-
-                if (attackBehavior != null)
-                {
-                    attackBehavior.OnEndStepAction = ApplyVisualHit;
-                }
-
+                SkillBehavior skillBehavior = actorView.GetComponentInChildren<SkillBehavior>();
+                SkillViewSequence sequence = action.actor.EquippedSkill?.ViewSequence;
                 if (sequence != null)
                 {
-                    var context = new SkillViewContext(
-                        action.actor,
-                        action.target,
-                        actorView.transform.position,
-                        targetView.transform.position,
-                        new List<Vector3> { targetView.transform.position },
-                        action);
-
                     actorView.PlaySkill(sequence, context);
                 }
                 else
@@ -208,31 +205,19 @@ namespace GameSystems.Battle.Demo
                     actorView.PlaySkill(targetView.transform.position);
                 }
 
-                if ((skillBehavior == null && attackBehavior == null) ||
-                    (sequence != null && skillBehavior != null && !hasTriggerStep))
+                if (skillBehavior == null || sequence == null || !SequenceHasTriggerStep(sequence))
                 {
                     ApplyVisualHit(1, false);
-
-                    if (skillBehavior == null && attackBehavior == null)
-                    {
-                        OnVisualActionComplete();
-                    }
                 }
             }
             else
             {
-                var attackBehavior = actorView.GetComponentInChildren<AttackBehavior>();
-                if (attackBehavior != null)
-                {
-                    attackBehavior.OnEndStepAction = ApplyVisualHit;
-                }
-
+                AttackBehavior attackBehavior = actorView.GetComponentInChildren<AttackBehavior>();
                 actorView.PlayAttack(targetView.transform.position);
-                
+
                 if (attackBehavior == null)
                 {
                     ApplyVisualHit(1, false);
-                    OnVisualActionComplete();
                 }
             }
         }

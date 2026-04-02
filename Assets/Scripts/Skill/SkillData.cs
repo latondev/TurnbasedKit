@@ -4,9 +4,6 @@ using UnityEngine;
 using UnityEngine.Serialization;
 using GameSystems;
 using GameSystems.Battle;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 
 namespace GameSystems.Skills
 {
@@ -51,17 +48,13 @@ namespace GameSystems.Skills
         [SerializeField] private int totalCasts;
         
         [SerializeField] private Sprite icon;
-        [SerializeField] private List<SkillViewStepSelection> stepSelections = new List<SkillViewStepSelection>();
+        [FormerlySerializedAs("stepSelections")]
+        [SerializeField, HideInInspector]
+        private List<SkillViewStepSelection> legacyStepSelections = new List<SkillViewStepSelection>();
         [FormerlySerializedAs("stepSkills")]
         [FormerlySerializedAs("viewSequences")]
         [SerializeField, HideInInspector] private List<SkillViewSequence> legacyStepSequences = new List<SkillViewSequence>();
         [SerializeField, HideInInspector] private SkillViewSequence viewSequence; // Legacy single sequence fallback
-
-        [NonSerialized] private SkillViewSequence runtimeSequenceCache;
-#if UNITY_EDITOR
-        private static readonly List<SkillViewSequence> pendingRuntimeSequenceCacheDestructions = new List<SkillViewSequence>();
-        private static bool pendingRuntimeSequenceCacheDestructionScheduled;
-#endif
 
         // Properties
         public string SkillId => skillId;
@@ -88,83 +81,22 @@ namespace GameSystems.Skills
         public int TotalCasts => totalCasts;
         public Sprite Icon => icon;
 
-        public SkillViewSequence ViewSequence
-        {
-            get
-            {
-                if (stepSelections != null && stepSelections.Count > 0)
-                {
-                    return GetOrBuildRuntimeSequence();
-                }
-                return viewSequence; // Fallback to legacy single sequence
-            }
-        }
-
-        public IReadOnlyList<SkillViewStepSelection> StepSkills => stepSelections;
-
-        [Obsolete("Use StepSkills instead.")]
-        public IReadOnlyList<SkillViewStepSelection> ViewSequences => stepSelections;
+        public SkillViewSequence ViewSequence => viewSequence;
+        internal IReadOnlyList<SkillViewStepSelection> LegacyStepSelections => legacyStepSelections;
+        internal bool HasLegacyStepSelections => legacyStepSelections != null && legacyStepSelections.Count > 0;
 
         public void SetViewSequence(SkillViewSequence sequence)
         {
-            EnsureStepSelections();
-            stepSelections.Clear();
+            EnsureLegacyStepSelections();
+            legacyStepSelections.Clear();
             AddAllStepsFromSequence(sequence, allowDuplicates: true);
-            viewSequence = sequence; // sync to legacy slot
+            viewSequence = sequence;
             legacyStepSequences?.Clear();
-            InvalidateRuntimeSequenceCache();
-        }
-
-        public void AddStepSkill(SkillViewSequence sequence)
-        {
-            EnsureStepSelections();
-            AddAllStepsFromSequence(sequence);
-            if (viewSequence == null)
-            {
-                viewSequence = sequence;
-            }
-
-            InvalidateRuntimeSequenceCache();
-        }
-
-        public void AddStepSkill(SkillViewStepSelection selection)
-        {
-            if (selection == null || !selection.IsValid)
-            {
-                return;
-            }
-
-            AddStepSelection(selection.Sequence, selection.StepIndex);
-        }
-
-        public void AddStepSelection(SkillViewSequence sequence, int stepIndex)
-        {
-            EnsureStepSelections();
-            AddSingleStepSelection(sequence, stepIndex);
-            if (viewSequence == null)
-            {
-                viewSequence = sequence;
-            }
-
-            InvalidateRuntimeSequenceCache();
-        }
-
-        public void ClearStepSkills()
-        {
-            if (stepSelections == null)
-            {
-                stepSelections = new List<SkillViewStepSelection>();
-            }
-
-            stepSelections.Clear();
-            legacyStepSequences?.Clear();
-            viewSequence = null;
-            InvalidateRuntimeSequenceCache();
         }
 
         public void InvalidateViewSequenceCache()
         {
-            InvalidateRuntimeSequenceCache();
+            // SkillData no longer builds runtime step sequences.
         }
 
         public SkillData(string id, string name, string description, SkillCategory category, 
@@ -198,9 +130,8 @@ namespace GameSystems.Skills
 
         public void OnAfterDeserialize()
         {
-            EnsureStepSelections();
+            EnsureLegacyStepSelections();
             MigrateLegacyStepSelections();
-            InvalidateRuntimeSequenceCache();
         }
 
         /// <summary>
@@ -213,11 +144,11 @@ namespace GameSystems.Skills
             Debug.Log($"<color=green>🔓 Unlocked:</color> {skillName}");
         }
 
-        private void EnsureStepSelections()
+        private void EnsureLegacyStepSelections()
         {
-            if (stepSelections == null)
+            if (legacyStepSelections == null)
             {
-                stepSelections = new List<SkillViewStepSelection>();
+                legacyStepSelections = new List<SkillViewStepSelection>();
             }
         }
 
@@ -228,7 +159,7 @@ namespace GameSystems.Skills
                 legacyStepSequences = new List<SkillViewSequence>();
             }
 
-            if (stepSelections.Count == 0)
+            if (legacyStepSelections.Count == 0)
             {
                 if (legacyStepSequences.Count > 0)
                 {
@@ -248,10 +179,6 @@ namespace GameSystems.Skills
                 legacyStepSequences.Clear();
             }
 
-            if (stepSelections.Count > 0)
-            {
-                viewSequence = null;
-            }
         }
 
         private void AddAllStepsFromSequence(SkillViewSequence sequence, bool allowDuplicates = false)
@@ -274,26 +201,26 @@ namespace GameSystems.Skills
                 return;
             }
 
-            if (!allowDuplicates && HasStepSelection(sequence, stepIndex))
+            if (!allowDuplicates && HasLegacyStepSelection(sequence, stepIndex))
             {
                 return;
             }
 
             var selection = new SkillViewStepSelection();
             selection.SetSelection(sequence, stepIndex);
-            stepSelections.Add(selection);
+            legacyStepSelections.Add(selection);
         }
 
-        private bool HasStepSelection(SkillViewSequence sequence, int stepIndex)
+        private bool HasLegacyStepSelection(SkillViewSequence sequence, int stepIndex)
         {
-            if (stepSelections == null)
+            if (legacyStepSelections == null)
             {
                 return false;
             }
 
-            for (int i = 0; i < stepSelections.Count; i++)
+            for (int i = 0; i < legacyStepSelections.Count; i++)
             {
-                var selection = stepSelections[i];
+                var selection = legacyStepSelections[i];
                 if (selection != null && selection.Sequence == sequence && selection.StepIndex == stepIndex)
                 {
                     return true;
@@ -302,134 +229,6 @@ namespace GameSystems.Skills
 
             return false;
         }
-
-        private SkillViewSequence GetOrBuildRuntimeSequence()
-        {
-            if (runtimeSequenceCache != null)
-            {
-                return runtimeSequenceCache;
-            }
-
-            if (stepSelections == null || stepSelections.Count == 0)
-            {
-                return viewSequence;
-            }
-
-            var runtimeSteps = new List<SkillViewStep>();
-            SkillViewSequence metadataSource = null;
-
-            for (int i = 0; i < stepSelections.Count; i++)
-            {
-                var selection = stepSelections[i];
-                if (selection == null || !selection.IsValid)
-                {
-                    continue;
-                }
-
-                if (metadataSource == null)
-                {
-                    metadataSource = selection.Sequence;
-                }
-
-                var clonedStep = selection.CloneStep();
-                if (clonedStep != null)
-                {
-                    runtimeSteps.Add(clonedStep);
-                }
-            }
-
-            if (runtimeSteps.Count == 0)
-            {
-                return viewSequence;
-            }
-
-            runtimeSequenceCache = ScriptableObject.CreateInstance<SkillViewSequence>();
-            runtimeSequenceCache.hideFlags = HideFlags.HideAndDontSave;
-            runtimeSequenceCache.name = BuildRuntimeSequenceId();
-            runtimeSequenceCache.SetSequenceId(BuildRuntimeSequenceId());
-
-            if (metadataSource != null)
-            {
-                runtimeSequenceCache.SetMetadata(
-                    metadataSource.AnimationName,
-                    metadataSource.FallbackAnimationName,
-                    metadataSource.HitEventName,
-                    metadataSource.FalldownEventName,
-                    metadataSource.IdleAnimationName);
-            }
-
-            runtimeSequenceCache.SetRuntimeSteps(runtimeSteps);
-            return runtimeSequenceCache;
-        }
-
-        private string BuildRuntimeSequenceId()
-        {
-            string baseId = !string.IsNullOrWhiteSpace(skillId) ? skillId : skillName;
-            if (string.IsNullOrWhiteSpace(baseId))
-            {
-                baseId = "runtime_skill";
-            }
-
-            return $"{baseId}_runtime";
-        }
-
-        private void InvalidateRuntimeSequenceCache()
-        {
-            if (runtimeSequenceCache == null)
-            {
-                return;
-            }
-
-            var cacheToDestroy = runtimeSequenceCache;
-            runtimeSequenceCache = null;
-
-#if UNITY_EDITOR
-            QueueRuntimeSequenceCacheDestruction(cacheToDestroy);
-            return;
-#else
-            UnityEngine.Object.Destroy(cacheToDestroy);
-#endif
-        }
-
-#if UNITY_EDITOR
-        private static void QueueRuntimeSequenceCacheDestruction(SkillViewSequence cacheToDestroy)
-        {
-            if (cacheToDestroy == null)
-            {
-                return;
-            }
-
-            if (!pendingRuntimeSequenceCacheDestructions.Contains(cacheToDestroy))
-            {
-                pendingRuntimeSequenceCacheDestructions.Add(cacheToDestroy);
-            }
-
-            if (pendingRuntimeSequenceCacheDestructionScheduled)
-            {
-                return;
-            }
-
-            pendingRuntimeSequenceCacheDestructionScheduled = true;
-            EditorApplication.delayCall += FlushPendingRuntimeSequenceCacheDestructions;
-        }
-
-        private static void FlushPendingRuntimeSequenceCacheDestructions()
-        {
-            EditorApplication.delayCall -= FlushPendingRuntimeSequenceCacheDestructions;
-            pendingRuntimeSequenceCacheDestructionScheduled = false;
-
-            for (int i = 0; i < pendingRuntimeSequenceCacheDestructions.Count; i++)
-            {
-                var cache = pendingRuntimeSequenceCacheDestructions[i];
-                if (cache != null)
-                {
-                    UnityEngine.Object.DestroyImmediate(cache);
-                }
-            }
-
-            pendingRuntimeSequenceCacheDestructions.Clear();
-        }
-#endif
 
         /// <summary>
         /// Levels up the skill

@@ -53,6 +53,28 @@ namespace GameSystems.Skills
             return Step?.Clone();
         }
 
+        public SkillViewStepSelection DeepCopy()
+        {
+            var copied = new SkillViewStepSelection
+            {
+                sequence = sequence,
+                stepIndex = stepIndex,
+                useLocalOverride = useLocalOverride,
+                localOverrideStep = localOverrideStep != null ? localOverrideStep.Clone() : null
+            };
+
+            if (copied.useLocalOverride && copied.localOverrideStep == null)
+            {
+                copied.localOverrideStep = copied.SourceStep != null ? copied.SourceStep.Clone() : null;
+                if (copied.localOverrideStep == null)
+                {
+                    copied.useLocalOverride = false;
+                }
+            }
+
+            return copied;
+        }
+
         public bool TryActivateLocalOverride()
         {
             var sourceStep = SourceStep;

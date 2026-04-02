@@ -20,6 +20,7 @@ namespace GameSystems.AutoBattle
         [SerializeField] private UnitType unitType;
         [SerializeField] private AttackRange attackRange;
         [SerializeField] private bool isAlive;
+        [SerializeField] private CharacterDataSO sourceCharacterData;
 
         [Header("Skill System")]
         [SerializeField] private SkillData equippedSkill;
@@ -44,6 +45,7 @@ namespace GameSystems.AutoBattle
         public UnitType Type => unitType;
         public AttackRange Range => attackRange;
         public bool IsAlive => isAlive;
+        public CharacterDataSO SourceCharacterData => sourceCharacterData;
 
         // Stats from UnitStatController
         public int CurrentHP => (int)(statController?.GetStatValue(StatType.Health) ?? 0f);
@@ -101,6 +103,7 @@ namespace GameSystems.AutoBattle
             this.unitName = characterData.nameHero;
             this.unitType = unitType;
             this.attackRange = attackRange;
+            this.sourceCharacterData = characterData;
 
             // Create UnitStatController for this unit
             var go = new GameObject($"StatController_{unitId}");
@@ -117,9 +120,12 @@ namespace GameSystems.AutoBattle
             eventBridgeService.Initialize(runtimeService);
 
             // Setup skills
-            this.equippedSkill = characterData.skillBasic;
-            this.skillName = characterData.skillBasic?.SkillName ?? "Basic Attack";
-            this.skillCooldown = characterData.skillBasic != null ? Mathf.RoundToInt(characterData.skillBasic.BaseCooldown) : 0;
+            var defaultAction = characterData.ResolveActionForBattle(ActionType.Skill, characterData.skillBasic);
+            this.equippedSkill = defaultAction != null && defaultAction.SkillRef != null
+                ? defaultAction.SkillRef
+                : characterData.skillBasic;
+            this.skillName = this.equippedSkill?.SkillName ?? "Basic Attack";
+            this.skillCooldown = this.equippedSkill != null ? Mathf.RoundToInt(this.equippedSkill.BaseCooldown) : 0;
 
             this.actionsLog = logService.Entries;
             this.isAlive = true;
@@ -156,6 +162,7 @@ namespace GameSystems.AutoBattle
             this.unitName = name;
             this.unitType = type;
             this.attackRange = range;
+            this.sourceCharacterData = null;
 
             // Create UnitStatController for this unit
             var go = new GameObject($"StatController_{id}");
@@ -259,6 +266,16 @@ namespace GameSystems.AutoBattle
                 this.skillCooldown = Mathf.RoundToInt(skill.BaseCooldown);
                 LogAction($"Equipped skill: {skill.SkillName}");
             }
+        }
+
+        public CombatActionData ResolveVisualAction(ActionType actionType)
+        {
+            if (sourceCharacterData == null)
+            {
+                return null;
+            }
+
+            return sourceCharacterData.ResolveActionForBattle(actionType, equippedSkill);
         }
 
         /// <summary>

@@ -16,14 +16,6 @@ namespace GameSystems.Battle.Editor
 {
     public class UnitAuthoringWindow : EditorWindow
     {
-        private enum PreviewSkillSlot
-        {
-            Basic,
-            Ultimate,
-            Passive,
-            Awaken
-        }
-
         private static readonly Color AccentColor = new Color(0.98f, 0.56f, 0.24f);
         private static readonly Color AccentSoftColor = new Color(0.98f, 0.56f, 0.24f, 0.16f);
         private static readonly Color PanelColor = new Color(0.14f, 0.15f, 0.18f, 1f);
@@ -92,7 +84,8 @@ namespace GameSystems.Battle.Editor
         private SkillViewSequence previewBoundSequence;
         private SkillViewSequence previewOverrideSequence;
         private string previewOverrideLabel;
-        [SerializeField] private PreviewSkillSlot selectedPreviewSkillSlot = PreviewSkillSlot.Basic;
+        [SerializeField] private int selectedPreviewActionIndex;
+        [SerializeField] private bool actionsListExpanded = true;
         [MenuItem("Tools/Battle/Unit Authoring")]
         public static void ShowWindow()
         {
@@ -483,6 +476,7 @@ namespace GameSystems.Battle.Editor
             List<SerializedObject> seqUltiSOs = GetSeqSOs(charSo, "skillUltimate");
             List<SerializedObject> seqPassSOs = GetSeqSOs(charSo, "skillPassive");
             List<SerializedObject> seqAwakSOs = GetSeqSOs(charSo, "skillAwaken");
+            List<SerializedObject> actionSeqSOs = GetActionSeqSOs(charSo);
 
             foreach (var anim in animationInfos)
             {
@@ -515,6 +509,7 @@ namespace GameSystems.Battle.Editor
                 CheckSeqAnimList(usages, anim.Name, seqUltiSOs, "Ultimate Skill");
                 CheckSeqAnimList(usages, anim.Name, seqPassSOs, "Passive Skill");
                 CheckSeqAnimList(usages, anim.Name, seqAwakSOs, "Awaken Skill");
+                CheckSeqAnimList(usages, anim.Name, actionSeqSOs, "Action Data");
 
                 animationUsageCache[anim.Name] = usages.Count == 0 ? "-" : string.Join(", ", usages);
             }
@@ -551,6 +546,47 @@ namespace GameSystems.Battle.Editor
                     {
                         AddUniqueSequence(list, seq);
                     }
+                }
+            }
+
+            return list;
+        }
+
+        private List<SerializedObject> GetActionSeqSOs(SerializedObject charSo)
+        {
+            var list = new List<SerializedObject>();
+            if (charSo == null)
+            {
+                return list;
+            }
+
+            var actionsProp = charSo.FindProperty("actions");
+            if (actionsProp == null || !actionsProp.isArray)
+            {
+                return list;
+            }
+
+            for (int i = 0; i < actionsProp.arraySize; i++)
+            {
+                var actionProp = actionsProp.GetArrayElementAtIndex(i);
+                if (actionProp == null)
+                {
+                    continue;
+                }
+
+                var stepSelectionsProp = actionProp.FindPropertyRelative("stepSelections");
+                if (stepSelectionsProp != null)
+                {
+                    AddSelectedSequences(list, stepSelectionsProp);
+                }
+
+                var viewSequenceProp = actionProp.FindPropertyRelative("viewSequence");
+                if (
+                    viewSequenceProp != null
+                    && viewSequenceProp.objectReferenceValue is SkillViewSequence sequence
+                )
+                {
+                    AddUniqueSequence(list, sequence);
                 }
             }
 
@@ -614,7 +650,7 @@ namespace GameSystems.Battle.Editor
         {
             EditorGUILayout.BeginVertical(cardStyle);
             EditorGUILayout.LabelField("Character Data", sectionHeaderStyle);
-            EditorGUILayout.LabelField("Edit stats, identity, and skill slots directly from the linked SO.", subtitleStyle);
+            EditorGUILayout.LabelField("Edit stats, identity, and combat actions directly from the linked SO.", subtitleStyle);
             EditorGUILayout.Space(4f);
             if (characterData == null)
             {
@@ -623,6 +659,10 @@ namespace GameSystems.Battle.Editor
                 return;
             }
 
+            if (characterData.Actions == null || characterData.Actions.Count == 0)
+            {
+                characterData.EnsureActionsData();
+            }
             var characterSo = new SerializedObject(characterData);
             characterSo.Update();
 
@@ -641,11 +681,15 @@ namespace GameSystems.Battle.Editor
             DrawCharacterProperty(characterSo, "stats", "Stats");
 
             EditorGUILayout.Space(4f);
-            EditorGUILayout.LabelField("Skills", sectionHeaderStyle);
-            DrawSkillProperty(characterSo, "skillBasic", "Basic Skill", PreviewSkillSlot.Basic);
-            DrawSkillProperty(characterSo, "skillUltimate", "Ultimate Skill", PreviewSkillSlot.Ultimate);
-            DrawSkillProperty(characterSo, "skillPassive", "Passive Skill", PreviewSkillSlot.Passive);
-            DrawSkillProperty(characterSo, "skillAwaken", "Awaken Skill", PreviewSkillSlot.Awaken);
+            EditorGUILayout.LabelField("Combat Actions", sectionHeaderStyle);
+            DrawCombatActionsProperty(characterSo, "actions", "Actions");
+
+            EditorGUILayout.Space(4f);
+            EditorGUILayout.LabelField("Legacy Skill Slots (Compatibility)", sectionHeaderStyle);
+            DrawSkillProperty(characterSo, "skillBasic", "Basic Skill");
+            DrawSkillProperty(characterSo, "skillUltimate", "Ultimate Skill");
+            DrawSkillProperty(characterSo, "skillPassive", "Passive Skill");
+            DrawSkillProperty(characterSo, "skillAwaken", "Awaken Skill");
 
             if (characterSo.ApplyModifiedProperties())
             {
@@ -883,23 +927,29 @@ namespace GameSystems.Battle.Editor
             }
         }
 
-        private void DrawSkillProperty(SerializedObject serializedObject, string propertyName, string label, PreviewSkillSlot previewSlot)
+        private void DrawCombatActionsProperty(
+            SerializedObject serializedObject,
+            string propertyName,
+            string label
+        )
+        {
+            var property = serializedObject.FindProperty(propertyName);
+            if (property == null)
+            {
+                return;
+            }
+
+            property.isExpanded = actionsListExpanded;
+            EditorGUILayout.PropertyField(property, new GUIContent(label), true);
+            actionsListExpanded = property.isExpanded;
+        }
+
+        private void DrawSkillProperty(SerializedObject serializedObject, string propertyName, string label)
         {
             var property = serializedObject.FindProperty(propertyName);
             if (property != null)
             {
                 EditorGUILayout.PropertyField(property, new GUIContent(label), true);
-                EditorGUILayout.BeginHorizontal();
-                GUILayout.FlexibleSpace();
-                if (GUILayout.Button("Preview", secondaryButtonStyle, GUILayout.Width(72f)))
-                {
-                    selectedPreviewSkillSlot = previewSlot;
-                    currentTab = 5;
-                    SyncPreviewSkillSelectionFromCharacterData();
-                    Repaint();
-                    GUI.FocusControl(null);
-                }
-                EditorGUILayout.EndHorizontal();
             }
         }
 
@@ -1160,7 +1210,7 @@ namespace GameSystems.Battle.Editor
             try
             {
                 EditorGUILayout.LabelField("Skill Step Preview", sectionHeaderStyle);
-                EditorGUILayout.LabelField("Live preview of the selected skill slot on the current prefab host.", subtitleStyle);
+                EditorGUILayout.LabelField("Live preview of the selected combat action on the current prefab host.", subtitleStyle);
                 EditorGUILayout.Space(8f);
 
                 EnsurePreviewController();
@@ -1173,8 +1223,10 @@ namespace GameSystems.Battle.Editor
 
                 DrawPreviewSkillSlotSelector();
 
-                SkillData previewSkillData = GetSelectedPreviewSkillData();
-                SkillViewSequence previewSequence = previewSkillData != null ? previewSkillData.ViewSequence : null;
+                CombatActionData previewActionData = GetSelectedPreviewActionData();
+                SkillViewSequence previewSequence = previewActionData != null
+                    ? previewActionData.ViewSequence
+                    : null;
 
                 if (previewBoundSequence != previewSequence)
                 {
@@ -1204,10 +1256,10 @@ namespace GameSystems.Battle.Editor
                 EditorGUILayout.EndHorizontal();
 
                 EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField("Skill", GUILayout.Width(70f));
+                EditorGUILayout.LabelField("Action", GUILayout.Width(70f));
                 EditorGUILayout.LabelField(
-                    previewSkillData != null
-                        ? (!string.IsNullOrWhiteSpace(previewSkillData.SkillName) ? previewSkillData.SkillName : previewSkillData.SkillId)
+                    previewActionData != null
+                        ? BuildPreviewActionLabel(previewActionData)
                         : "None selected",
                     EditorStyles.boldLabel);
                 if (GUILayout.Button("Focus", secondaryButtonStyle, GUILayout.Width(60f)))
@@ -1223,7 +1275,8 @@ namespace GameSystems.Battle.Editor
                 EditorGUILayout.EndHorizontal();
 
                 EditorGUILayout.BeginHorizontal();
-                if (previewController.IsPlaying)
+                bool showPauseButton = previewController.IsPlaying && !previewController.IsIdleLoopActive;
+                if (showPauseButton)
                 {
                     if (GUILayout.Button("Pause", primaryButtonStyle, GUILayout.Height(28f)))
                     {
@@ -1269,15 +1322,15 @@ namespace GameSystems.Battle.Editor
                     return;
                 }
 
-                if (previewSkillData == null)
+                if (previewActionData == null)
                 {
-                    EditorGUILayout.HelpBox("Select a skill slot from Character Data to preview its steps.", MessageType.Info);
+                    EditorGUILayout.HelpBox("Select an action from Character Data to preview its steps.", MessageType.Info);
                     return;
                 }
 
                 if (previewSequence == null || previewSequence.Steps == null || previewSequence.Steps.Count == 0)
                 {
-                    EditorGUILayout.HelpBox("The selected skill has no preview steps.", MessageType.Warning);
+                    EditorGUILayout.HelpBox("The selected action has no preview steps.", MessageType.Warning);
                     return;
                 }
 
@@ -1321,15 +1374,15 @@ namespace GameSystems.Battle.Editor
         private void DrawPreviewSkillSlotSelector()
         {
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Skill Slot", GUILayout.Width(70f));
+            EditorGUILayout.LabelField("Action", GUILayout.Width(70f));
 
-            string[] labels = BuildPreviewSkillSlotLabels();
-            int nextIndex = EditorGUILayout.Popup((int)selectedPreviewSkillSlot, labels);
+            string[] labels = BuildPreviewActionLabels();
+            int nextIndex = EditorGUILayout.Popup(selectedPreviewActionIndex, labels);
             nextIndex = Mathf.Clamp(nextIndex, 0, labels.Length - 1);
 
-            if ((PreviewSkillSlot)nextIndex != selectedPreviewSkillSlot)
+            if (nextIndex != selectedPreviewActionIndex)
             {
-                selectedPreviewSkillSlot = (PreviewSkillSlot)nextIndex;
+                selectedPreviewActionIndex = nextIndex;
                 previewBoundSequence = null;
                 SyncPreviewSkillSelectionFromCharacterData();
                 Repaint();
@@ -1338,62 +1391,73 @@ namespace GameSystems.Battle.Editor
             EditorGUILayout.EndHorizontal();
         }
 
-        private string[] BuildPreviewSkillSlotLabels()
+        private string[] BuildPreviewActionLabels()
         {
-            return new[]
+            if (characterData == null)
             {
-                BuildPreviewSkillSlotLabel(PreviewSkillSlot.Basic),
-                BuildPreviewSkillSlotLabel(PreviewSkillSlot.Ultimate),
-                BuildPreviewSkillSlotLabel(PreviewSkillSlot.Passive),
-                BuildPreviewSkillSlotLabel(PreviewSkillSlot.Awaken),
-            };
-        }
-
-        private string BuildPreviewSkillSlotLabel(PreviewSkillSlot slot)
-        {
-            SkillData skillData = GetSkillDataForSlot(slot);
-            string slotName = slot.ToString();
-
-            if (skillData == null)
-            {
-                return $"{slotName}: <None>";
+                return new[] { "<No Character>" };
             }
 
-            string skillName = !string.IsNullOrWhiteSpace(skillData.SkillName) ? skillData.SkillName : skillData.SkillId;
-            return !string.IsNullOrWhiteSpace(skillName) ? $"{slotName}: {skillName}" : $"{slotName}: <Unnamed>";
+            characterData.EnsureActionsData();
+            var actions = characterData.Actions;
+            if (actions == null || actions.Count == 0)
+            {
+                return new[] { "<No Actions>" };
+            }
+
+            selectedPreviewActionIndex = Mathf.Clamp(selectedPreviewActionIndex, 0, actions.Count - 1);
+
+            var labels = new string[actions.Count];
+            for (int i = 0; i < actions.Count; i++)
+            {
+                labels[i] = BuildPreviewActionLabel(actions[i]);
+            }
+
+            return labels;
         }
 
-        private SkillData GetSkillDataForSlot(PreviewSkillSlot slot)
+        private string BuildPreviewActionLabel(CombatActionData actionData)
+        {
+            if (actionData == null)
+            {
+                return "<None>";
+            }
+
+            string name = !string.IsNullOrWhiteSpace(actionData.DisplayName)
+                ? actionData.DisplayName
+                : actionData.ActionKind.ToString();
+            string actionId = !string.IsNullOrWhiteSpace(actionData.ActionId)
+                ? actionData.ActionId
+                : "-";
+            return $"{name} [{actionData.ActionKind}] #{actionId}";
+        }
+
+        private CombatActionData GetSelectedPreviewActionData()
         {
             if (characterData == null)
             {
                 return null;
             }
 
-            switch (slot)
+            characterData.EnsureActionsData();
+            var actions = characterData.Actions;
+            if (actions == null || actions.Count == 0)
             {
-                case PreviewSkillSlot.Basic:
-                    return characterData.skillBasic;
-                case PreviewSkillSlot.Ultimate:
-                    return characterData.skillUltimate;
-                case PreviewSkillSlot.Passive:
-                    return characterData.skillPassive;
-                case PreviewSkillSlot.Awaken:
-                    return characterData.skillAwaken;
-                default:
-                    return characterData.skillBasic;
+                return null;
             }
-        }
 
-        private SkillData GetSelectedPreviewSkillData()
-        {
-            return GetSkillDataForSlot(selectedPreviewSkillSlot);
+            selectedPreviewActionIndex = Mathf.Clamp(selectedPreviewActionIndex, 0, actions.Count - 1);
+            return actions[selectedPreviewActionIndex];
         }
 
         private void SyncPreviewSkillSelectionFromCharacterData()
         {
-            SkillData previewSkillData = GetSelectedPreviewSkillData();
-            SkillViewSequence previewSequence = previewSkillData != null ? previewSkillData.ViewSequence : null;
+            CombatActionData previewAction = GetSelectedPreviewActionData();
+            if (previewAction != null)
+            {
+                previewAction.InvalidateViewSequenceCache();
+            }
+            SkillViewSequence previewSequence = previewAction != null ? previewAction.ViewSequence : null;
             previewBoundSequence = previewSequence;
 
             if (previewController == null)

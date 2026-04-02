@@ -25,9 +25,15 @@ namespace GameSystems.Battle
         {
             if (characterDataSO == null) return;
 
-            skillBasic = CreateSkillConfig(characterDataSO.skillBasic);
-            skillUltimate = CreateSkillConfig(characterDataSO.skillUltimate);
-            skillPassive = CreateSkillConfig(characterDataSO.skillPassive);
+            characterDataSO.EnsureActionsData();
+
+            var basicAction = characterDataSO.GetAction(CombatActionKind.SkillBasic);
+            var ultimateAction = characterDataSO.GetAction(CombatActionKind.SkillUltimate);
+            var passiveAction = characterDataSO.GetAction(CombatActionKind.SkillPassive);
+
+            skillBasic = CreateSkillConfig(basicAction != null ? basicAction.SkillRef : characterDataSO.skillBasic);
+            skillUltimate = CreateSkillConfig(ultimateAction != null ? ultimateAction.SkillRef : characterDataSO.skillUltimate);
+            skillPassive = CreateSkillConfig(passiveAction != null ? passiveAction.SkillRef : characterDataSO.skillPassive);
         }
 
         private SkillConfig CreateSkillConfig(SkillData skillData)

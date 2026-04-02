@@ -55,22 +55,7 @@ namespace GameSystems.Skills.Editor
                 return LineHeight + 4f;
             }
 
-            float height = (LineHeight + VSpacing) * 22f + 8f;
-            var stepSelectionsProp = property.FindPropertyRelative("stepSelections");
-            if (stepSelectionsProp != null)
-            {
-                height += LineHeight + VSpacing;
-                if (stepSelectionsProp.isExpanded)
-                {
-                    for (int i = 0; i < stepSelectionsProp.arraySize; i++)
-                    {
-                        height += GetStepSelectionHeight(
-                            stepSelectionsProp.GetArrayElementAtIndex(i)
-                        );
-                    }
-                }
-            }
-            return height;
+            return (LineHeight + VSpacing) * 22f + 8f;
         }
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
@@ -89,7 +74,6 @@ namespace GameSystems.Skills.Editor
             var damageProp = property.FindPropertyRelative("baseDamage");
             var cooldownProp = property.FindPropertyRelative("baseCooldown");
             var manaProp = property.FindPropertyRelative("manaCost");
-            var stepSelectionsProp = property.FindPropertyRelative("stepSelections");
 
             var headerRect = new Rect(position.x, position.y, position.width, LineHeight);
             string title = BuildTitle(
@@ -180,8 +164,6 @@ namespace GameSystems.Skills.Editor
                     "Total Casts"
                 );
                 DrawLine(position, ref y, property.FindPropertyRelative("icon"), "Icon");
-
-                DrawStepSelectionListEditor(position, ref y, stepSelectionsProp, fieldInfo);
 
                 EditorGUI.indentLevel--;
             }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using GameSystems.AutoBattle;
+using GameSystems.Battle;
 
 namespace GameSystems.Battle.Demo
 {
@@ -16,6 +17,7 @@ namespace GameSystems.Battle.Demo
         // ─── Refs (auto-find từ prefab children) ───
         private AttackBehavior _attackBehavior;
         private SkillBehavior _skillBehavior;
+        private ActionSequenceRunner _actionRunner;
         private BehitBehavior _behitBehavior;
         private AnimationHandle _animHandle;
         private TMP_Text _statusText;
@@ -72,11 +74,17 @@ namespace GameSystems.Battle.Demo
             // Auto-find components trong prefab children
             _attackBehavior = GetComponentInChildren<AttackBehavior>();
             _skillBehavior = GetComponentInChildren<SkillBehavior>();
+            _actionRunner = GetComponentInChildren<ActionSequenceRunner>();
             _behitBehavior = GetComponentInChildren<BehitBehavior>();
             _animHandle = GetComponentInChildren<AnimationHandle>();
             if (_animHandle != null)
             {
                 _animHandle.Initialize();
+            }
+
+            if (_actionRunner == null)
+            {
+                _actionRunner = gameObject.AddComponent<ActionSequenceRunner>();
             }
 
             // Setup attack behavior
@@ -90,6 +98,12 @@ namespace GameSystems.Battle.Demo
             {
                 _skillBehavior.dirType = isPlayer ? -1f : 1f;
                 _skillBehavior.OnEndAction = () => OnActionComplete?.Invoke();
+            }
+
+            if (_actionRunner != null)
+            {
+                _actionRunner.dirType = isPlayer ? -1f : 1f;
+                _actionRunner.OnEndAction = () => OnActionComplete?.Invoke();
             }
 
             // Flip enemy để quay mặt về phía player
@@ -178,6 +192,41 @@ namespace GameSystems.Battle.Demo
             }
         }
 
+        public void PlayAction(CombatActionData action, SkillViewContext context)
+        {
+            if (_actionRunner != null)
+            {
+                _actionRunner.Play(action, context);
+                return;
+            }
+
+            if (action != null && action.ActionKind == CombatActionKind.BasicAttack)
+            {
+                PlayAttack(context != null ? context.PrimaryTargetPosition : transform.position);
+                return;
+            }
+
+            PlaySkill(action != null ? action.ViewSequence : null, context);
+        }
+
+        public void SetActionStepCallback(Action<int, bool> callback)
+        {
+            if (_actionRunner != null)
+            {
+                _actionRunner.OnEndStepAction = callback;
+            }
+
+            if (_skillBehavior != null)
+            {
+                _skillBehavior.OnEndStepAction = callback;
+            }
+
+            if (_attackBehavior != null)
+            {
+                _attackBehavior.OnEndStepAction = callback;
+            }
+        }
+
         /// <summary>
         /// Nhận damage — play beAttack anim + floating text + HP bar
         /// </summary>
@@ -241,6 +290,7 @@ namespace GameSystems.Battle.Demo
         {
             if (_attackBehavior != null) _attackBehavior.SetSpeed(speed);
             if (_skillBehavior != null) _skillBehavior.SetSpeed(speed);
+            if (_actionRunner != null) _actionRunner.SetSpeed(speed);
             if (_animHandle != null) _animHandle.SetSpeed(speed);
         }
 
