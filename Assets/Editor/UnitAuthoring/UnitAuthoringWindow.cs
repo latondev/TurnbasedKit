@@ -16,21 +16,44 @@ namespace GameSystems.Battle.Editor
 {
     public class UnitAuthoringWindow : EditorWindow
     {
-        private static readonly Color AccentColor = new Color(0.98f, 0.56f, 0.24f);
-        private static readonly Color AccentSoftColor = new Color(0.98f, 0.56f, 0.24f, 0.16f);
-        private static readonly Color PanelColor = new Color(0.14f, 0.15f, 0.18f, 1f);
-        private static readonly Color PanelAltColor = new Color(0.17f, 0.18f, 0.22f, 1f);
+        // "The Precise Architect" colors
+        private static readonly Color BaseBackground = new Color(0.0745f, 0.0745f, 0.0745f, 1f); // #131313
+        private static readonly Color SurfaceContainerLowest = new Color(0.0549f, 0.0549f, 0.0549f, 1f); // #0e0e0e
+        private static readonly Color SurfaceContainerLow = new Color(0.1059f, 0.1059f, 0.1098f, 1f); // #1b1b1c
+        private static readonly Color SurfaceContainerHigh = new Color(0.1647f, 0.1647f, 0.1647f, 1f); // #2a2a2a
+        private static readonly Color SurfaceContainerHighest = new Color(0.2078f, 0.2078f, 0.2078f, 1f); // #353535
+        private static readonly Color Primary = new Color(1f, 0.7137f, 0.5647f, 1f); // #ffb690
+        private static readonly Color PrimaryContainer = new Color(0.9412f, 0.4431f, 0.1059f, 1f); // #f0711b
+        private static readonly Color SecondaryContainer = new Color(0.2745f, 0.2863f, 0.2980f, 1f); // #46494c
+        private static readonly Color Tertiary = new Color(0.4784f, 0.8157f, 1f, 1f); // #7ad0ff
+        private static readonly Color TextOnSurface = new Color(0.898f, 0.8863f, 0.8824f, 1f); // #e5e2e1
+        private static readonly Color TextOnSurfaceVariant = new Color(0.8745f, 0.7529f, 0.6941f, 1f); // #dfc0b1
+
+        private static readonly Color PanelColor = SurfaceContainerLowest;
+        private static readonly Color PanelAltColor = SurfaceContainerLowest;
+        private static readonly Color AccentColor = Primary;
+        private static readonly Color AccentSoftColor = new Color(Primary.r, Primary.g, Primary.b, 0.16f);
+        
         private static readonly Color GoodColor = new Color(0.28f, 0.72f, 0.38f);
-        private static readonly Color WarnColor = new Color(0.88f, 0.62f, 0.18f);
-        private static readonly Color BadColor = new Color(0.82f, 0.28f, 0.28f);
+        private static readonly Color WarnColor = Tertiary; // Use Tertiary for logic/warnings (#7ad0ff)
+        private static readonly Color BadColor = new Color(1f, 0.7059f, 0.6706f, 1f); // #ffb4ab (error)
+
         private static readonly GUIContent PreviewPlayContent = new GUIContent("▶", "Preview animation");
 
-        private static Texture2D texPanel;
-        private static Texture2D texPanelAlt;
-        private static Texture2D texElement;
-        private static Texture2D texAccent;
-        private static Texture2D texAccentSoft;
-        private static Texture2D texHover;
+        private static Texture2D texSurfaceLowest;
+        private static Texture2D texSurfaceLow;
+        private static Texture2D texSurfaceHigh;
+        private static Texture2D texSurfaceHighest;
+        private static Texture2D texPrimaryGradient;
+        private static Texture2D texSecondaryContainer;
+
+        private static Texture2D iconAssetSetup;
+        private static Texture2D iconCharacterData;
+        private static Texture2D iconSkeletonData;
+        private static Texture2D iconPrefabAuthoring;
+        private static Texture2D iconSkillSequences;
+        private static Texture2D iconSkillPreview;
+        private static Texture2D[] tabIcons;
 
         [SerializeField] private CharacterDataSO characterData;
         [SerializeField] private GameObject prefabAsset;
@@ -97,6 +120,51 @@ namespace GameSystems.Battle.Editor
         private string previewOverrideLabel;
         [SerializeField] private int selectedPreviewActionIndex;
         [SerializeField] private bool actionsListExpanded = true;
+        [SerializeField] private Vector2 sequenceTimelineScrollPosition;
+        [SerializeField] private float sequenceTimelinePixelsPerSecond = 140f;
+        [SerializeField] private SequenceTemplateArchetype selectedSequenceTemplate = SequenceTemplateArchetype.MeleeSingleHit;
+        [SerializeField] private string sequenceTemplateAnimationName = "skill";
+        [SerializeField] private bool sequenceTemplateOverwriteSequenceId;
+        [SerializeField] private bool markerEditorShowWorldPosition = true;
+        [SerializeField] private int selectedPreviewTimelineStepIndex = -1;
+        [SerializeField] private bool showPreviewMarkerOverlay = true;
+        [SerializeField] private bool previewMarkerEditMode;
+        [SerializeField] private bool showPreviewStepDetails;
+        [SerializeField] private string draggedPreviewMarkerName;
+        [SerializeField] private float draggedPreviewMarkerWorldZ;
+
+        private enum SequenceTemplateArchetype
+        {
+            MeleeSingleHit,
+            MeleeMultiHit,
+            RangedCast,
+            AreaBurst,
+            JumpBehindStrike,
+            SummonPulse
+        }
+
+        private readonly struct MarkerDefinition
+        {
+            public MarkerDefinition(string name, Vector3 defaultLocalPosition)
+            {
+                Name = name;
+                DefaultLocalPosition = defaultLocalPosition;
+            }
+
+            public string Name { get; }
+            public Vector3 DefaultLocalPosition { get; }
+        }
+
+        private static readonly MarkerDefinition[] RequiredMarkers =
+        {
+            new MarkerDefinition("UIPos", new Vector3(0.1f, 1.45f, 0f)),
+            new MarkerDefinition("FlyStart", new Vector3(0.26f, 0.78f, 0f)),
+            new MarkerDefinition("PetPos", new Vector3(-0.42f, 0.74f, 0f)),
+            new MarkerDefinition("BuffTop", new Vector3(0.09f, 1.37f, 0f)),
+            new MarkerDefinition("BuffMiddle", new Vector3(0.09f, 0.67f, 0f)),
+            new MarkerDefinition("BuffBottom", Vector3.zero),
+        };
+
         [MenuItem("Tools/Battle/Unit Authoring")]
         public static void ShowWindow()
         {
@@ -120,6 +188,9 @@ namespace GameSystems.Battle.Editor
             if (skeletonPreviewController == null)
             {
                 skeletonPreviewController = new SkillSequencePreviewController();
+                skeletonPreviewController.ActorStartPosition = new Vector3(0f, -1.0f, 0f);
+                skeletonPreviewController.PreviewCameraPosition = new Vector3(0f, 0.5f, -10f);
+                skeletonPreviewController.PreviewCameraSize = 2.5f;
             }
 
             skeletonPreviewController.SetRepaintCallback(Repaint);
@@ -137,12 +208,12 @@ namespace GameSystems.Battle.Editor
 
         private void OnDisable()
         {
-            if (texPanel != null) { DestroyImmediate(texPanel); texPanel = null; }
-            if (texPanelAlt != null) { DestroyImmediate(texPanelAlt); texPanelAlt = null; }
-            if (texElement != null) { DestroyImmediate(texElement); texElement = null; }
-            if (texAccent != null) { DestroyImmediate(texAccent); texAccent = null; }
-            if (texAccentSoft != null) { DestroyImmediate(texAccentSoft); texAccentSoft = null; }
-            if (texHover != null) { DestroyImmediate(texHover); texHover = null; }
+            if (texSurfaceLowest != null) { DestroyImmediate(texSurfaceLowest); texSurfaceLowest = null; }
+            if (texSurfaceLow != null) { DestroyImmediate(texSurfaceLow); texSurfaceLow = null; }
+            if (texSurfaceHigh != null) { DestroyImmediate(texSurfaceHigh); texSurfaceHigh = null; }
+            if (texSurfaceHighest != null) { DestroyImmediate(texSurfaceHighest); texSurfaceHighest = null; }
+            if (texPrimaryGradient != null) { DestroyImmediate(texPrimaryGradient); texPrimaryGradient = null; }
+            if (texSecondaryContainer != null) { DestroyImmediate(texSecondaryContainer); texSecondaryContainer = null; }
 
             EditorApplication.update -= HandleEditorUpdate;
             SkillViewStepDrawer.SetAnimationOptions(null);
@@ -157,6 +228,8 @@ namespace GameSystems.Battle.Editor
                 previewController.Dispose();
                 previewController = null;
             }
+
+            draggedPreviewMarkerName = null;
 
             UnloadPrefabWorkingCopy();
         }
@@ -201,7 +274,7 @@ namespace GameSystems.Battle.Editor
         private void OnGUI()
         {
             BuildStyles();
-            EditorGUI.DrawRect(new Rect(0, 0, position.width, position.height), new Color(0.12f, 0.13f, 0.15f, 1f));
+            EditorGUI.DrawRect(new Rect(0, 0, position.width, position.height), BaseBackground);
             SkillViewStepDrawer.SetAnimationOptions(animationNames);
             DrawHeader();
 
@@ -279,7 +352,19 @@ namespace GameSystems.Battle.Editor
                 }
 
                 GUIStyle labelStyle = isSelected ? tabSelectedStyle : tabNormalStyle;
-                Rect textRect = new Rect(rect.x + (isSelected ? 14f : 12f), rect.y, rect.width - 12f, rect.height);
+                
+                float textOffset = isSelected ? 14f : 12f;
+                if (tabIcons != null && i < tabIcons.Length && tabIcons[i] != null)
+                {
+                    Rect iconRect = new Rect(rect.x + textOffset, rect.y + 8f, 16f, 16f);
+                    Color oldColor = GUI.color;
+                    GUI.color = isSelected ? Primary : TextOnSurfaceVariant;
+                    GUI.DrawTexture(iconRect, tabIcons[i], ScaleMode.ScaleToFit);
+                    GUI.color = oldColor;
+                    textOffset += 24f; // Shift text right
+                }
+
+                Rect textRect = new Rect(rect.x + textOffset, rect.y, rect.width - textOffset, rect.height);
                 GUI.Label(textRect, tabNames[i], labelStyle);
             }
             EditorGUILayout.EndVertical();
@@ -701,30 +786,43 @@ namespace GameSystems.Battle.Editor
             var characterSo = new SerializedObject(characterData);
             characterSo.Update();
 
+            EditorGUILayout.BeginVertical(sectionBodyStyle);
             EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.BeginVertical();
             DrawCharacterProperty(characterSo, "id", "Id");
-            DrawCharacterProperty(characterSo, "level", "Level");
-            DrawCharacterProperty(characterSo, "isUnlock", "Unlocked");
-            EditorGUILayout.EndHorizontal();
-
-            EditorGUILayout.BeginHorizontal();
             DrawCharacterProperty(characterSo, "nameHero", "Name");
+            EditorGUILayout.EndVertical();
+            EditorGUILayout.Space(8f);
+            EditorGUILayout.BeginVertical();
+            DrawCharacterProperty(characterSo, "level", "Level");
             DrawCharacterProperty(characterSo, "type", "Type");
+            EditorGUILayout.EndVertical();
+            EditorGUILayout.Space(8f);
+            EditorGUILayout.BeginVertical();
+            DrawCharacterProperty(characterSo, "isUnlock", "Unlocked");
             DrawCharacterProperty(characterSo, "rarity", "Rarity");
+            EditorGUILayout.EndVertical();
             EditorGUILayout.EndHorizontal();
+            EditorGUILayout.EndVertical();
 
+            EditorGUILayout.BeginVertical(sectionBodyStyle);
             DrawCharacterProperty(characterSo, "stats", "Stats");
+            EditorGUILayout.EndVertical();
 
             EditorGUILayout.Space(4f);
             EditorGUILayout.LabelField("Combat Actions", sectionHeaderStyle);
+            EditorGUILayout.BeginVertical(sectionBodyStyle);
             DrawCombatActionsProperty(characterSo, "actions", "Actions");
+            EditorGUILayout.EndVertical();
 
             EditorGUILayout.Space(4f);
             EditorGUILayout.LabelField("Legacy Skill Slots (Compatibility)", sectionHeaderStyle);
+            EditorGUILayout.BeginVertical(sectionBodyStyle);
             DrawSkillProperty(characterSo, "skillBasic", "Basic Skill");
             DrawSkillProperty(characterSo, "skillUltimate", "Ultimate Skill");
             DrawSkillProperty(characterSo, "skillPassive", "Passive Skill");
             DrawSkillProperty(characterSo, "skillAwaken", "Awaken Skill");
+            EditorGUILayout.EndVertical();
 
             if (characterSo.ApplyModifiedProperties())
             {
@@ -769,6 +867,7 @@ namespace GameSystems.Battle.Editor
 
             DrawComponentStringSection();
             DrawComponentOrderSection();
+            DrawMarkerEditorSection();
 
             EditorGUILayout.EndVertical();
             EditorGUILayout.Space(4f);
@@ -1002,6 +1101,7 @@ namespace GameSystems.Battle.Editor
 
             var sequenceSo = new SerializedObject(sequence);
             sequenceSo.Update();
+            bool templateApplied = false;
 
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.BeginVertical(GUILayout.ExpandWidth(true));
@@ -1021,13 +1121,21 @@ namespace GameSystems.Battle.Editor
             EditorGUILayout.EndVertical();
             EditorGUILayout.EndHorizontal();
 
+            EditorGUILayout.Space(4f);
+            templateApplied = DrawSequenceTemplateSection(sequence) || templateApplied;
+            if (templateApplied)
+            {
+                sequenceSo.Update();
+            }
+
             var stepsProp = sequenceSo.FindProperty("steps");
             if (stepsProp != null)
             {
                 EditorGUILayout.PropertyField(stepsProp, true);
             }
 
-            if (sequenceSo.ApplyModifiedProperties())
+            bool modified = sequenceSo.ApplyModifiedProperties();
+            if (modified || templateApplied)
             {
                 EditorUtility.SetDirty(sequence);
                 if (previewController != null && previewController.Sequence == sequence)
@@ -1037,6 +1145,706 @@ namespace GameSystems.Battle.Editor
             }
 
             EditorGUILayout.EndVertical();
+        }
+
+        private bool DrawSequenceTemplateSection(SkillViewSequence sequence)
+        {
+            if (sequence == null)
+            {
+                return false;
+            }
+
+            bool applied = false;
+
+            EditorGUILayout.BeginVertical(sectionBodyStyle);
+            EditorGUILayout.LabelField("Archetype Template", sectionHeaderStyle);
+
+            selectedSequenceTemplate = (SequenceTemplateArchetype)EditorGUILayout.EnumPopup(
+                "Template",
+                selectedSequenceTemplate);
+
+            sequenceTemplateAnimationName = DrawTemplateAnimationField(
+                "Animation",
+                sequenceTemplateAnimationName);
+
+            sequenceTemplateOverwriteSequenceId = EditorGUILayout.ToggleLeft(
+                "Overwrite sequence id",
+                sequenceTemplateOverwriteSequenceId);
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Apply Template", primaryButtonStyle, GUILayout.Height(24f)))
+            {
+                ApplyTemplateToSequence(
+                    sequence,
+                    selectedSequenceTemplate,
+                    sequenceTemplateAnimationName,
+                    sequenceTemplateOverwriteSequenceId);
+                applied = true;
+            }
+
+            if (GUILayout.Button("Use Sequence Animation", secondaryButtonStyle, GUILayout.Height(24f)))
+            {
+                sequenceTemplateAnimationName = sequence.AnimationName;
+            }
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.EndVertical();
+
+            return applied;
+        }
+
+        private string DrawTemplateAnimationField(string label, string currentValue)
+        {
+            if (animationNames == null || animationNames.Count == 0)
+            {
+                return EditorGUILayout.TextField(label, string.IsNullOrWhiteSpace(currentValue) ? "skill" : currentValue);
+            }
+
+            List<string> options = new List<string>();
+            BuildFilteredOptions(options, animationNames, animationSearchFilter);
+            if (options.Count == 0)
+            {
+                BuildFilteredOptions(options, animationNames, string.Empty);
+            }
+
+            if (options.Count == 0)
+            {
+                return EditorGUILayout.TextField(label, string.IsNullOrWhiteSpace(currentValue) ? "skill" : currentValue);
+            }
+
+            string safeValue = string.IsNullOrWhiteSpace(currentValue) ? options[0] : currentValue;
+            if (!options.Contains(safeValue))
+            {
+                safeValue = options[0];
+            }
+
+            int currentIndex = options.IndexOf(safeValue);
+            int nextIndex = EditorGUILayout.Popup(label, currentIndex, options.ToArray());
+            if (nextIndex < 0 || nextIndex >= options.Count)
+            {
+                return safeValue;
+            }
+
+            return options[nextIndex];
+        }
+
+        private void ApplyTemplateToSequence(
+            SkillViewSequence sequence,
+            SequenceTemplateArchetype template,
+            string animationName,
+            bool overwriteSequenceId)
+        {
+            if (sequence == null)
+            {
+                return;
+            }
+
+            string safeAnimationName = string.IsNullOrWhiteSpace(animationName)
+                ? "skill"
+                : animationName.Trim();
+
+            Undo.RecordObject(sequence, $"Apply {template} Template");
+            switch (template)
+            {
+                case SequenceTemplateArchetype.MeleeSingleHit:
+                    sequence.ApplyBasicStrikePreset(safeAnimationName);
+                    break;
+                case SequenceTemplateArchetype.MeleeMultiHit:
+                    sequence.SetRuntimeSteps(BuildMeleeMultiHitTemplateSteps(safeAnimationName));
+                    sequence.SetMetadata(safeAnimationName, safeAnimationName, "hit", "falldown", "idle");
+                    break;
+                case SequenceTemplateArchetype.RangedCast:
+                    sequence.ApplyStationaryCastPreset(safeAnimationName);
+                    break;
+                case SequenceTemplateArchetype.AreaBurst:
+                    sequence.ApplyAreaBurstPreset(safeAnimationName);
+                    break;
+                case SequenceTemplateArchetype.JumpBehindStrike:
+                    sequence.ApplyJumpBehindStrikePreset(safeAnimationName);
+                    break;
+                case SequenceTemplateArchetype.SummonPulse:
+                    sequence.SetRuntimeSteps(BuildSummonPulseTemplateSteps(safeAnimationName));
+                    sequence.SetMetadata(safeAnimationName, safeAnimationName, "hit", "falldown", "idle");
+                    break;
+                default:
+                    sequence.ApplyBasicStrikePreset(safeAnimationName);
+                    break;
+            }
+
+            if (overwriteSequenceId || string.IsNullOrWhiteSpace(sequence.SequenceId))
+            {
+                sequence.SetSequenceId(BuildTemplateSequenceId(template));
+            }
+
+            EditorUtility.SetDirty(sequence);
+        }
+
+        private static string BuildTemplateSequenceId(SequenceTemplateArchetype template)
+        {
+            return template switch
+            {
+                SequenceTemplateArchetype.MeleeSingleHit => "melee_single_hit",
+                SequenceTemplateArchetype.MeleeMultiHit => "melee_multi_hit",
+                SequenceTemplateArchetype.RangedCast => "ranged_cast",
+                SequenceTemplateArchetype.AreaBurst => "area_burst",
+                SequenceTemplateArchetype.JumpBehindStrike => "jump_behind_strike",
+                SequenceTemplateArchetype.SummonPulse => "summon_pulse",
+                _ => "custom_sequence",
+            };
+        }
+
+        private static IReadOnlyList<SkillViewStep> BuildMeleeMultiHitTemplateSteps(string animationName)
+        {
+            return new[]
+            {
+                new SkillViewStep(
+                    SkillViewStepType.MoveToTarget,
+                    SkillViewTargetType.PrimaryTarget,
+                    animationName,
+                    animationName,
+                    false,
+                    0.24f,
+                    0f,
+                    1f,
+                    SkillViewMoveMode.Direct),
+                new SkillViewStep(SkillViewStepType.PlayAnimation, SkillViewTargetType.PrimaryTarget, animationName, animationName, false, 0.12f),
+                new SkillViewStep(
+                    SkillViewStepType.TriggerHit,
+                    SkillViewTargetType.PrimaryTarget,
+                    animationName,
+                    animationName,
+                    false,
+                    0f,
+                    0f,
+                    1f,
+                    SkillViewMoveMode.Direct,
+                    false,
+                    true,
+                    1),
+                new SkillViewStep(SkillViewStepType.Wait, SkillViewTargetType.Actor, animationName, animationName, false, 0.06f),
+                new SkillViewStep(SkillViewStepType.PlayAnimation, SkillViewTargetType.PrimaryTarget, animationName, animationName, false, 0.12f),
+                new SkillViewStep(
+                    SkillViewStepType.TriggerHit,
+                    SkillViewTargetType.PrimaryTarget,
+                    animationName,
+                    animationName,
+                    false,
+                    0f,
+                    0f,
+                    1f,
+                    SkillViewMoveMode.Direct,
+                    false,
+                    true,
+                    1),
+                new SkillViewStep(SkillViewStepType.Wait, SkillViewTargetType.Actor, animationName, animationName, false, 0.05f),
+                new SkillViewStep(SkillViewStepType.PlayAnimation, SkillViewTargetType.PrimaryTarget, animationName, animationName, false, 0.12f),
+                new SkillViewStep(
+                    SkillViewStepType.TriggerHit,
+                    SkillViewTargetType.PrimaryTarget,
+                    animationName,
+                    animationName,
+                    false,
+                    0f,
+                    0f,
+                    1f,
+                    SkillViewMoveMode.Direct,
+                    false,
+                    true,
+                    1),
+                new SkillViewStep(SkillViewStepType.MoveBack, SkillViewTargetType.Actor, animationName, animationName, false, 0.24f),
+                new SkillViewStep(SkillViewStepType.SetIdleAnimation, SkillViewTargetType.Actor, "idle", "idle", true, 0.1f)
+            };
+        }
+
+        private static IReadOnlyList<SkillViewStep> BuildSummonPulseTemplateSteps(string animationName)
+        {
+            return new[]
+            {
+                new SkillViewStep(SkillViewStepType.PlayAnimation, SkillViewTargetType.Actor, animationName, animationName, false, 0.18f),
+                new SkillViewStep(
+                    SkillViewStepType.SpawnVfx,
+                    SkillViewTargetType.Actor,
+                    animationName,
+                    animationName,
+                    false,
+                    0.15f,
+                    0f,
+                    1f,
+                    SkillViewMoveMode.Direct,
+                    waitForAnimationEnd: true,
+                    triggerHitEffect: false,
+                    hitCount: 1,
+                    sortingOrder: 0,
+                    flipX: false,
+                    worldPosition: null,
+                    offset: new Vector3(-0.42f, 0.74f, 0f)),
+                new SkillViewStep(SkillViewStepType.Wait, SkillViewTargetType.Actor, animationName, animationName, false, 0.08f),
+                new SkillViewStep(
+                    SkillViewStepType.TriggerHit,
+                    SkillViewTargetType.AllTargets,
+                    animationName,
+                    animationName,
+                    false,
+                    0f,
+                    0f,
+                    1f,
+                    SkillViewMoveMode.Direct,
+                    false,
+                    true,
+                    1),
+                new SkillViewStep(SkillViewStepType.Wait, SkillViewTargetType.Actor, animationName, animationName, false, 0.08f),
+                new SkillViewStep(
+                    SkillViewStepType.TriggerHit,
+                    SkillViewTargetType.AllTargets,
+                    animationName,
+                    animationName,
+                    false,
+                    0f,
+                    0f,
+                    1f,
+                    SkillViewMoveMode.Direct,
+                    false,
+                    true,
+                    1),
+                new SkillViewStep(SkillViewStepType.SetIdleAnimation, SkillViewTargetType.Actor, "idle", "idle", true, 0.1f)
+            };
+        }
+
+        private void DrawSequenceTimeline(SkillViewSequence sequence, int currentStepIndex)
+        {
+            if (sequence == null || sequence.Steps == null || sequence.Steps.Count == 0)
+            {
+                return;
+            }
+
+            EditorGUILayout.Space(4f);
+            EditorGUILayout.BeginVertical(sectionBodyStyle);
+            EditorGUILayout.LabelField("Step Timeline", sectionHeaderStyle);
+            sequenceTimelinePixelsPerSecond = EditorGUILayout.Slider(
+                "Pixels / sec",
+                sequenceTimelinePixelsPerSecond,
+                60f,
+                320f);
+
+            float estimatedDuration = EstimateSequenceDuration(sequence.Steps);
+            DrawKeyValueRow("Estimated Length", $"{estimatedDuration:0.00}s");
+
+            float labelWidth = 168f;
+            float rowHeight = 22f;
+            float axisHeight = 24f;
+            float timelineWidth = Mathf.Max(320f, estimatedDuration * sequenceTimelinePixelsPerSecond + 36f);
+            float canvasWidth = labelWidth + timelineWidth + 12f;
+            float canvasHeight = axisHeight + (sequence.Steps.Count * rowHeight) + 8f;
+            float viewHeight = Mathf.Min(250f, canvasHeight + 8f);
+
+            using (var scope = new EditorGUILayout.ScrollViewScope(sequenceTimelineScrollPosition, GUILayout.Height(viewHeight)))
+            {
+                sequenceTimelineScrollPosition = scope.scrollPosition;
+
+                Rect canvasRect = GUILayoutUtility.GetRect(canvasWidth, canvasHeight, GUILayout.ExpandWidth(false));
+                EditorGUI.DrawRect(canvasRect, new Color(0f, 0f, 0f, 0.12f));
+
+                DrawTimelineAxis(canvasRect, labelWidth, timelineWidth, estimatedDuration);
+
+                float cursor = 0f;
+                for (int i = 0; i < sequence.Steps.Count; i++)
+                {
+                    SkillViewStep step = sequence.Steps[i];
+                    float delay = Mathf.Max(0f, step != null ? step.Delay : 0f);
+                    float duration = EstimateStepDuration(step);
+                    float start = cursor;
+                    float actionStart = start + delay;
+                    float end = actionStart + duration;
+                    float rowY = canvasRect.y + axisHeight + (i * rowHeight);
+
+                    if (i % 2 == 0)
+                    {
+                        EditorGUI.DrawRect(new Rect(canvasRect.x, rowY, canvasRect.width, rowHeight), new Color(1f, 1f, 1f, 0.03f));
+                    }
+
+                    if (selectedPreviewTimelineStepIndex == i)
+                    {
+                        EditorGUI.DrawRect(new Rect(canvasRect.x, rowY, canvasRect.width, 1f), new Color(Primary.r, Primary.g, Primary.b, 0.8f));
+                        EditorGUI.DrawRect(new Rect(canvasRect.x, rowY + rowHeight - 1f, canvasRect.width, 1f), new Color(Primary.r, Primary.g, Primary.b, 0.8f));
+                    }
+
+                    if (currentStepIndex == i)
+                    {
+                        EditorGUI.DrawRect(new Rect(canvasRect.x, rowY + 1f, 3f, rowHeight - 2f), new Color(AccentColor.r, AccentColor.g, AccentColor.b, 0.95f));
+                    }
+
+                    string label = step == null
+                        ? $"{i + 1}. (null)"
+                        : $"{i + 1}. {step.StepType}";
+                    GUI.Label(new Rect(canvasRect.x + 6f, rowY + 3f, labelWidth - 10f, rowHeight - 6f), label, EditorStyles.miniLabel);
+
+                    float delayX = canvasRect.x + labelWidth + (start * sequenceTimelinePixelsPerSecond);
+                    float delayWidth = delay * sequenceTimelinePixelsPerSecond;
+                    if (delayWidth > 0.5f)
+                    {
+                        EditorGUI.DrawRect(
+                            new Rect(delayX, rowY + 5f, delayWidth, rowHeight - 10f),
+                            new Color(1f, 1f, 1f, 0.08f));
+                    }
+
+                    float actionX = canvasRect.x + labelWidth + (actionStart * sequenceTimelinePixelsPerSecond);
+                    float actionWidth = Mathf.Max(3f, duration * sequenceTimelinePixelsPerSecond);
+                    Color stepColor = GetTimelineColor(step != null ? step.StepType : SkillViewStepType.Wait);
+                    EditorGUI.DrawRect(new Rect(actionX, rowY + 4f, actionWidth, rowHeight - 8f), stepColor);
+
+                    if (selectedPreviewTimelineStepIndex == i)
+                    {
+                        EditorGUI.DrawRect(new Rect(actionX, rowY + 4f, actionWidth, 1f), new Color(1f, 1f, 1f, 0.5f));
+                        EditorGUI.DrawRect(new Rect(actionX, rowY + rowHeight - 5f, actionWidth, 1f), new Color(1f, 1f, 1f, 0.5f));
+                    }
+
+                    if (step != null && step.StepType == SkillViewStepType.TriggerHit)
+                    {
+                        EditorGUI.DrawRect(
+                            new Rect(actionX - 1f, rowY + 3f, 2f, rowHeight - 6f),
+                            new Color(1f, 0.25f, 0.25f, 0.9f));
+                    }
+
+                    string timingText = $"{actionStart:0.00}s -> {end:0.00}s";
+                    GUI.Label(
+                        new Rect(actionX + 4f, rowY + 3f, Mathf.Max(20f, actionWidth - 6f), rowHeight - 6f),
+                        timingText,
+                        EditorStyles.miniLabel);
+
+                    cursor = end;
+                }
+            }
+
+            EditorGUILayout.EndVertical();
+        }
+
+        private void DrawTimelineAxis(Rect canvasRect, float labelWidth, float timelineWidth, float estimatedDuration)
+        {
+            float axisY = canvasRect.y + 14f;
+            float axisStart = canvasRect.x + labelWidth;
+            float axisEnd = axisStart + timelineWidth;
+            EditorGUI.DrawRect(new Rect(axisStart, axisY, timelineWidth, 1f), new Color(1f, 1f, 1f, 0.22f));
+
+            float majorStep = estimatedDuration > 8f ? 1f : 0.5f;
+            if (estimatedDuration > 20f)
+            {
+                majorStep = 2f;
+            }
+
+            int maxIndex = Mathf.CeilToInt(Mathf.Max(estimatedDuration, 0.01f) / majorStep);
+            for (int i = 0; i <= maxIndex; i++)
+            {
+                float time = i * majorStep;
+                float x = axisStart + (time * sequenceTimelinePixelsPerSecond);
+                if (x > axisEnd)
+                {
+                    break;
+                }
+
+                EditorGUI.DrawRect(new Rect(x, axisY - 4f, 1f, 8f), new Color(1f, 1f, 1f, 0.26f));
+                GUI.Label(new Rect(x + 2f, axisY - 14f, 46f, 14f), $"{time:0.#}s", EditorStyles.miniLabel);
+            }
+        }
+
+        private static float EstimateSequenceDuration(IReadOnlyList<SkillViewStep> steps)
+        {
+            if (steps == null || steps.Count == 0)
+            {
+                return 0f;
+            }
+
+            float cursor = 0f;
+            for (int i = 0; i < steps.Count; i++)
+            {
+                SkillViewStep step = steps[i];
+                if (step == null)
+                {
+                    continue;
+                }
+
+                float delay = Mathf.Max(0f, step.Delay);
+                float duration = EstimateStepDuration(step);
+                cursor += delay + duration;
+            }
+
+            return Mathf.Max(0.05f, cursor);
+        }
+
+        private static float EstimateStepDuration(SkillViewStep step)
+        {
+            if (step == null)
+            {
+                return 0f;
+            }
+
+            float duration = Mathf.Max(0f, step.Duration);
+            if (duration > 0.0001f)
+            {
+                return duration;
+            }
+
+            return step.StepType switch
+            {
+                SkillViewStepType.TriggerHit => 0.05f,
+                SkillViewStepType.SetFlipX => 0.03f,
+                SkillViewStepType.SetSortingOrder => 0.03f,
+                SkillViewStepType.ResetSortingOrder => 0.03f,
+                SkillViewStepType.SpawnVfx => 0.08f,
+                _ => 0.04f,
+            };
+        }
+
+        private static Color GetTimelineColor(SkillViewStepType stepType)
+        {
+            return stepType switch
+            {
+                SkillViewStepType.MoveToTarget => new Color(0.45f, 0.72f, 1f, 0.95f),
+                SkillViewStepType.MoveBack => new Color(0.29f, 0.65f, 1f, 0.95f),
+                SkillViewStepType.PlayAnimation => new Color(0.96f, 0.68f, 0.38f, 0.96f),
+                SkillViewStepType.Wait => new Color(0.76f, 0.76f, 0.76f, 0.82f),
+                SkillViewStepType.SpawnVfx => new Color(0.66f, 0.48f, 1f, 0.95f),
+                SkillViewStepType.TriggerHit => new Color(1f, 0.45f, 0.45f, 0.96f),
+                SkillViewStepType.SetFlipX => new Color(0.38f, 1f, 0.72f, 0.95f),
+                SkillViewStepType.SetSortingOrder => new Color(0.42f, 0.88f, 1f, 0.95f),
+                SkillViewStepType.ResetSortingOrder => new Color(0.42f, 0.88f, 1f, 0.8f),
+                SkillViewStepType.SetIdleAnimation => new Color(0.45f, 0.95f, 0.55f, 0.95f),
+                _ => new Color(1f, 1f, 1f, 0.9f),
+            };
+        }
+
+        private void DrawSelectedPreviewStepDetails(SkillViewSequence sequence)
+        {
+            if (sequence == null || sequence.Steps == null || sequence.Steps.Count == 0)
+            {
+                return;
+            }
+
+            int clampedIndex = Mathf.Clamp(selectedPreviewTimelineStepIndex, 0, sequence.Steps.Count - 1);
+            if (selectedPreviewTimelineStepIndex < 0 || selectedPreviewTimelineStepIndex >= sequence.Steps.Count)
+            {
+                return;
+            }
+
+            SkillViewStep step = sequence.Steps[clampedIndex];
+            if (step == null)
+            {
+                return;
+            }
+
+            EditorGUILayout.Space(6f);
+            EditorGUILayout.BeginVertical(sectionBodyStyle);
+            EditorGUILayout.LabelField($"Selected Step {clampedIndex + 1}", sectionHeaderStyle);
+            DrawKeyValueRow("Type", step.StepType.ToString());
+            DrawKeyValueRow("Target", step.TargetType.ToString());
+            DrawKeyValueRow("Animation", string.IsNullOrWhiteSpace(step.AnimationName) ? "-" : step.AnimationName);
+            DrawKeyValueRow("Fallback", string.IsNullOrWhiteSpace(step.FallbackAnimationName) ? "-" : step.FallbackAnimationName);
+            DrawKeyValueRow("Duration", $"{step.Duration:0.00}s");
+            DrawKeyValueRow("Delay", $"{step.Delay:0.00}s");
+            DrawKeyValueRow("Move Mode", step.MoveMode.ToString());
+            DrawKeyValueRow("Wait For End", step.WaitForAnimationEnd ? "Yes" : "No");
+            DrawKeyValueRow("Trigger Hit", step.TriggerHitEffect ? "Yes" : "No");
+            DrawKeyValueRow("Hit Count", step.HitCount.ToString());
+            if (step.StepType == SkillViewStepType.SpawnVfx)
+            {
+                DrawKeyValueRow("VFX", step.VfxPrefab != null ? step.VfxPrefab.name : "-");
+                DrawKeyValueRow("Offset", step.Offset.ToString("F2"));
+                DrawKeyValueRow("World Pos", step.WorldPosition.ToString("F2"));
+            }
+            else if (step.StepType == SkillViewStepType.MoveToTarget || step.StepType == SkillViewStepType.MoveBack)
+            {
+                DrawKeyValueRow("Move Distance", $"{step.MoveDistance:0.00}");
+                DrawKeyValueRow("Offset", step.Offset.ToString("F2"));
+            }
+            else if (step.StepType == SkillViewStepType.SetSortingOrder)
+            {
+                DrawKeyValueRow("Sorting Order", step.SortingOrder.ToString());
+            }
+            else if (step.StepType == SkillViewStepType.SetFlipX)
+            {
+                DrawKeyValueRow("Flip X", step.FlipX ? "True" : "False");
+            }
+
+            EditorGUILayout.EndVertical();
+        }
+
+        private void DrawPreviewMarkerOverlay(Rect previewRect)
+        {
+            if (!showPreviewMarkerOverlay || previewController == null || !previewController.HasPreviewObject)
+            {
+                return;
+            }
+
+            UnityEngine.Event evt = UnityEngine.Event.current;
+            Vector3 draggedMarkerPosition;
+            Vector2 previewOrigin = new Vector2(previewRect.x, previewRect.y);
+            bool allowMarkerEditing = previewMarkerEditMode;
+            if (!allowMarkerEditing)
+            {
+                draggedPreviewMarkerName = null;
+            }
+            if (!string.IsNullOrWhiteSpace(draggedPreviewMarkerName)
+                && !previewController.TryGetPreviewMarkerWorldPosition(draggedPreviewMarkerName, out draggedMarkerPosition)
+                && evt != null
+                && evt.type != EventType.MouseDrag)
+            {
+                draggedPreviewMarkerName = null;
+            }
+
+            EditorGUI.DrawRect(
+                new Rect(previewRect.x + 8f, previewRect.y + 8f, 110f, 18f),
+                new Color(0f, 0f, 0f, 0.35f));
+            GUI.Label(
+                new Rect(previewRect.x + 12f, previewRect.y + 10f, 100f, 14f),
+                "Marker Overlay",
+                EditorStyles.miniBoldLabel);
+
+            Rect legendRect = new Rect(previewRect.x + 8f, previewRect.y + 28f, 118f, 18f + (RequiredMarkers.Length * 18f));
+            EditorGUI.DrawRect(legendRect, new Color(0f, 0f, 0f, 0.28f));
+            GUI.Label(
+                new Rect(legendRect.x + 8f, legendRect.y + 4f, legendRect.width - 16f, 14f),
+                "Legend",
+                EditorStyles.miniBoldLabel);
+
+            for (int i = 0; i < RequiredMarkers.Length; i++)
+            {
+                MarkerDefinition definition = RequiredMarkers[i];
+                if (!previewController.TryGetPreviewMarkerWorldPosition(definition.Name, out Vector3 worldPosition))
+                {
+                    continue;
+                }
+
+                if (!previewController.TryProjectWorldToPreviewPoint(previewRect, worldPosition, out Vector2 screenPoint))
+                {
+                    continue;
+                }
+
+                Color markerColor = GetMarkerOverlayColor(i);
+                Rect dotRect = new Rect(screenPoint.x - 3f, screenPoint.y - 3f, 6f, 6f);
+                bool isDraggingThisMarker = string.Equals(draggedPreviewMarkerName, definition.Name, StringComparison.Ordinal);
+                EditorGUI.DrawRect(dotRect, markerColor);
+                EditorGUI.DrawRect(new Rect(dotRect.x - 1f, dotRect.y - 1f, dotRect.width + 2f, 1f), Color.black);
+                EditorGUI.DrawRect(new Rect(dotRect.x - 1f, dotRect.yMax, dotRect.width + 2f, 1f), Color.black);
+                EditorGUI.DrawRect(new Rect(dotRect.x - 1f, dotRect.y - 1f, 1f, dotRect.height + 2f), Color.black);
+                EditorGUI.DrawRect(new Rect(dotRect.xMax, dotRect.y - 1f, 1f, dotRect.height + 2f), Color.black);
+
+                Rect legendRowRect = new Rect(legendRect.x + 8f, legendRect.y + 20f + (i * 18f), legendRect.width - 16f, 16f);
+                Rect legendDotRect = new Rect(legendRowRect.x, legendRowRect.y + 4f, 8f, 8f);
+                EditorGUI.DrawRect(legendDotRect, markerColor);
+                GUI.Label(
+                    new Rect(legendRowRect.x + 14f, legendRowRect.y, legendRowRect.width - 14f, 16f),
+                    definition.Name,
+                    EditorStyles.miniLabel);
+
+                Rect hitRect = new Rect(
+                    Mathf.Min(dotRect.xMin, legendDotRect.xMin),
+                    Mathf.Min(dotRect.yMin, legendDotRect.yMin),
+                    Mathf.Max(dotRect.xMax, legendDotRect.xMax) - Mathf.Min(dotRect.xMin, legendDotRect.xMin),
+                    Mathf.Max(dotRect.yMax, legendDotRect.yMax) - Mathf.Min(dotRect.yMin, legendDotRect.yMin));
+
+                if (evt == null)
+                {
+                    continue;
+                }
+
+                if (allowMarkerEditing && evt.type == EventType.MouseDown && evt.button == 0 && hitRect.Contains(evt.mousePosition))
+                {
+                    draggedPreviewMarkerName = definition.Name;
+                    draggedPreviewMarkerWorldZ = worldPosition.z;
+                    GUI.FocusControl(null);
+                    evt.Use();
+                    Repaint();
+                    return;
+                }
+
+                if (allowMarkerEditing && isDraggingThisMarker && evt.type == EventType.MouseDrag && evt.button == 0)
+                {
+                    if (previewController.TryScreenPointToWorldPoint(previewRect, evt.mousePosition - previewOrigin, draggedPreviewMarkerWorldZ, out Vector3 nextWorldPosition))
+                    {
+                        UpdatePreviewMarkerPosition(definition.Name, nextWorldPosition);
+                        evt.Use();
+                        Repaint();
+                    }
+                }
+
+                if (isDraggingThisMarker && evt.type == EventType.MouseUp && evt.button == 0)
+                {
+                    draggedPreviewMarkerName = null;
+                    evt.Use();
+                    Repaint();
+                }
+            }
+        }
+
+        private void UpdatePreviewMarkerPosition(string markerName, Vector3 worldPosition)
+        {
+            if (string.IsNullOrWhiteSpace(markerName))
+            {
+                return;
+            }
+
+            if (previewController != null)
+            {
+                previewController.TrySetPreviewMarkerWorldPosition(markerName, worldPosition);
+            }
+
+            if (workingPrefabRoot == null)
+            {
+                return;
+            }
+
+            Transform marker = FindMarkerTransform(workingPrefabRoot.transform, markerName);
+            if (marker == null)
+            {
+                return;
+            }
+
+            Undo.RecordObject(marker, $"Move {markerName}");
+            marker.position = worldPosition;
+            EditorUtility.SetDirty(marker);
+            EditorUtility.SetDirty(workingPrefabRoot);
+        }
+
+        private static Transform FindMarkerTransform(Transform root, string markerName)
+        {
+            if (root == null || string.IsNullOrWhiteSpace(markerName))
+            {
+                return null;
+            }
+
+            for (int i = 0; i < root.childCount; i++)
+            {
+                Transform child = root.GetChild(i);
+                if (child == null)
+                {
+                    continue;
+                }
+
+                if (string.Equals(child.name, markerName, StringComparison.Ordinal))
+                {
+                    return child;
+                }
+
+                Transform nested = FindMarkerTransform(child, markerName);
+                if (nested != null)
+                {
+                    return nested;
+                }
+            }
+
+            return null;
+        }
+
+        private static Color GetMarkerOverlayColor(int index)
+        {
+            switch (index % 6)
+            {
+                case 0: return new Color(1f, 0.55f, 0.45f, 1f);
+                case 1: return new Color(0.45f, 0.9f, 1f, 1f);
+                case 2: return new Color(0.65f, 1f, 0.5f, 1f);
+                case 3: return new Color(1f, 0.82f, 0.35f, 1f);
+                case 4: return new Color(0.72f, 0.58f, 1f, 1f);
+                default: return new Color(1f, 0.72f, 0.8f, 1f);
+            }
         }
 
         private void DrawComponentStringSection()
@@ -1124,6 +1932,363 @@ namespace GameSystems.Battle.Editor
             {
                 EditorUtility.SetDirty(animationHandle);
             }
+        }
+
+        private void DrawMarkerEditorSection()
+        {
+            EditorGUILayout.Space(6f);
+            EditorGUILayout.LabelField("Anchor Marker Editor", sectionHeaderStyle);
+
+            if (workingPrefabRoot == null)
+            {
+                EditorGUILayout.HelpBox("No working prefab loaded.", MessageType.Info);
+                return;
+            }
+
+            Transform[] allTransforms = workingPrefabRoot.GetComponentsInChildren<Transform>(true);
+            var markerMap = new Dictionary<string, List<Transform>>(StringComparer.Ordinal);
+
+            for (int i = 0; i < allTransforms.Length; i++)
+            {
+                Transform transformNode = allTransforms[i];
+                if (transformNode == null)
+                {
+                    continue;
+                }
+
+                string markerName = transformNode.name;
+                if (!IsRequiredMarkerName(markerName))
+                {
+                    continue;
+                }
+
+                if (!markerMap.TryGetValue(markerName, out List<Transform> list))
+                {
+                    list = new List<Transform>();
+                    markerMap.Add(markerName, list);
+                }
+
+                list.Add(transformNode);
+            }
+
+            int missingCount = 0;
+            int duplicateCount = 0;
+            for (int i = 0; i < RequiredMarkers.Length; i++)
+            {
+                var definition = RequiredMarkers[i];
+                if (!markerMap.TryGetValue(definition.Name, out List<Transform> markers) || markers.Count == 0)
+                {
+                    missingCount++;
+                }
+                else if (markers.Count > 1)
+                {
+                    duplicateCount += markers.Count - 1;
+                }
+            }
+
+            EditorGUILayout.BeginVertical(sectionBodyStyle);
+            DrawKeyValueRow("Required Markers", RequiredMarkers.Length.ToString());
+            DrawKeyValueRow("Missing", missingCount.ToString());
+            DrawKeyValueRow("Duplicates", duplicateCount.ToString());
+            if (missingCount > 0)
+            {
+                EditorGUILayout.HelpBox("Some required markers are missing. Create missing markers to keep battle placement predictable.", MessageType.Warning);
+            }
+
+            if (duplicateCount > 0)
+            {
+                EditorGUILayout.HelpBox("Duplicate marker names detected. Runtime lookups may pick unintended transforms.", MessageType.Warning);
+            }
+
+            bool refreshNeeded = false;
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Create Missing", secondaryButtonStyle, GUILayout.Height(24f)))
+            {
+                CreateMissingMarkers(markerMap);
+                refreshNeeded = true;
+            }
+
+            if (GUILayout.Button("Reset All", secondaryButtonStyle, GUILayout.Height(24f)))
+            {
+                ResetAllMarkersToDefault(markerMap);
+                refreshNeeded = true;
+            }
+
+            if (GUILayout.Button("Zero Z", secondaryButtonStyle, GUILayout.Height(24f)))
+            {
+                NormalizeMarkersToZeroZ(markerMap);
+                refreshNeeded = true;
+            }
+            EditorGUILayout.EndHorizontal();
+
+            markerEditorShowWorldPosition = EditorGUILayout.ToggleLeft(
+                "Show world position",
+                markerEditorShowWorldPosition);
+            EditorGUILayout.EndVertical();
+
+            if (refreshNeeded)
+            {
+                RefreshPrefabCache();
+            }
+
+            for (int i = 0; i < RequiredMarkers.Length; i++)
+            {
+                DrawSingleMarkerEditor(RequiredMarkers[i], markerMap);
+            }
+        }
+
+        private void DrawSingleMarkerEditor(
+            MarkerDefinition definition,
+            Dictionary<string, List<Transform>> markerMap)
+        {
+            markerMap.TryGetValue(definition.Name, out List<Transform> markers);
+            Transform marker = markers != null && markers.Count > 0 ? markers[0] : null;
+            bool hasDuplicate = markers != null && markers.Count > 1;
+
+            EditorGUILayout.BeginVertical(sectionBodyStyle);
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField(definition.Name, sectionHeaderStyle);
+            if (marker == null)
+            {
+                GUILayout.Label("Missing", EditorStyles.miniBoldLabel, GUILayout.Width(60f));
+            }
+            else if (hasDuplicate)
+            {
+                GUILayout.Label("Duplicate", EditorStyles.miniBoldLabel, GUILayout.Width(60f));
+            }
+            else
+            {
+                GUILayout.Label("OK", EditorStyles.miniBoldLabel, GUILayout.Width(60f));
+            }
+            EditorGUILayout.EndHorizontal();
+
+            if (marker == null)
+            {
+                EditorGUILayout.HelpBox($"{definition.Name} not found.", MessageType.Warning);
+                if (GUILayout.Button($"Create {definition.Name}", secondaryButtonStyle, GUILayout.Height(22f)))
+                {
+                    CreateMarker(definition);
+                    RefreshPrefabCache();
+                }
+
+                EditorGUILayout.EndVertical();
+                return;
+            }
+
+            if (hasDuplicate)
+            {
+                EditorGUILayout.HelpBox(
+                    $"{definition.Name} appears {markers.Count} times. First one is being edited.",
+                    MessageType.Warning);
+            }
+
+            Vector3 currentLocalPosition = marker.localPosition;
+            Vector3 nextLocalPosition = EditorGUILayout.Vector3Field("Local Position", currentLocalPosition);
+            if (nextLocalPosition != currentLocalPosition)
+            {
+                Undo.RecordObject(marker, $"Edit {definition.Name} Local Position");
+                marker.localPosition = nextLocalPosition;
+                EditorUtility.SetDirty(marker);
+                EditorUtility.SetDirty(workingPrefabRoot);
+            }
+
+            if (markerEditorShowWorldPosition)
+            {
+                DrawKeyValueRow("World Position", marker.position.ToString("F3"));
+            }
+
+            DrawKeyValueRow("Hierarchy", GetTransformHierarchyPath(marker, workingPrefabRoot.transform));
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Ping", secondaryButtonStyle, GUILayout.Height(22f)))
+            {
+                EditorGUIUtility.PingObject(marker.gameObject);
+            }
+
+            if (GUILayout.Button("Reset", secondaryButtonStyle, GUILayout.Height(22f)))
+            {
+                Undo.RecordObject(marker, $"Reset {definition.Name}");
+                marker.localPosition = definition.DefaultLocalPosition;
+                marker.localRotation = Quaternion.identity;
+                marker.localScale = Vector3.one;
+                EditorUtility.SetDirty(marker);
+                EditorUtility.SetDirty(workingPrefabRoot);
+            }
+
+            if (GUILayout.Button("Move To Root", secondaryButtonStyle, GUILayout.Height(22f)))
+            {
+                Undo.SetTransformParent(marker, workingPrefabRoot.transform, $"Reparent {definition.Name}");
+                marker.SetParent(workingPrefabRoot.transform, true);
+                EditorUtility.SetDirty(marker);
+                EditorUtility.SetDirty(workingPrefabRoot);
+            }
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.EndVertical();
+        }
+
+        private static string GetTransformHierarchyPath(Transform node, Transform root)
+        {
+            if (node == null)
+            {
+                return "-";
+            }
+
+            var segments = new List<string>();
+            Transform current = node;
+            while (current != null)
+            {
+                segments.Add(current.name);
+                if (current == root)
+                {
+                    break;
+                }
+
+                current = current.parent;
+            }
+
+            segments.Reverse();
+            return string.Join("/", segments);
+        }
+
+        private void CreateMissingMarkers(Dictionary<string, List<Transform>> markerMap)
+        {
+            if (workingPrefabRoot == null)
+            {
+                return;
+            }
+
+            bool createdAny = false;
+            for (int i = 0; i < RequiredMarkers.Length; i++)
+            {
+                MarkerDefinition definition = RequiredMarkers[i];
+                if (markerMap.TryGetValue(definition.Name, out List<Transform> markers) && markers.Count > 0)
+                {
+                    continue;
+                }
+
+                CreateMarker(definition);
+                createdAny = true;
+            }
+
+            if (createdAny)
+            {
+                EditorUtility.SetDirty(workingPrefabRoot);
+            }
+        }
+
+        private void ResetAllMarkersToDefault(Dictionary<string, List<Transform>> markerMap)
+        {
+            if (workingPrefabRoot == null)
+            {
+                return;
+            }
+
+            bool changed = false;
+            for (int i = 0; i < RequiredMarkers.Length; i++)
+            {
+                MarkerDefinition definition = RequiredMarkers[i];
+                if (!markerMap.TryGetValue(definition.Name, out List<Transform> markers) || markers.Count == 0)
+                {
+                    continue;
+                }
+
+                for (int markerIndex = 0; markerIndex < markers.Count; markerIndex++)
+                {
+                    Transform marker = markers[markerIndex];
+                    if (marker == null)
+                    {
+                        continue;
+                    }
+
+                    Undo.RecordObject(marker, $"Reset {definition.Name}");
+                    marker.localPosition = definition.DefaultLocalPosition;
+                    marker.localRotation = Quaternion.identity;
+                    marker.localScale = Vector3.one;
+                    EditorUtility.SetDirty(marker);
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                EditorUtility.SetDirty(workingPrefabRoot);
+            }
+        }
+
+        private void NormalizeMarkersToZeroZ(Dictionary<string, List<Transform>> markerMap)
+        {
+            bool changed = false;
+            for (int i = 0; i < RequiredMarkers.Length; i++)
+            {
+                MarkerDefinition definition = RequiredMarkers[i];
+                if (!markerMap.TryGetValue(definition.Name, out List<Transform> markers) || markers.Count == 0)
+                {
+                    continue;
+                }
+
+                for (int markerIndex = 0; markerIndex < markers.Count; markerIndex++)
+                {
+                    Transform marker = markers[markerIndex];
+                    if (marker == null)
+                    {
+                        continue;
+                    }
+
+                    Vector3 localPosition = marker.localPosition;
+                    if (Mathf.Abs(localPosition.z) <= 0.0001f)
+                    {
+                        continue;
+                    }
+
+                    Undo.RecordObject(marker, $"Normalize {definition.Name} Z");
+                    marker.localPosition = new Vector3(localPosition.x, localPosition.y, 0f);
+                    EditorUtility.SetDirty(marker);
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                EditorUtility.SetDirty(workingPrefabRoot);
+            }
+        }
+
+        private void CreateMarker(MarkerDefinition definition)
+        {
+            if (workingPrefabRoot == null)
+            {
+                return;
+            }
+
+            var markerObject = new GameObject(definition.Name);
+            Undo.RegisterCreatedObjectUndo(markerObject, $"Create {definition.Name}");
+
+            Transform markerTransform = markerObject.transform;
+            markerTransform.SetParent(workingPrefabRoot.transform, false);
+            markerTransform.localPosition = definition.DefaultLocalPosition;
+            markerTransform.localRotation = Quaternion.identity;
+            markerTransform.localScale = Vector3.one;
+
+            EditorUtility.SetDirty(markerObject);
+            EditorUtility.SetDirty(workingPrefabRoot);
+        }
+
+        private static bool IsRequiredMarkerName(string markerName)
+        {
+            if (string.IsNullOrEmpty(markerName))
+            {
+                return false;
+            }
+
+            for (int i = 0; i < RequiredMarkers.Length; i++)
+            {
+                if (string.Equals(RequiredMarkers[i].Name, markerName, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void DrawComponentStrings(string header, Component component, IEnumerable<string> stringProperties)
@@ -1299,10 +2464,11 @@ namespace GameSystems.Battle.Editor
 
                 EnsurePreviewController();
 
-                if (previewBoundPrefab != prefabAsset || !previewController.HasPreviewObject)
+                GameObject previewSourcePrefab = workingPrefabRoot != null ? workingPrefabRoot : prefabAsset;
+                if (previewBoundPrefab != previewSourcePrefab || !previewController.HasPreviewObject)
                 {
-                    previewBoundPrefab = prefabAsset;
-                    previewController.BindPrefab(prefabAsset);
+                    previewBoundPrefab = previewSourcePrefab;
+                    previewController.BindPrefab(previewSourcePrefab);
                 }
 
                 DrawPreviewSkillSlotSelector();
@@ -1316,6 +2482,18 @@ namespace GameSystems.Battle.Editor
                 {
                     previewBoundSequence = previewSequence;
                     previewController.SetSequence(previewSequence);
+                    if (previewSequence != null && previewSequence.Steps != null && previewSequence.Steps.Count > 0)
+                    {
+                        selectedPreviewTimelineStepIndex = Mathf.Clamp(previewController.CurrentStepIndex, 0, previewSequence.Steps.Count - 1);
+                        if (selectedPreviewTimelineStepIndex < 0)
+                        {
+                            selectedPreviewTimelineStepIndex = 0;
+                        }
+                    }
+                    else
+                    {
+                        selectedPreviewTimelineStepIndex = -1;
+                    }
                 }
 
                 if (Mathf.Abs(previewController.Speed - previewPlaybackSpeed) > 0.0001f)
@@ -1387,6 +2565,8 @@ namespace GameSystems.Battle.Editor
                 EditorGUILayout.LabelField("Speed", GUILayout.Width(70f));
                 previewPlaybackSpeed = EditorGUILayout.Slider(previewPlaybackSpeed, 0.25f, 3f);
                 EditorGUILayout.LabelField(string.Format("{0:0.00}x", previewPlaybackSpeed), GUILayout.Width(48f));
+                showPreviewMarkerOverlay = EditorGUILayout.ToggleLeft("Markers", showPreviewMarkerOverlay, GUILayout.Width(78f));
+                previewMarkerEditMode = EditorGUILayout.ToggleLeft("Edit", previewMarkerEditMode, GUILayout.Width(54f));
                 EditorGUILayout.EndHorizontal();
 
                 EditorGUILayout.Space(8f);
@@ -1395,6 +2575,7 @@ namespace GameSystems.Battle.Editor
                 previewRect.height = 320f;
                 EditorGUI.DrawRect(previewRect, PanelAltColor);
                 previewController.DrawPreview(previewRect);
+                DrawPreviewMarkerOverlay(previewRect);
 
                 EditorGUILayout.Space(8f);
 
@@ -1418,6 +2599,16 @@ namespace GameSystems.Battle.Editor
                     return;
                 }
 
+                DrawSequenceTimeline(previewSequence, previewController.CurrentStepIndex);
+
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button(showPreviewStepDetails ? "Hide Detail" : "Show Detail", secondaryButtonStyle, GUILayout.Width(100f)))
+                {
+                    showPreviewStepDetails = !showPreviewStepDetails;
+                }
+                EditorGUILayout.EndHorizontal();
+
                 EditorGUILayout.BeginVertical(sectionBodyStyle);
                 EditorGUILayout.LabelField(string.Format("Status: {0}", previewController.StatusText), EditorStyles.miniBoldLabel);
                 EditorGUILayout.LabelField(string.Format("Current step: {0}", previewController.CurrentStepIndex >= 0 ? (previewController.CurrentStepIndex + 1).ToString() : "-"), EditorStyles.miniLabel);
@@ -1427,9 +2618,12 @@ namespace GameSystems.Battle.Editor
                     var step = previewSequence.Steps[i];
                     Rect rowRect = GUILayoutUtility.GetRect(1f, 24f, GUILayout.ExpandWidth(true));
                     bool isCurrent = previewController.CurrentStepIndex == i;
+                    bool isSelected = selectedPreviewTimelineStepIndex == i;
                     bool isCompleted = previewController.CurrentStepIndex > i;
 
-                    Color rowColor = isCurrent ? AccentSoftColor : (isCompleted ? new Color(1f, 1f, 1f, 0.04f) : PanelColor);
+                    Color rowColor = isSelected
+                        ? new Color(Primary.r, Primary.g, Primary.b, 0.14f)
+                        : (isCurrent ? AccentSoftColor : (isCompleted ? new Color(1f, 1f, 1f, 0.04f) : PanelColor));
                     EditorGUI.DrawRect(rowRect, rowColor);
 
                     string stepLabel = step != null
@@ -1444,9 +2638,20 @@ namespace GameSystems.Battle.Editor
                         : string.Format("{0}. (null step)", i + 1);
 
                     Rect labelRect = new Rect(rowRect.x + 8f, rowRect.y + 3f, rowRect.width - 16f, rowRect.height - 6f);
-                    GUI.Label(labelRect, stepLabel, isCurrent ? sectionHeaderStyle : EditorStyles.miniLabel);
+                    GUI.Label(labelRect, stepLabel, (isCurrent || isSelected) ? sectionHeaderStyle : EditorStyles.miniLabel);
+
+                    if (GUI.Button(rowRect, GUIContent.none, GUIStyle.none))
+                    {
+                        selectedPreviewTimelineStepIndex = i;
+                        previewController.SeekToStepIndex(i);
+                        Repaint();
+                    }
                 }
 
+                if (showPreviewStepDetails)
+                {
+                    DrawSelectedPreviewStepDetails(previewSequence);
+                }
                 EditorGUILayout.EndVertical();
             }
             finally
@@ -2157,33 +3362,63 @@ namespace GameSystems.Battle.Editor
             SyncAssetNames();
         }
 
+        private Texture2D MakeTex(int width, int height, Color col)
+        {
+            Color[] pix = new Color[width * height];
+            for (int i = 0; i < pix.Length; i++)
+                pix[i] = col;
+            Texture2D result = new Texture2D(width, height);
+            result.SetPixels(pix);
+            result.Apply();
+            return result;
+        }
+
+        private Texture2D MakeGradientTex(int width, int height, Color leftColor, Color rightColor)
+        {
+            Color[] pix = new Color[width * height];
+            for (int x = 0; x < width; x++)
+            {
+                float t = (float)x / (width > 1 ? width - 1 : 1);
+                Color col = Color.Lerp(leftColor, rightColor, t);
+                for (int y = 0; y < height; y++)
+                {
+                    pix[y * width + x] = col;
+                }
+            }
+            Texture2D result = new Texture2D(width, height);
+            result.SetPixels(pix);
+            result.Apply();
+            return result;
+        }
+
         private void BuildStyles()
         {
-            if (titleStyle != null
-                && subtitleStyle != null
-                && sectionHeaderStyle != null
-                && sectionBodyStyle != null
-                && cardStyle != null
-                && chipStyle != null
-                && chipStyleSmall != null
-                && primaryButtonStyle != null
-                && secondaryButtonStyle != null
-                && dangerButtonStyle != null
-                && previewIconButtonStyle != null
-                && panelLabelStyle != null
-                && searchFieldStyle != null
-                && tabNormalStyle != null
-                && tabSelectedStyle != null)
+            if (titleStyle != null)
             {
                 return;
             }
+
+            texSurfaceLowest = MakeTex(2, 2, SurfaceContainerLowest);
+            texSurfaceLow = MakeTex(2, 2, SurfaceContainerLow);
+            texSurfaceHigh = MakeTex(2, 2, SurfaceContainerHigh);
+            texSurfaceHighest = MakeTex(2, 2, SurfaceContainerHighest);
+            texPrimaryGradient = MakeGradientTex(64, 1, Primary, PrimaryContainer);
+            texSecondaryContainer = MakeTex(2, 2, SecondaryContainer);
+
+            iconAssetSetup = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Editor/UnitAuthoring/Icons/inventory_2.png");
+            iconCharacterData = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Editor/UnitAuthoring/Icons/person_outline.png");
+            iconSkeletonData = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Editor/UnitAuthoring/Icons/settings_accessibility.png");
+            iconPrefabAuthoring = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Editor/UnitAuthoring/Icons/account_tree.png");
+            iconSkillSequences = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Editor/UnitAuthoring/Icons/event_repeat.png");
+            iconSkillPreview = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Editor/UnitAuthoring/Icons/play_circle_outline.png");
+            tabIcons = new Texture2D[] { iconAssetSetup, iconCharacterData, iconSkeletonData, iconPrefabAuthoring, iconSkillSequences, iconSkillPreview };
 
             titleStyle = new GUIStyle(EditorStyles.boldLabel)
             {
                 fontSize = 20,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleLeft,
-                normal = { textColor = AccentColor }
+                normal = { textColor = TextOnSurface }
             };
 
             subtitleStyle = new GUIStyle(EditorStyles.wordWrappedLabel)
@@ -2191,26 +3426,28 @@ namespace GameSystems.Battle.Editor
                 fontSize = 11,
                 fontStyle = FontStyle.Normal,
                 wordWrap = true,
-                normal = { textColor = new Color(0.86f, 0.88f, 0.92f) }
+                normal = { textColor = TextOnSurfaceVariant }
             };
 
             sectionHeaderStyle = new GUIStyle(EditorStyles.boldLabel)
             {
                 fontSize = 12,
                 fontStyle = FontStyle.Bold,
-                normal = { textColor = new Color(0.95f, 0.95f, 0.98f) }
+                normal = { textColor = TextOnSurface }
             };
 
-            sectionBodyStyle = new GUIStyle(EditorStyles.helpBox)
+            sectionBodyStyle = new GUIStyle()
             {
                 padding = new RectOffset(12, 12, 10, 10),
-                margin = new RectOffset(0, 0, 4, 4)
+                margin = new RectOffset(0, 0, 4, 4),
+                normal = { background = texSurfaceLowest }
             };
 
-            cardStyle = new GUIStyle(EditorStyles.helpBox)
+            cardStyle = new GUIStyle()
             {
                 padding = new RectOffset(16, 16, 16, 16),
-                margin = new RectOffset(4, 4, 4, 4)
+                margin = new RectOffset(4, 4, 4, 4),
+                normal = { background = texSurfaceLow }
             };
 
             chipStyle = new GUIStyle(EditorStyles.miniButton)
@@ -2227,18 +3464,27 @@ namespace GameSystems.Battle.Editor
                 fixedHeight = 20f
             };
 
-            primaryButtonStyle = new GUIStyle(GUI.skin.button)
+            primaryButtonStyle = new GUIStyle(EditorStyles.miniButton)
             {
                 fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter,
                 fixedHeight = 28f,
-                padding = new RectOffset(10, 10, 6, 6)
+                padding = new RectOffset(10, 10, 6, 6),
+                normal = { background = texPrimaryGradient, textColor = new Color(0.2f, 0.04f, 0) },
+                hover = { background = texPrimaryGradient, textColor = new Color(0, 0, 0) },
+                active = { background = texPrimaryGradient, textColor = new Color(0.1f, 0.02f, 0) },
+                border = new RectOffset(4, 4, 4, 4)
             };
 
             secondaryButtonStyle = new GUIStyle(EditorStyles.miniButton)
             {
-                fontStyle = FontStyle.Bold,
+                fontStyle = FontStyle.Normal,
+                alignment = TextAnchor.MiddleCenter,
                 fixedHeight = 26f,
-                padding = new RectOffset(10, 10, 5, 5)
+                padding = new RectOffset(10, 10, 5, 5),
+                normal = { background = texSecondaryContainer, textColor = TextOnSurface },
+                hover = { background = texSurfaceHighest, textColor = TextOnSurface },
+                border = new RectOffset(4, 4, 4, 4)
             };
 
             dangerButtonStyle = new GUIStyle(secondaryButtonStyle);
@@ -2256,13 +3502,14 @@ namespace GameSystems.Battle.Editor
             panelLabelStyle = new GUIStyle(EditorStyles.label)
             {
                 fontSize = 10,
-                normal = { textColor = new Color(0.7f, 0.76f, 0.84f) }
+                normal = { textColor = TextOnSurfaceVariant }
             };
 
             searchFieldStyle = new GUIStyle(EditorStyles.textField)
             {
                 fontSize = 11,
-                fixedHeight = 18f
+                fixedHeight = 18f,
+                normal = { background = texSurfaceHighest, textColor = TextOnSurface }
             };
 
             tabNormalStyle = new GUIStyle(EditorStyles.label)
@@ -2270,15 +3517,15 @@ namespace GameSystems.Battle.Editor
                 fontSize = 12,
                 fontStyle = FontStyle.Normal,
                 alignment = TextAnchor.MiddleLeft,
-                normal = { textColor = new Color(0.65f, 0.7f, 0.75f) },
-                hover = { textColor = new Color(0.9f, 0.95f, 1f) }
+                normal = { textColor = TextOnSurfaceVariant },
+                hover = { textColor = TextOnSurface }
             };
 
             tabSelectedStyle = new GUIStyle(tabNormalStyle)
             {
                 fontStyle = FontStyle.Bold,
-                normal = { textColor = AccentColor },
-                hover = { textColor = AccentColor }
+                normal = { textColor = Primary },
+                hover = { textColor = Primary }
             };
         }
 
@@ -2356,6 +3603,8 @@ namespace GameSystems.Battle.Editor
                 skeletonPreviewBoundPrefab = null;
                 skeletonPreviewController.BindPrefab(null);
             }
+
+            draggedPreviewMarkerName = null;
         }
     }
 }

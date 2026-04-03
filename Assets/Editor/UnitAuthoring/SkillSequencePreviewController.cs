@@ -13,15 +13,15 @@ namespace GameSystems.Battle.Editor
     {
         private const int PreviewLayer = 30;
         private static readonly Color PreviewBackground = new Color(0.13f, 0.14f, 0.17f, 1f);
-        private static readonly Vector3 ActorStartPosition = new Vector3(-1.8f, -0.8f, 0f);
-        private static readonly Vector3 PrimaryTargetPosition = new Vector3(1.75f, -0.8f, 0f);
-        private static readonly Vector3 PreviewCameraPosition = new Vector3(0.6f, 0.15f, -10f);
+        public Vector3 ActorStartPosition { get; set; } = new Vector3(-1.8f, -0.8f, 0f);
+        public Vector3 PrimaryTargetPosition { get; set; } = new Vector3(1.75f, -0.8f, 0f);
+        public Vector3 PreviewCameraPosition { get; set; } = new Vector3(0.6f, 0.15f, -10f);
         private static readonly Quaternion TargetPreviewRotation = Quaternion.Euler(0f, 180f, 0f);
         private const float TargetPreviewScaleMultiplier = 1.35f;
         private const double MinTickInterval = 1d / 60d;
         private const double SequenceRestartDelay = 0.7d;
         private const double EventPopupDuration = 0.85d;
-        private const float PreviewCameraSize = 3.0f;
+        public float PreviewCameraSize { get; set; } = 3.0f;
 
         private readonly List<GameObject> spawnedVfxObjects = new List<GameObject>();
         private readonly List<EventPopup> eventPopups = new List<EventPopup>();
@@ -254,6 +254,49 @@ namespace GameSystems.Battle.Editor
             }
 
             ResetPlayback(true);
+        }
+
+        public bool SeekToStepIndex(int stepIndex)
+        {
+            if (sequence == null || sequence.Steps == null || previewGameObject == null)
+            {
+                return false;
+            }
+
+            if (sequence.Steps.Count == 0)
+            {
+                return false;
+            }
+
+            int clampedIndex = Mathf.Clamp(stepIndex, 0, sequence.Steps.Count - 1);
+            double now = EditorApplication.timeSinceStartup;
+
+            ResetPlayback(false);
+            if (animationHandle != null)
+            {
+                animationHandle.ResetAnimationState();
+            }
+            isPlaying = true;
+            isPaused = false;
+            sequenceFinished = false;
+            terminalIdleLoopActive = false;
+            currentStepIndex = -1;
+            currentStepHasDuration = false;
+            stepStartedAt = now;
+
+            for (int i = 0; i < clampedIndex; i++)
+            {
+                ApplySkippedStepState(sequence.Steps[i]);
+            }
+
+            currentStepIndex = clampedIndex - 1;
+            if (!AdvanceToNextStep(now))
+            {
+                return false;
+            }
+
+            RequestRepaint();
+            return true;
         }
 
         public void Pause()
@@ -516,36 +559,13 @@ namespace GameSystems.Battle.Editor
 
             try
             {
-                SkeletonAnimation sourceSkeleton =
-                    prefabSource != null
-                        ? prefabSource.GetComponentInChildren<SkeletonAnimation>(true)
-                        : null;
-
-                if (sourceSkeleton != null)
+                previewGameObject = PrefabUtility.InstantiatePrefab(prefabSource) as GameObject;
+                if (previewGameObject == null)
                 {
-                    previewGameObject = new GameObject($"{prefabSource.name}_PreviewHost");
-                    previewGameObject.AddComponent<MeshFilter>();
-                    previewGameObject.AddComponent<MeshRenderer>();
-
-                    skeletonAnimation = previewGameObject.AddComponent<SkeletonAnimation>();
-                    EditorUtility.CopySerialized(sourceSkeleton, skeletonAnimation);
-                    skeletonAnimation.Initialize(true);
-
-                    animationHandle = previewGameObject.AddComponent<AnimationHandle>();
-                    animationHandle.skeletonAnimation = skeletonAnimation;
-                    animationHandle.Initialize();
-                    animationHandle.SetSpeed(speed);
+                    previewGameObject = UnityEngine.Object.Instantiate(prefabSource);
                 }
-                else
-                {
-                    previewGameObject = PrefabUtility.InstantiatePrefab(prefabSource) as GameObject;
-                    if (previewGameObject == null)
-                    {
-                        previewGameObject = UnityEngine.Object.Instantiate(prefabSource);
-                    }
 
-                    StripRuntimeBehaviours(previewGameObject);
-                }
+                StripRuntimeBehaviours(previewGameObject);
             }
             catch (Exception ex)
             {
@@ -985,6 +1005,63 @@ namespace GameSystems.Battle.Editor
             }
 
             return false;
+        }
+
+        private void ApplySkippedStepState(SkillViewStep step)
+        {
+            if (step == null)
+            {
+                return;
+            }
+
+            switch (step.StepType)
+            {
+                case SkillViewStepType.MoveToTarget:
+                    if (previewGameObject != null)
+                    {
+                        previewGameObject.transform.position = ResolveDestination(step);
+                    }
+
+                    PlayStepAnimation(step, 1);
+                    break;
+                case SkillViewStepType.MoveBack:
+                    if (previewGameObject != null)
+                    {
+                        previewGameObject.transform.position = ActorStartPosition;
+                    }
+
+                    PlayStepAnimation(step, 2);
+                    break;
+                case SkillViewStepType.PlayAnimation:
+                    PlayStepAnimation(step, 1);
+                    break;
+                case SkillViewStepType.ResetSortingOrder:
+                    if (animationHandle != null)
+                    {
+                        animationHandle.ResetSortingOrder();
+                    }
+                    break;
+                case SkillViewStepType.SetSortingOrder:
+                    if (animationHandle != null)
+                    {
+                        animationHandle.SetSortingOrder(step.SortingOrder, "Unit");
+                    }
+                    break;
+                case SkillViewStepType.SetFlipX:
+                    if (animationHandle != null)
+                    {
+                        animationHandle.SetFlipX(step.FlipX);
+                    }
+                    break;
+                case SkillViewStepType.SetIdleAnimation:
+                    PlayIdleAnimation(step);
+                    break;
+                case SkillViewStepType.SpawnVfx:
+                case SkillViewStepType.TriggerHit:
+                case SkillViewStepType.Wait:
+                default:
+                    break;
+            }
         }
 
         private float GetProgress(double now, float duration)
@@ -1641,6 +1718,107 @@ namespace GameSystems.Battle.Editor
                 previewRect.x + screenPoint.x,
                 previewRect.y + (previewRect.height - screenPoint.y)
             );
+        }
+
+        public bool TryProjectWorldToPreviewPoint(Rect previewRect, Vector3 worldPosition, out Vector2 screenPoint)
+        {
+            screenPoint = ProjectWorldToPreviewPoint(previewRect, worldPosition);
+            if (previewUtility == null || previewUtility.camera == null)
+            {
+                return false;
+            }
+
+            Vector3 cameraSpace = previewUtility.camera.WorldToScreenPoint(worldPosition);
+            return cameraSpace.z > 0f;
+        }
+
+        public bool TryGetPreviewMarkerWorldPosition(string markerName, out Vector3 worldPosition)
+        {
+            worldPosition = Vector3.zero;
+            if (previewGameObject == null || string.IsNullOrWhiteSpace(markerName))
+            {
+                return false;
+            }
+
+            Transform markerTransform = FindDeepChild(previewGameObject.transform, markerName);
+            if (markerTransform == null)
+            {
+                return false;
+            }
+
+            worldPosition = markerTransform.position;
+            return true;
+        }
+
+        public bool TryGetPreviewMarkerTransform(string markerName, out Transform markerTransform)
+        {
+            markerTransform = null;
+            if (previewGameObject == null || string.IsNullOrWhiteSpace(markerName))
+            {
+                return false;
+            }
+
+            markerTransform = FindDeepChild(previewGameObject.transform, markerName);
+            return markerTransform != null;
+        }
+
+        public bool TrySetPreviewMarkerWorldPosition(string markerName, Vector3 worldPosition)
+        {
+            if (!TryGetPreviewMarkerTransform(markerName, out Transform markerTransform))
+            {
+                return false;
+            }
+
+            markerTransform.position = worldPosition;
+            return true;
+        }
+
+        public bool TryScreenPointToWorldPoint(Rect previewRect, Vector2 localPoint, float worldZ, out Vector3 worldPosition)
+        {
+            worldPosition = Vector3.zero;
+            if (previewUtility == null || previewUtility.camera == null)
+            {
+                return false;
+            }
+
+            Camera camera = previewUtility.camera;
+            float depth = worldZ - camera.transform.position.z;
+            Vector3 screenPoint = new Vector3(
+                localPoint.x,
+                previewRect.height - localPoint.y,
+                depth);
+            worldPosition = camera.ScreenToWorldPoint(screenPoint);
+            return true;
+        }
+
+        private static Transform FindDeepChild(Transform parent, string name)
+        {
+            if (parent == null || string.IsNullOrWhiteSpace(name))
+            {
+                return null;
+            }
+
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                Transform child = parent.GetChild(i);
+                if (child == null)
+                {
+                    continue;
+                }
+
+                if (string.Equals(child.name, name, StringComparison.Ordinal))
+                {
+                    return child;
+                }
+
+                Transform nested = FindDeepChild(child, name);
+                if (nested != null)
+                {
+                    return nested;
+                }
+            }
+
+            return null;
         }
 
         private void RequestRepaint()
