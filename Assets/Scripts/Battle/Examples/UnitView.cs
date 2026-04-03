@@ -10,7 +10,7 @@ namespace GameSystems.Battle.Demo
     /// <summary>
     /// Visual wrapper cho 1 BattleUnit.
     /// Gắn trên root của instantiated Spine prefab.
-    /// Kết nối AttackBehavior/SkillBehavior/BehitBehavior/AnimationHandle đã có sẵn trong prefab.
+    /// Kết nối ActionSequenceRunner/BehitBehavior/AnimationHandle đã có sẵn trong prefab.
     /// </summary>
     public class UnitView : MonoBehaviour
     {
@@ -102,7 +102,6 @@ namespace GameSystems.Battle.Demo
 
             if (_actionRunner != null)
             {
-                _actionRunner.dirType = isPlayer ? -1f : 1f;
                 _actionRunner.OnEndAction = () => OnActionComplete?.Invoke();
             }
 

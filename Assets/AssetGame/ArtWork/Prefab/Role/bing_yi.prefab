@@ -2534,9 +2534,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   behitAnimation: hit
   dieAnimation: die
-  downAnimation: down
-  upAnimation: up
-  idleAnimation: idle
   floatingTextPrefab: {fileID: 0}
   animationHandle: {fileID: 2799984800395796437}
   valueHealthBar: {fileID: 0}

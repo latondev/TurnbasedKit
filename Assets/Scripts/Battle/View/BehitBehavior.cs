@@ -12,9 +12,6 @@ namespace GameSystems.Battle
         [Header("Animations")]
         [SerializeField] private string behitAnimation = "hit";
         [SerializeField] private string dieAnimation = "die";
-        [SerializeField] private string downAnimation = "down";
-        [SerializeField] private string upAnimation = "up";
-        [SerializeField] private string idleAnimation = "idle";
 
         [Header("UI")]
         [SerializeField] private FloatingText floatingTextPrefab;
@@ -28,6 +25,9 @@ namespace GameSystems.Battle
         [SerializeField] private float currentHealth;
         [SerializeField] private float maxMp;
         [SerializeField] private float currentMp;
+
+        private Coroutine healthFillRoutine;
+        private Coroutine manaFillRoutine;
 
         private void OnValidate()
         {
@@ -54,15 +54,18 @@ namespace GameSystems.Battle
 
         public void Init(float maxHP, float Mp)
         {
-            this.maxHealth = maxHP;
-            currentHealth = maxHealth;
-            this.maxMp = Mp;
+            StopFillCoroutines();
+            CancelInvoke(nameof(HideGameObject));
+
+            this.maxHealth = Mathf.Max(0f, maxHP);
+            currentHealth = this.maxHealth;
+            this.maxMp = Mathf.Max(0f, Mp);
             currentMp = 0;
 
             EnsureRuntimeBars();
 
             if (valueHealthBar != null)
-                valueHealthBar.fillAmount = 1;
+                valueHealthBar.fillAmount = this.maxHealth > 0f ? 1f : 0f;
             if (valueMpBar != null)
                 valueMpBar.fillAmount = 0;
         }
@@ -77,34 +80,21 @@ namespace GameSystems.Battle
             if (animationHandle != null)
             {
                 animationHandle.Initialize();
-                animationHandle.OnEndAnimation += EndAnimation;
-            }
-        }
-
-        private bool isCheck = false;
-
-        protected void EndAnimation(string trackentry)
-        {
-            if (trackentry == downAnimation)
-            {
-                if (animationHandle != null)
-                    animationHandle.PlayAnimation(upAnimation, 0f, 2, false);
-            }
-
-            if (trackentry == upAnimation)
-            {
-                if (animationHandle != null)
-                    animationHandle.PlayAnimation(idleAnimation, 0.1f, 1, true);
             }
         }
 
         public void ChangeMana(float value)
         {
-            currentMp += value;
-            float amount = maxMp > 0 ? currentMp / maxMp : 0;
+            currentMp = Mathf.Clamp(currentMp + value, 0f, maxMp);
+            float amount = maxMp > 0f ? currentMp / maxMp : 0f;
             if (valueMpBar != null)
             {
-                StartCoroutine(AnimateFill(valueMpBar, amount));
+                if (manaFillRoutine != null)
+                {
+                    StopCoroutine(manaFillRoutine);
+                }
+
+                manaFillRoutine = StartCoroutine(AnimateFill(valueMpBar, amount));
             }
         }
 
@@ -133,34 +123,29 @@ namespace GameSystems.Battle
                 ft.SetText("-" + hitValue.ToString("F0"));
             }
 
-            currentHealth -= hitValue;
-            float amount = maxHealth > 0 ? currentHealth / maxHealth : 0;
+            currentHealth = Mathf.Clamp(currentHealth - hitValue, 0f, maxHealth);
+            float amount = maxHealth > 0f ? currentHealth / maxHealth : 0f;
             if (valueHealthBar != null)
             {
-                StartCoroutine(AnimateFill(valueHealthBar, amount));
+                if (healthFillRoutine != null)
+                {
+                    StopCoroutine(healthFillRoutine);
+                }
+
+                healthFillRoutine = StartCoroutine(AnimateFill(valueHealthBar, amount));
             }
 
             if (animationHandle != null)
             {
-                string currentAnim = animationHandle.GetCurrentAnimationName(1);
-                string currentAnim2 = animationHandle.GetCurrentAnimationName(2);
-
-                if (isHitEffect)
-                {
-                    if (currentAnim != downAnimation && currentAnim2 != upAnimation)
-                    {
-                        animationHandle.PlayAnimation(downAnimation, 0.1f, 1, false);
-                    }
-                }
-                else
-                {
-                    animationHandle.PlayAnimation(behitAnimation, 0.1f, 1, false);
-                }
+                animationHandle.PlayAnimation(behitAnimation, 0.1f, 1, false);
             }
         }
 
         public void Die()
         {
+            StopFillCoroutines();
+            CancelInvoke(nameof(HideGameObject));
+
             if (canvasBar != null)
                 canvasBar.gameObject.SetActive(false);
 
@@ -175,6 +160,7 @@ namespace GameSystems.Battle
 
         private void HideGameObject()
         {
+            CancelInvoke(nameof(HideGameObject));
             gameObject.SetActive(false);
         }
 
@@ -299,9 +285,22 @@ namespace GameSystems.Battle
 
         private void OnDestroy()
         {
-            if (animationHandle != null)
+            StopFillCoroutines();
+            CancelInvoke(nameof(HideGameObject));
+        }
+
+        private void StopFillCoroutines()
+        {
+            if (healthFillRoutine != null)
             {
-                animationHandle.OnEndAnimation -= EndAnimation;
+                StopCoroutine(healthFillRoutine);
+                healthFillRoutine = null;
+            }
+
+            if (manaFillRoutine != null)
+            {
+                StopCoroutine(manaFillRoutine);
+                manaFillRoutine = null;
             }
         }
     }

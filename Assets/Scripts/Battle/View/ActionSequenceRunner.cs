@@ -8,14 +8,36 @@ namespace GameSystems.Battle
     /// <summary>
     /// Unified visual action runner used by both Attack and Skill actions.
     /// </summary>
-    public class ActionSequenceRunner : ActionBase
+    public class ActionSequenceRunner : MonoBehaviour
     {
-        [Header("Defaults")]
-        [SerializeField] private string defaultAttackAnimation = "attack";
-        [SerializeField] private string defaultSkillAnimation = "skill";
-        [SerializeField] private string defaultIdleAnimation = "idle";
-        [SerializeField] private string defaultHitEvent = "hit";
-        [SerializeField] private string defaultFalldownEvent = "falldown";
+        private static readonly Dictionary<SkillViewStepType, ISkillViewStepHandler> StepHandlers =
+            new Dictionary<SkillViewStepType, ISkillViewStepHandler>
+            {
+                { SkillViewStepType.MoveToTarget, new MoveToTargetStepHandler() },
+                { SkillViewStepType.MoveBack, new MoveBackStepHandler() },
+                { SkillViewStepType.PlayAnimation, new PlayAnimationStepHandler() },
+                { SkillViewStepType.Wait, new WaitStepHandler() },
+                { SkillViewStepType.SpawnVfx, new SpawnVfxStepHandler() },
+                { SkillViewStepType.TriggerHit, new TriggerHitStepHandler() },
+                { SkillViewStepType.ResetSortingOrder, new ResetSortingOrderStepHandler() },
+                { SkillViewStepType.SetSortingOrder, new SetSortingOrderStepHandler() },
+                { SkillViewStepType.SetFlipX, new SetFlipXStepHandler() },
+                { SkillViewStepType.SetIdleAnimation, new SetIdleAnimationStepHandler() },
+            };
+
+        [Header("Runtime")]
+        [SerializeField] private AnimationHandle animationHandle;
+        [SerializeField] private float speed = 1f;
+        [SerializeField] private float moveDuration = 0.4f;
+
+        private const string FallbackAttackAnimation = "attack";
+        private const string FallbackSkillAnimation = "skill";
+        private const string FallbackIdleAnimation = "idle";
+        private const string FallbackHitEvent = "hit";
+        private const string FallbackFalldownEvent = "falldown";
+
+        public Action<int, bool> OnEndStepAction;
+        public Action OnEndAction;
 
         private CombatActionData currentAction;
         private SkillViewSequence currentSequence;
@@ -25,6 +47,11 @@ namespace GameSystems.Battle
         private string activeFalldownEvent;
         private bool hitSignalSent;
         private bool falldownSignalSent;
+        private Vector3 originPosition;
+        private bool originInitialized;
+
+        internal AnimationHandle AnimationHandle => animationHandle;
+        internal SkillViewContext CurrentContext => currentContext;
 
         private void Awake()
         {
@@ -54,6 +81,11 @@ namespace GameSystems.Battle
             }
         }
 
+        public void SetSpeed(float value)
+        {
+            speed = value;
+        }
+
         public void Play(CombatActionData action, SkillViewContext context)
         {
             currentAction = action;
@@ -63,6 +95,17 @@ namespace GameSystems.Battle
             falldownSignalSent = false;
             activeHitEvent = ResolveHitEventName();
             activeFalldownEvent = ResolveFalldownEventName();
+
+            if (context != null)
+            {
+                originPosition = context.ActorStartPosition;
+                originInitialized = true;
+            }
+            else if (!originInitialized)
+            {
+                originPosition = transform.position;
+                originInitialized = true;
+            }
 
             if (animationHandle != null)
             {
@@ -105,78 +148,12 @@ namespace GameSystems.Battle
                     yield return new WaitForSeconds(step.Delay / Mathf.Max(0.01f, speed));
                 }
 
-                switch (step.StepType)
+                if (StepHandlers.TryGetValue(step.StepType, out var handler))
                 {
-                    case SkillViewStepType.MoveToTarget:
+                    var routine = handler.Execute(this, step);
+                    if (routine != null)
                     {
-                        PlaySequenceAnimation(step, 1);
-                        yield return MoveToTargetStep(ResolveDestination(step), step.Duration);
-                        break;
-                    }
-                    case SkillViewStepType.MoveBack:
-                    {
-                        PlaySequenceAnimation(step, 2);
-                        yield return MoveBackStep(step.Duration);
-                        break;
-                    }
-                    case SkillViewStepType.PlayAnimation:
-                    {
-                        PlaySequenceAnimation(step, 1);
-                        if (step.WaitForAnimationEnd && step.Duration > 0f)
-                        {
-                            yield return new WaitForSeconds(step.Duration / Mathf.Max(0.01f, speed));
-                        }
-                        break;
-                    }
-                    case SkillViewStepType.Wait:
-                    {
-                        if (step.Duration > 0f)
-                        {
-                            yield return new WaitForSeconds(step.Duration / Mathf.Max(0.01f, speed));
-                        }
-                        break;
-                    }
-                    case SkillViewStepType.SpawnVfx:
-                    {
-                        SpawnStepVfx(step);
-                        break;
-                    }
-                    case SkillViewStepType.TriggerHit:
-                    {
-                        // TriggerHit is compatibility fallback; event animation is the primary timing source.
-                        if (!hitSignalSent && string.IsNullOrWhiteSpace(activeHitEvent))
-                        {
-                            OnEndStepAction?.Invoke(ResolveHitCount(step), step.TriggerHitEffect);
-                            hitSignalSent = true;
-                        }
-                        break;
-                    }
-                    case SkillViewStepType.ResetSortingOrder:
-                    {
-                        animationHandle?.ResetSortingOrder();
-                        break;
-                    }
-                    case SkillViewStepType.SetSortingOrder:
-                    {
-                        if (animationHandle != null)
-                        {
-                            animationHandle.SetSortingOrder(step.SortingOrder, "Unit");
-                        }
-                        break;
-                    }
-                    case SkillViewStepType.SetFlipX:
-                    {
-                        animationHandle?.SetFlipX(step.FlipX);
-                        break;
-                    }
-                    case SkillViewStepType.SetIdleAnimation:
-                    {
-                        PlayIdleAnimation(step);
-                        if (step.Duration > 0f)
-                        {
-                            yield return new WaitForSeconds(step.Duration / Mathf.Max(0.01f, speed));
-                        }
-                        break;
+                        yield return routine;
                     }
                 }
             }
@@ -204,43 +181,45 @@ namespace GameSystems.Battle
             OnEndStepAction?.Invoke(ResolveHitCount(null), false);
         }
 
-        private IEnumerator MoveToTargetStep(Vector3 destination, float desiredDuration)
+        internal IEnumerator MoveToTargetStep(Vector3 destination, float desiredDuration)
         {
-            float previousSpeed = speed;
-            if (desiredDuration > 0f)
-            {
-                speed = 0.4f / desiredDuration;
-            }
+            float duration = desiredDuration > 0f
+                ? desiredDuration
+                : moveDuration / Mathf.Max(0.01f, speed);
+            duration = Mathf.Max(0.01f, duration);
+            Vector3 start = transform.position;
+            float elapsed = 0f;
 
-            bool done = false;
-            MoveToTarget(destination, () => done = true);
-            while (!done)
+            while (elapsed < duration)
             {
+                transform.position = Vector3.Lerp(start, destination, elapsed / duration);
+                elapsed += Time.deltaTime;
                 yield return null;
             }
 
-            speed = previousSpeed;
+            transform.position = destination;
         }
 
-        private IEnumerator MoveBackStep(float desiredDuration)
+        internal IEnumerator MoveBackStep(float desiredDuration)
         {
-            float previousSpeed = speed;
-            if (desiredDuration > 0f)
-            {
-                speed = 0.4f / desiredDuration;
-            }
+            float duration = desiredDuration > 0f
+                ? desiredDuration
+                : moveDuration / Mathf.Max(0.01f, speed);
+            duration = Mathf.Max(0.01f, duration);
+            Vector3 start = transform.position;
+            float elapsed = 0f;
 
-            bool done = false;
-            MoveToRoot(() => done = true);
-            while (!done)
+            while (elapsed < duration)
             {
+                transform.position = Vector3.Lerp(start, originPosition, elapsed / duration);
+                elapsed += Time.deltaTime;
                 yield return null;
             }
 
-            speed = previousSpeed;
+            transform.position = originPosition;
         }
 
-        private void PlaySequenceAnimation(SkillViewStep step, int layer)
+        internal void PlaySequenceAnimation(SkillViewStep step, int layer)
         {
             if (animationHandle == null)
             {
@@ -252,7 +231,7 @@ namespace GameSystems.Battle
             animationHandle.TryPlayAnimation(primary, fallback, 0.1f, layer, step.Loop);
         }
 
-        private void PlayIdleAnimation(SkillViewStep step)
+        internal void PlayIdleAnimation(SkillViewStep step)
         {
             if (animationHandle == null)
             {
@@ -301,7 +280,7 @@ namespace GameSystems.Battle
             }
         }
 
-        private int ResolveHitCount(SkillViewStep step)
+        internal int ResolveHitCount(SkillViewStep step)
         {
             if (step != null && step.HitCount > 0)
             {
@@ -328,7 +307,7 @@ namespace GameSystems.Battle
                 return currentSequence.HitEventName;
             }
 
-            return defaultHitEvent;
+            return FallbackHitEvent;
         }
 
         private string ResolveFalldownEventName()
@@ -343,7 +322,7 @@ namespace GameSystems.Battle
                 return currentSequence.FalldownEventName;
             }
 
-            return defaultFalldownEvent;
+            return FallbackFalldownEvent;
         }
 
         private string ResolveIdleAnimationName()
@@ -358,7 +337,7 @@ namespace GameSystems.Battle
                 return currentSequence.IdleAnimationName;
             }
 
-            return defaultIdleAnimation;
+            return FallbackIdleAnimation;
         }
 
         private string ResolveAnimationName(SkillViewStep step)
@@ -379,8 +358,8 @@ namespace GameSystems.Battle
             }
 
             return currentAction != null && currentAction.ActionKind == CombatActionKind.BasicAttack
-                ? defaultAttackAnimation
-                : defaultSkillAnimation;
+                ? FallbackAttackAnimation
+                : FallbackSkillAnimation;
         }
 
         private string ResolveFallbackAnimationName(SkillViewStep step)
@@ -406,7 +385,7 @@ namespace GameSystems.Battle
             return ResolveAnimationName(step);
         }
 
-        private Vector3 ResolveDestination(SkillViewStep step)
+        internal Vector3 ResolveDestination(SkillViewStep step)
         {
             if (currentContext == null)
             {
@@ -442,7 +421,7 @@ namespace GameSystems.Battle
             return currentContext.PrimaryTargetPosition - (direction * signedDistance) + step.Offset;
         }
 
-        private void SpawnStepVfx(SkillViewStep step)
+        internal void SpawnStepVfx(SkillViewStep step)
         {
             if (step == null || step.VfxPrefab == null)
             {
@@ -483,8 +462,26 @@ namespace GameSystems.Battle
             Destroy(instance.gameObject, 5f);
         }
 
-        public override void OnMeleeAttack() { }
+        internal float GetScaledDuration(float duration)
+        {
+            if (duration <= 0f)
+            {
+                return 0f;
+            }
 
-        public override void OnRangedAttack() { }
+            return duration / Mathf.Max(0.01f, speed);
+        }
+
+        internal bool TryTriggerHitFromStep(SkillViewStep step)
+        {
+            if (hitSignalSent || !string.IsNullOrWhiteSpace(activeHitEvent))
+            {
+                return false;
+            }
+
+            OnEndStepAction?.Invoke(ResolveHitCount(step), step.TriggerHitEffect);
+            hitSignalSent = true;
+            return true;
+        }
     }
 }

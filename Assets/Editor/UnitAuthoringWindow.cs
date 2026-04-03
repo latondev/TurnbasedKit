@@ -44,8 +44,7 @@ namespace GameSystems.Battle.Editor
         private string workingPrefabPath;
         private SkeletonAnimation skeletonAnimation;
         private SkeletonDataAsset skeletonDataAsset;
-        private AttackBehavior attackBehavior;
-        private SkillBehavior skillBehavior;
+        private ActionSequenceRunner actionSequenceRunner;
         private BehitBehavior behitBehavior;
         private AnimationHandle animationHandle;
         private UnitView unitView;
@@ -77,6 +76,11 @@ namespace GameSystems.Battle.Editor
         private readonly List<AnimationInfo> animationInfos = new List<AnimationInfo>();
         private readonly Dictionary<string, string> animationUsageCache = new Dictionary<string, string>();
         private readonly List<string> eventNames = new List<string>();
+        private readonly List<GameObject> unitViewPrefabs = new List<GameObject>();
+        private string[] unitViewPrefabLabels = Array.Empty<string>();
+        private bool unitViewPrefabCacheDirty = true;
+        private Vector2 unitViewListScroll;
+        [SerializeField] private int selectedUnitViewListIndex = -1;
         private SkillSequencePreviewController previewController;
         private SkillSequencePreviewController skeletonPreviewController;
         private GameObject previewBoundPrefab;
@@ -298,12 +302,17 @@ namespace GameSystems.Battle.Editor
                 characterData = nextCharacterData;
             }
 
-            EditorGUI.BeginChangeCheck();
-            var nextPrefab = (GameObject)EditorGUILayout.ObjectField("Prefab Asset", prefabAsset, typeof(GameObject), false);
-            if (EditorGUI.EndChangeCheck())
-            {
-                SetPrefabAsset(nextPrefab);
-            }
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.BeginVertical(GUILayout.MinWidth(420f));
+            DrawUnitViewPrefabPicker();
+            EditorGUILayout.EndVertical();
+
+            EditorGUILayout.Space(12f);
+
+            EditorGUILayout.BeginVertical(GUILayout.MinWidth(220f));
+            DrawUnitViewPrefabList();
+            EditorGUILayout.EndVertical();
+            EditorGUILayout.EndHorizontal();
 
             EditorGUILayout.Space(12f);
 
@@ -465,8 +474,6 @@ namespace GameSystems.Battle.Editor
             animationUsageCache.Clear();
             if (animationInfos.Count == 0) return;
 
-            var attackSo = attackBehavior != null ? new SerializedObject(attackBehavior) : null;
-            var skillSo = skillBehavior != null ? new SerializedObject(skillBehavior) : null;
             var behitSo = behitBehavior != null ? new SerializedObject(behitBehavior) : null;
 
             SerializedObject charSo = null;
@@ -482,26 +489,10 @@ namespace GameSystems.Battle.Editor
             {
                 var usages = new List<string>();
 
-                if (attackSo != null)
-                {
-                    CheckProp(usages, anim.Name, attackSo, "attackAnimation", "AttackBehavior(Attack)");
-                    CheckProp(usages, anim.Name, attackSo, "idleAnimation", "AttackBehavior(Idle)");
-                }
-
-                if (skillSo != null)
-                {
-                    CheckProp(usages, anim.Name, skillSo, "skillAnimation", "SkillBehavior(Skill)");
-                    CheckProp(usages, anim.Name, skillSo, "idleAnimation", "SkillBehavior(Idle)");
-                    CheckProp(usages, anim.Name, skillSo, "moveGo", "SkillBehavior(MoveGo)");
-                    CheckProp(usages, anim.Name, skillSo, "moveBack", "SkillBehavior(MoveBack)");
-                }
-
                 if (behitSo != null)
                 {
                     CheckProp(usages, anim.Name, behitSo, "behitAnimation", "BehitBehavior(Behit)");
                     CheckProp(usages, anim.Name, behitSo, "dieAnimation", "BehitBehavior(Die)");
-                    CheckProp(usages, anim.Name, behitSo, "downAnimation", "BehitBehavior(Down)");
-                    CheckProp(usages, anim.Name, behitSo, "upAnimation", "BehitBehavior(Up)");
                     CheckProp(usages, anim.Name, behitSo, "idleAnimation", "BehitBehavior(Idle)");
                 }
 
@@ -1009,20 +1000,38 @@ namespace GameSystems.Battle.Editor
             EditorGUILayout.Space(4f);
             EditorGUILayout.LabelField("Component Mapping", sectionHeaderStyle);
 
-            DrawComponentStrings("Attack Behavior", attackBehavior, new[]
-            {
-                "attackAnimation", "idleAnimation", "eventHit"
-            });
-
-            DrawComponentStrings("Skill Behavior", skillBehavior, new[]
-            {
-                "skillAnimation", "idleAnimation", "eventHit", "eventFalldown", "moveGo", "moveBack"
-            });
+            DrawActionRunnerSection();
 
             DrawComponentStrings("Behit Behavior", behitBehavior, new[]
             {
-                "behitAnimation", "dieAnimation", "downAnimation", "upAnimation", "idleAnimation"
+                "behitAnimation", "dieAnimation", "idleAnimation"
             });
+        }
+
+        private void DrawActionRunnerSection()
+        {
+            if (actionSequenceRunner == null)
+            {
+                EditorGUILayout.HelpBox("ActionSequenceRunner not found.", MessageType.Warning);
+                return;
+            }
+
+            EditorGUILayout.BeginVertical(sectionBodyStyle);
+            EditorGUILayout.LabelField("Action Sequence Runner", sectionHeaderStyle);
+
+            var serializedObject = new SerializedObject(actionSequenceRunner);
+            serializedObject.Update();
+
+            DrawProperty(serializedObject.FindProperty("animationHandle"), "Animation Handle");
+            DrawProperty(serializedObject.FindProperty("speed"), "Speed");
+            DrawProperty(serializedObject.FindProperty("moveDuration"), "Move Duration");
+
+            if (serializedObject.ApplyModifiedProperties())
+            {
+                EditorUtility.SetDirty(actionSequenceRunner);
+            }
+
+            EditorGUILayout.EndVertical();
         }
 
         private void DrawComponentOrderSection()
@@ -1042,7 +1051,15 @@ namespace GameSystems.Battle.Editor
             var sortingLayerName = handleSo.FindProperty("sortingLayerName");
             if (sortingLayerName != null)
             {
-                string nextSortingLayerName = EditorGUILayout.TextField("Sorting Layer", sortingLayerName.stringValue);
+                string[] layerNames = GetSortingLayerNames();
+                int currentIndex = Array.IndexOf(layerNames, sortingLayerName.stringValue);
+                if (currentIndex < 0)
+                {
+                    currentIndex = 0;
+                }
+
+                int nextIndex = EditorGUILayout.Popup("Sorting Layer", currentIndex, layerNames);
+                string nextSortingLayerName = layerNames.Length > 0 ? layerNames[nextIndex] : sortingLayerName.stringValue;
                 if (nextSortingLayerName != sortingLayerName.stringValue)
                 {
                     sortingLayerName.stringValue = nextSortingLayerName;
@@ -1093,6 +1110,16 @@ namespace GameSystems.Battle.Editor
             EditorGUILayout.EndVertical();
         }
 
+        private void DrawProperty(SerializedProperty property, string label)
+        {
+            if (property == null)
+            {
+                return;
+            }
+
+            EditorGUILayout.PropertyField(property, new GUIContent(label), true);
+        }
+
         private void DrawPopupString(SerializedProperty property, string label, IReadOnlyList<string> options)
         {
             DrawPopupString(property, label, options, null);
@@ -1115,7 +1142,14 @@ namespace GameSystems.Battle.Editor
                 return;
             }
 
-            var popupOptions = BuildPopupOptions(options, property.stringValue, filter);
+            string currentValue = property.stringValue;
+            if (!string.IsNullOrWhiteSpace(currentValue) && !options.Contains(currentValue))
+            {
+                property.stringValue = options[0];
+                currentValue = property.stringValue;
+            }
+
+            var popupOptions = BuildPopupOptions(options, filter);
             int currentIndex = Array.IndexOf(popupOptions, property.stringValue);
             if (currentIndex < 0)
             {
@@ -1125,7 +1159,7 @@ namespace GameSystems.Battle.Editor
             int nextIndex = EditorGUILayout.Popup(label, currentIndex, popupOptions);
             if (nextIndex >= 0 && nextIndex < popupOptions.Length && nextIndex != currentIndex)
             {
-                string nextValue = nextIndex == 0 ? string.Empty : popupOptions[nextIndex];
+                string nextValue = popupOptions[nextIndex] == "<None>" ? string.Empty : popupOptions[nextIndex];
                 if (property.stringValue != nextValue)
                 {
                     property.stringValue = nextValue;
@@ -1133,16 +1167,23 @@ namespace GameSystems.Battle.Editor
             }
         }
 
-        private string[] BuildPopupOptions(IReadOnlyList<string> options, string currentValue, string filter = null)
+        private string[] BuildPopupOptions(IReadOnlyList<string> options, string filter = null)
         {
-            var list = new List<string> { "<None>" };
+            var list = new List<string>();
             string normalizedFilter = string.IsNullOrWhiteSpace(filter) ? string.Empty : filter.Trim();
 
-            if (!string.IsNullOrWhiteSpace(currentValue) && !list.Contains(currentValue))
+            BuildFilteredOptions(list, options, normalizedFilter);
+            if (list.Count == 0 && !string.IsNullOrEmpty(normalizedFilter))
             {
-                list.Add(currentValue);
+                BuildFilteredOptions(list, options, string.Empty);
             }
 
+            list.Add("<None>");
+            return list.ToArray();
+        }
+
+        private static void BuildFilteredOptions(List<string> list, IReadOnlyList<string> options, string normalizedFilter)
+        {
             foreach (var option in options)
             {
                 if (string.IsNullOrWhiteSpace(option))
@@ -1150,7 +1191,8 @@ namespace GameSystems.Battle.Editor
                     continue;
                 }
 
-                if (!string.IsNullOrEmpty(normalizedFilter) && option.IndexOf(normalizedFilter, StringComparison.OrdinalIgnoreCase) < 0)
+                if (!string.IsNullOrEmpty(normalizedFilter)
+                    && option.IndexOf(normalizedFilter, StringComparison.OrdinalIgnoreCase) < 0)
                 {
                     continue;
                 }
@@ -1160,8 +1202,6 @@ namespace GameSystems.Battle.Editor
                     list.Add(option);
                 }
             }
-
-            return list.ToArray();
         }
 
         private void DrawPreviewList(string title, IReadOnlyList<string> values, int maxItems)
@@ -1663,7 +1703,10 @@ namespace GameSystems.Battle.Editor
 
             if (selected is GameObject selectedPrefab && PrefabUtility.GetPrefabAssetType(selectedPrefab) != PrefabAssetType.NotAPrefab)
             {
-                SetPrefabAsset(selectedPrefab);
+                if (selectedPrefab.GetComponentInChildren<UnitView>(true) != null)
+                {
+                    SetPrefabAsset(selectedPrefab);
+                }
             }
         }
 
@@ -1827,6 +1870,7 @@ namespace GameSystems.Battle.Editor
             prefabAsset = newPrefab;
             ClearPreviewAnimationOverride(false);
             LoadPrefabWorkingCopy(newPrefab);
+            SyncUnitViewPrefabSelection();
 
             if (previewController != null)
             {
@@ -1835,6 +1879,151 @@ namespace GameSystems.Battle.Editor
             if (skeletonPreviewController != null)
             {
                 skeletonPreviewController.BindPrefab(prefabAsset);
+            }
+        }
+
+        private void DrawUnitViewPrefabPicker()
+        {
+            EnsureUnitViewPrefabCache();
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Prefab Asset", GUILayout.Width(120f));
+
+            if (unitViewPrefabs.Count == 0)
+            {
+                EditorGUI.BeginDisabledGroup(true);
+                EditorGUILayout.Popup(0, new[] { "(No UnitView prefabs found)" });
+                EditorGUI.EndDisabledGroup();
+            }
+            else
+            {
+                int nextIndex = EditorGUILayout.Popup(
+                    Mathf.Max(0, unitViewPrefabIndex),
+                    unitViewPrefabLabels);
+                if (nextIndex >= 0 && nextIndex < unitViewPrefabs.Count && nextIndex != unitViewPrefabIndex)
+                {
+                    unitViewPrefabIndex = nextIndex;
+                    SetPrefabAsset(unitViewPrefabs[nextIndex]);
+                }
+            }
+
+            if (GUILayout.Button("Scan", secondaryButtonStyle, GUILayout.Width(72f)))
+            {
+                RefreshUnitViewPrefabCache();
+            }
+
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawUnitViewPrefabList()
+        {
+            EnsureUnitViewPrefabCache();
+
+            EditorGUILayout.LabelField("UnitView List", sectionHeaderStyle);
+            using (var scope = new EditorGUILayout.ScrollViewScope(unitViewListScroll, GUILayout.Height(180f)))
+            {
+                unitViewListScroll = scope.scrollPosition;
+
+                if (unitViewPrefabs.Count == 0)
+                {
+                    EditorGUILayout.LabelField("(No UnitView prefabs found)", EditorStyles.miniLabel);
+                    return;
+                }
+
+                for (int i = 0; i < unitViewPrefabs.Count; i++)
+                {
+                    var prefab = unitViewPrefabs[i];
+                    if (prefab == null)
+                    {
+                        continue;
+                    }
+
+                    bool isSelected = i == selectedUnitViewListIndex || prefab == prefabAsset;
+                    var style = isSelected ? tabSelectedStyle : tabNormalStyle;
+                    if (GUILayout.Button(prefab.name, style))
+                    {
+                        selectedUnitViewListIndex = i;
+                        SetPrefabAsset(prefab);
+                    }
+                }
+            }
+        }
+
+        private int unitViewPrefabIndex = -1;
+
+        private void EnsureUnitViewPrefabCache()
+        {
+            if (!unitViewPrefabCacheDirty)
+            {
+                return;
+            }
+
+            RefreshUnitViewPrefabCache();
+        }
+
+        private void RefreshUnitViewPrefabCache()
+        {
+            unitViewPrefabCacheDirty = false;
+            unitViewPrefabs.Clear();
+
+            string[] guids = AssetDatabase.FindAssets("t:Prefab");
+            for (int i = 0; i < guids.Length; i++)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+                if (string.IsNullOrEmpty(path))
+                {
+                    continue;
+                }
+
+                GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                if (prefab == null)
+                {
+                    continue;
+                }
+
+                bool hasUnitView = prefab.GetComponentInChildren<UnitView>(true) != null;
+
+                if (hasUnitView)
+                {
+                    unitViewPrefabs.Add(prefab);
+                }
+            }
+
+            unitViewPrefabs.Sort((a, b) => string.Compare(a.name, b.name, StringComparison.Ordinal));
+            unitViewPrefabLabels = BuildPrefabLabels(unitViewPrefabs);
+            SyncUnitViewPrefabSelection();
+        }
+
+        private static string[] BuildPrefabLabels(IReadOnlyList<GameObject> prefabs)
+        {
+            var labels = new List<string>(prefabs.Count);
+            for (int i = 0; i < prefabs.Count; i++)
+            {
+                var prefab = prefabs[i];
+                string path = AssetDatabase.GetAssetPath(prefab);
+                labels.Add(string.IsNullOrEmpty(path) ? prefab.name : $"{prefab.name} ({path})");
+            }
+
+            return labels.ToArray();
+        }
+
+        private void SyncUnitViewPrefabSelection()
+        {
+            unitViewPrefabIndex = -1;
+            selectedUnitViewListIndex = -1;
+            if (prefabAsset == null || unitViewPrefabs.Count == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < unitViewPrefabs.Count; i++)
+            {
+                if (unitViewPrefabs[i] == prefabAsset)
+                {
+                    unitViewPrefabIndex = i;
+                    selectedUnitViewListIndex = i;
+                    return;
+                }
             }
         }
 
@@ -1867,8 +2056,7 @@ namespace GameSystems.Battle.Editor
             {
                 skeletonAnimation = null;
                 skeletonDataAsset = null;
-                attackBehavior = null;
-                skillBehavior = null;
+                actionSequenceRunner = null;
                 behitBehavior = null;
                 animationHandle = null;
                 unitView = null;
@@ -1877,8 +2065,7 @@ namespace GameSystems.Battle.Editor
 
             skeletonAnimation = workingPrefabRoot.GetComponentInChildren<SkeletonAnimation>(true);
             skeletonDataAsset = skeletonAnimation != null ? skeletonAnimation.skeletonDataAsset : null;
-            attackBehavior = workingPrefabRoot.GetComponentInChildren<AttackBehavior>(true);
-            skillBehavior = workingPrefabRoot.GetComponentInChildren<SkillBehavior>(true);
+            actionSequenceRunner = workingPrefabRoot.GetComponentInChildren<ActionSequenceRunner>(true);
             behitBehavior = workingPrefabRoot.GetComponentInChildren<BehitBehavior>(true);
             animationHandle = workingPrefabRoot.GetComponentInChildren<AnimationHandle>(true);
             unitView = workingPrefabRoot.GetComponentInChildren<UnitView>(true);
@@ -1895,16 +2082,28 @@ namespace GameSystems.Battle.Editor
                         {
                             animationNames.Add(anim.Name);
 
-                            var animEvents = new List<string>();
+                            var animEventCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+                            var animEventOrder = new List<string>();
                             foreach (var timeline in anim.Timelines)
                             {
                                 if (timeline is EventTimeline eventTimeline)
                                 {
                                     foreach (var e in eventTimeline.Events)
                                     {
-                                        if (!animEvents.Contains(e.Data.Name))
+                                        string eventName = e?.Data?.Name;
+                                        if (string.IsNullOrEmpty(eventName))
                                         {
-                                            animEvents.Add(e.Data.Name);
+                                            continue;
+                                        }
+
+                                        if (animEventCounts.TryGetValue(eventName, out int count))
+                                        {
+                                            animEventCounts[eventName] = count + 1;
+                                        }
+                                        else
+                                        {
+                                            animEventCounts[eventName] = 1;
+                                            animEventOrder.Add(eventName);
                                         }
                                     }
                                 }
@@ -1914,7 +2113,9 @@ namespace GameSystems.Battle.Editor
                             {
                                 Name = anim.Name,
                                 Duration = anim.Duration,
-                                EventNames = animEvents.Count > 0 ? string.Join(", ", animEvents) : "-"
+                                EventNames = animEventOrder.Count > 0
+                                    ? string.Join(", ", animEventOrder.Select(name => $"{name}(x {animEventCounts[name]})"))
+                                    : "-"
                             });
                         }
                         eventNames.AddRange(skeletonData.Events.Select(e => e.Name));
@@ -2090,6 +2291,23 @@ namespace GameSystems.Battle.Editor
             EditorGUILayout.EndHorizontal();
         }
 
+        private static string[] GetSortingLayerNames()
+        {
+            var layers = SortingLayer.layers;
+            if (layers == null || layers.Length == 0)
+            {
+                return new[] { "Default" };
+            }
+
+            var names = new string[layers.Length];
+            for (int i = 0; i < layers.Length; i++)
+            {
+                names[i] = layers[i].name;
+            }
+
+            return names;
+        }
+
         private void UnloadPrefabWorkingCopy()
         {
             ClearPreviewAnimationOverride(false);
@@ -2103,8 +2321,7 @@ namespace GameSystems.Battle.Editor
             workingPrefabPath = null;
             skeletonAnimation = null;
             skeletonDataAsset = null;
-            attackBehavior = null;
-            skillBehavior = null;
+            actionSequenceRunner = null;
             behitBehavior = null;
             animationHandle = null;
             unitView = null;

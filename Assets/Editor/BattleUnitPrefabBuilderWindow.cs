@@ -40,7 +40,7 @@ namespace GameSystems.Battle.Editor
         {
             EditorGUILayout.LabelField("Battle Unit Prefab Builder", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
-                "Drag prefab assets here. The tool will keep AnimationHandle on the SkeletonAnimation host, but move battle behaviours onto the prefab root (UnitView). FloatingText is generated once as a shared prefab.",
+                "Drag prefab assets here. The tool keeps AnimationHandle on the SkeletonAnimation host, and wires unified step-system runtime components onto the prefab root (UnitView + ActionSequenceRunner + Behit). FloatingText is generated once as a shared prefab.",
                 MessageType.Info);
 
             DrawSettings();
@@ -54,7 +54,7 @@ namespace GameSystems.Battle.Editor
             EditorGUILayout.Space(6f);
             outputFolder = EditorGUILayout.TextField("Output Folder", outputFolder);
             addUnitView = EditorGUILayout.ToggleLeft("Add UnitView to prefab root", addUnitView);
-            addBattleBehaviours = EditorGUILayout.ToggleLeft("Add Attack / Behit / Skill behaviours", addBattleBehaviours);
+            addBattleBehaviours = EditorGUILayout.ToggleLeft("Add ActionSequenceRunner + Behit (step system)", addBattleBehaviours);
             addStatusView = EditorGUILayout.ToggleLeft("Add StatusView", addStatusView);
             addFloatingTextPrefab = EditorGUILayout.ToggleLeft("Use shared FloatingText prefab + wire it", addFloatingTextPrefab);
             autoWireAnimationRefs = EditorGUILayout.ToggleLeft("Auto-wire animation refs", autoWireAnimationRefs);
@@ -194,9 +194,9 @@ namespace GameSystems.Battle.Editor
 
                 if (addBattleBehaviours)
                 {
-                    EnsureRootComponent<AttackBehavior>(viewRoot, skeletonHost);
+                    RemoveLegacyActionBehaviours(viewRoot);
+                    EnsureRootComponent<ActionSequenceRunner>(viewRoot, skeletonHost);
                     EnsureRootComponent<BehitBehavior>(viewRoot, skeletonHost);
-                    EnsureRootComponent<SkillBehavior>(viewRoot, skeletonHost);
                 }
 
                 if (addStatusView)
@@ -613,6 +613,37 @@ namespace GameSystems.Battle.Editor
             EditorUtility.SetDirty(prefabRoot);
             EditorUtility.SetDirty(rootComponent);
             return rootComponent;
+        }
+
+        private void RemoveLegacyActionBehaviours(GameObject prefabRoot)
+        {
+            if (prefabRoot == null)
+            {
+                return;
+            }
+
+            RemoveComponentsInChildren<AttackBehavior>(prefabRoot);
+            RemoveComponentsInChildren<SkillBehavior>(prefabRoot);
+            RemoveComponentsInChildren<BasicSkill>(prefabRoot);
+        }
+
+        private void RemoveComponentsInChildren<T>(GameObject root) where T : Component
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            var components = root.GetComponentsInChildren<T>(true);
+            for (int i = 0; i < components.Length; i++)
+            {
+                if (components[i] == null)
+                {
+                    continue;
+                }
+
+                Object.DestroyImmediate(components[i]);
+            }
         }
 
         private void AddSelectedPrefabs()

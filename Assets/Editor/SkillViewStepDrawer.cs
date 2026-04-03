@@ -131,7 +131,12 @@ namespace GameSystems.Battle.Editor
                 return;
             }
 
-            string[] popupOptions = BuildPopupOptions(animationOptions, property.stringValue);
+            if (!string.IsNullOrWhiteSpace(property.stringValue) && !HasOption(animationOptions, property.stringValue))
+            {
+                property.stringValue = animationOptions[0];
+            }
+
+            string[] popupOptions = BuildPopupOptions(animationOptions);
             int currentIndex = Array.IndexOf(popupOptions, property.stringValue);
             if (currentIndex < 0)
             {
@@ -142,7 +147,7 @@ namespace GameSystems.Battle.Editor
             int nextIndex = EditorGUI.Popup(fieldRect, currentIndex, popupOptions);
             if (nextIndex >= 0 && nextIndex < popupOptions.Length && nextIndex != currentIndex)
             {
-                string nextValue = nextIndex == 0 ? string.Empty : popupOptions[nextIndex];
+                string nextValue = popupOptions[nextIndex] == "<None>" ? string.Empty : popupOptions[nextIndex];
                 if (property.stringValue != nextValue)
                 {
                     property.stringValue = nextValue;
@@ -152,15 +157,9 @@ namespace GameSystems.Battle.Editor
             rect.y += EditorGUIUtility.singleLineHeight + 2f;
         }
 
-        private static string[] BuildPopupOptions(IReadOnlyList<string> options, string currentValue)
+        private static string[] BuildPopupOptions(IReadOnlyList<string> options)
         {
-            var list = new List<string> { "<None>" };
-
-            if (!string.IsNullOrWhiteSpace(currentValue) && !list.Contains(currentValue))
-            {
-                list.Add(currentValue);
-            }
-
+            var list = new List<string>();
             if (options != null)
             {
                 for (int i = 0; i < options.Count; i++)
@@ -178,7 +177,26 @@ namespace GameSystems.Battle.Editor
                 }
             }
 
+            list.Add("<None>");
             return list.ToArray();
+        }
+
+        private static bool HasOption(IReadOnlyList<string> options, string value)
+        {
+            if (options == null || string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            for (int i = 0; i < options.Count; i++)
+            {
+                if (string.Equals(options[i], value, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool ShowTargetType(SkillViewStepType type) => type != SkillViewStepType.Wait && type != SkillViewStepType.ResetSortingOrder && type != SkillViewStepType.SetSortingOrder && type != SkillViewStepType.SetIdleAnimation && type != SkillViewStepType.SetFlipX;

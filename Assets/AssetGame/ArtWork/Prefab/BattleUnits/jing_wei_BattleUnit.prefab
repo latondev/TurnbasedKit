@@ -213,8 +213,6 @@ GameObject:
   - component: {fileID: 3491360302347249934}
   - component: {fileID: 8620260791440561668}
   - component: {fileID: 2862746517283217322}
-  - component: {fileID: 4717314773867434007}
-  - component: {fileID: 7889563053570872193}
   - component: {fileID: 1299573756105403276}
   - component: {fileID: 1995526497795665770}
   m_Layer: 0
@@ -255,23 +253,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 5619034119921241144}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 583a53a3592407e4c9e554a54b7c66d4, type: 3}
+  m_Script: {fileID: 11500000, guid: 6558508d4bda45acbd9be7e16e743272, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dirType: 0
   animationHandle: {fileID: 8816466899987523723}
-  moveGo: run
-  moveBack: run
-  attackRange: 0
-  offsetExcute: {x: 0, y: 0}
-  targetPosition: {x: 0, y: 0}
   speed: 1
-  posOrigin: {x: 0, y: 0}
-  fxHit: {fileID: 0}
-  isHitEffect: 0
-  attackAnimation: attack
-  idleAnimation: idle
-  eventHit: hit
+  moveDuration: 0.4
 --- !u!114 &2862746517283217322
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -286,8 +273,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   behitAnimation: hit
   dieAnimation: die
-  downAnimation: down
-  upAnimation: up
   idleAnimation: idle
   floatingTextPrefab: {fileID: 458368119772836750, guid: 79cd2ec7a21995b4ab09f146602c4ca8,
     type: 3}
@@ -299,48 +284,6 @@ MonoBehaviour:
   currentHealth: 0
   maxMp: 0
   currentMp: 0
---- !u!114 &4717314773867434007
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5619034119921241144}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 62df86ded73ec6f49a820ad90ae0e879, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  dirType: 0
-  animationHandle: {fileID: 8816466899987523723}
-  moveGo: run
-  moveBack: run
-  attackRange: 0
-  offsetExcute: {x: 0, y: 0}
-  targetPosition: {x: 0, y: 0}
-  speed: 1
-  posOrigin: {x: 0, y: 0}
-  fxHit: {fileID: 0}
-  isHitEffect: 0
-  skillAnimation: skill
-  idleAnimation: idle
-  eventHit: hit
-  eventFalldown: falldown
-  skillAnimations: []
-  totalHit: 1
---- !u!114 &7889563053570872193
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5619034119921241144}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9f1e2f9f1d5d4a8e88a0e8a5a2d5e2bc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  fxSkill: {fileID: 0}
 --- !u!114 &1299573756105403276
 MonoBehaviour:
   m_ObjectHideFlags: 0
