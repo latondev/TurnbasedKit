@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: SkillViewSequence
   m_EditorClassIdentifier: 
   sequenceId: basic_strike
-  animationName: skill
-  fallbackAnimationName: skill
+  animationName: attack
+  fallbackAnimationName: attack
   hitEventName: hit
-  falldownEventName: falldown
+  falldownEventName: audio
   idleAnimationName: idle
   steps:
   - stepType: 0

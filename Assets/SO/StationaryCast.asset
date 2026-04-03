@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: StationaryCast
   m_EditorClassIdentifier: 
   sequenceId: stationary_cast
-  animationName: skill
-  fallbackAnimationName: skill
+  animationName: attack
+  fallbackAnimationName: attack
   hitEventName: hit
-  falldownEventName: falldown
+  falldownEventName: audio
   idleAnimationName: idle
   steps:
   - stepType: 2

@@ -25,6 +25,13 @@ namespace GameSystems.Battle.Editor
         private static readonly Color BadColor = new Color(0.82f, 0.28f, 0.28f);
         private static readonly GUIContent PreviewPlayContent = new GUIContent("▶", "Preview animation");
 
+        private static Texture2D texPanel;
+        private static Texture2D texPanelAlt;
+        private static Texture2D texElement;
+        private static Texture2D texAccent;
+        private static Texture2D texAccentSoft;
+        private static Texture2D texHover;
+
         [SerializeField] private CharacterDataSO characterData;
         [SerializeField] private GameObject prefabAsset;
         [SerializeField] private Vector2 scrollPosition;
@@ -130,6 +137,13 @@ namespace GameSystems.Battle.Editor
 
         private void OnDisable()
         {
+            if (texPanel != null) { DestroyImmediate(texPanel); texPanel = null; }
+            if (texPanelAlt != null) { DestroyImmediate(texPanelAlt); texPanelAlt = null; }
+            if (texElement != null) { DestroyImmediate(texElement); texElement = null; }
+            if (texAccent != null) { DestroyImmediate(texAccent); texAccent = null; }
+            if (texAccentSoft != null) { DestroyImmediate(texAccentSoft); texAccentSoft = null; }
+            if (texHover != null) { DestroyImmediate(texHover); texHover = null; }
+
             EditorApplication.update -= HandleEditorUpdate;
             SkillViewStepDrawer.SetAnimationOptions(null);
             ClearPreviewAnimationOverride(false);
@@ -187,6 +201,7 @@ namespace GameSystems.Battle.Editor
         private void OnGUI()
         {
             BuildStyles();
+            EditorGUI.DrawRect(new Rect(0, 0, position.width, position.height), new Color(0.12f, 0.13f, 0.15f, 1f));
             SkillViewStepDrawer.SetAnimationOptions(animationNames);
             DrawHeader();
 
@@ -246,10 +261,15 @@ namespace GameSystems.Battle.Editor
                 bool isSelected = currentTab == i;
                 
                 Rect rect = EditorGUILayout.GetControlRect(false, 32f);
+                bool isHover = rect.Contains(UnityEngine.Event.current.mousePosition);
                 if (isSelected)
                 {
+                    EditorGUI.DrawRect(rect, new Color(1f, 1f, 1f, 0.12f));
+                    EditorGUI.DrawRect(new Rect(rect.x, rect.y, 3f, rect.height), AccentColor);
+                }
+                else if (isHover)
+                {
                     EditorGUI.DrawRect(rect, new Color(1f, 1f, 1f, 0.05f));
-                    EditorGUI.DrawRect(new Rect(rect.x, rect.y, 4f, rect.height), AccentColor);
                 }
 
                 if (GUI.Button(rect, GUIContent.none, GUIStyle.none))
@@ -259,7 +279,7 @@ namespace GameSystems.Battle.Editor
                 }
 
                 GUIStyle labelStyle = isSelected ? tabSelectedStyle : tabNormalStyle;
-                Rect textRect = new Rect(rect.x + (isSelected ? 12f : 8f), rect.y, rect.width - 8f, rect.height);
+                Rect textRect = new Rect(rect.x + (isSelected ? 14f : 12f), rect.y, rect.width - 12f, rect.height);
                 GUI.Label(textRect, tabNames[i], labelStyle);
             }
             EditorGUILayout.EndVertical();
@@ -288,75 +308,99 @@ namespace GameSystems.Battle.Editor
 
         private void DrawAssetBindingTab()
         {
-            EditorGUILayout.BeginVertical(cardStyle);
-            EditorGUILayout.LabelField("Asset Setup", sectionHeaderStyle);
-            EditorGUILayout.LabelField(
-                "Bind one CharacterDataSO and one prefab, then keep both assets synced to the same unit id.",
-                subtitleStyle);
-            EditorGUILayout.Space(12f);
+            // ── TOP ROW: Asset Fields + Actions (left) | Preview (center) | UnitView List (right) ──
+            EditorGUILayout.BeginHorizontal();
+
+            // ── LEFT COLUMN: Binding Form ──
+            EditorGUILayout.BeginVertical(cardStyle, GUILayout.ExpandWidth(true));
+            EditorGUILayout.LabelField("Asset Binding", sectionHeaderStyle);
+            EditorGUILayout.Space(8f);
 
             EditorGUI.BeginChangeCheck();
             var nextCharacterData = (CharacterDataSO)EditorGUILayout.ObjectField("Character Data SO", characterData, typeof(CharacterDataSO), false);
-            if (EditorGUI.EndChangeCheck())
-            {
-                characterData = nextCharacterData;
-            }
+            if (EditorGUI.EndChangeCheck()) characterData = nextCharacterData;
+
+            EditorGUI.BeginChangeCheck();
+            var nextPrefabAsset = (GameObject)EditorGUILayout.ObjectField("Prefab Asset", prefabAsset, typeof(GameObject), false);
+            if (EditorGUI.EndChangeCheck()) SetPrefabAsset(nextPrefabAsset);
+
+            EditorGUILayout.Space(8f);
+            Rect separatorRect = EditorGUILayout.GetControlRect(false, 1f);
+            EditorGUI.DrawRect(separatorRect, new Color(1f, 1f, 1f, 0.06f));
+            EditorGUILayout.Space(8f);
 
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.BeginVertical(GUILayout.MinWidth(420f));
-            DrawUnitViewPrefabPicker();
-            EditorGUILayout.EndVertical();
-
-            EditorGUILayout.Space(12f);
-
-            EditorGUILayout.BeginVertical(GUILayout.MinWidth(220f));
-            DrawUnitViewPrefabList();
-            EditorGUILayout.EndVertical();
-            EditorGUILayout.EndHorizontal();
-
-            EditorGUILayout.Space(12f);
-
-            EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Use Selection", primaryButtonStyle))
-            {
+            if (GUILayout.Button("Use Selection", primaryButtonStyle, GUILayout.Height(28f)))
                 UseSelection();
-            }
-
-            if (GUILayout.Button("Create Character SO", secondaryButtonStyle))
-            {
+            if (GUILayout.Button("Create SO", secondaryButtonStyle, GUILayout.Height(28f)))
                 CreateCharacterDataAsset();
-            }
             EditorGUILayout.EndHorizontal();
 
             EditorGUILayout.Space(4f);
 
             EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Sync Asset Names", secondaryButtonStyle))
-            {
+            if (GUILayout.Button("Sync Names", secondaryButtonStyle, GUILayout.Height(28f)))
                 SyncAssetNames();
-            }
-
-            if (GUILayout.Button("Reload Prefab", secondaryButtonStyle) && prefabAsset != null)
-            {
+            if (GUILayout.Button("Reload Prefab", secondaryButtonStyle, GUILayout.Height(28f)) && prefabAsset != null)
                 LoadPrefabWorkingCopy(prefabAsset);
-            }
             EditorGUILayout.EndHorizontal();
 
-            EditorGUILayout.Space(12f);
+            EditorGUILayout.Space(8f);
+            Rect separatorRect2 = EditorGUILayout.GetControlRect(false, 1f);
+            EditorGUI.DrawRect(separatorRect2, new Color(1f, 1f, 1f, 0.06f));
+            EditorGUILayout.Space(6f);
 
+            string idText = characterData != null ? characterData.id.ToString() : "—";
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Character Id", GUILayout.Width(80f));
-            if (characterData != null)
-            {
-                EditorGUILayout.LabelField(characterData.id.ToString(), EditorStyles.miniBoldLabel);
-            }
-            else
-            {
-                EditorGUILayout.LabelField("-", EditorStyles.miniBoldLabel);
-            }
+            GUILayout.Label("ID", EditorStyles.miniLabel, GUILayout.Width(20f));
+            GUILayout.Label(idText, EditorStyles.miniBoldLabel);
             EditorGUILayout.EndHorizontal();
 
             EditorGUILayout.EndVertical();
+
+            EditorGUILayout.Space(6f);
+
+            // ── CENTER COLUMN: Unit Preview ──
+            EditorGUILayout.BeginVertical(cardStyle, GUILayout.Width(300f), GUILayout.ExpandHeight(true));
+            EditorGUILayout.LabelField("Unit Preview", sectionHeaderStyle);
+            EditorGUILayout.Space(4f);
+
+            if (prefabAsset != null && skeletonAnimation != null)
+            {
+                EnsurePreviewController();
+                skeletonPreviewController.Pause();
+
+                float availW = 280f;
+                float availH = Mathf.Max(200f, position.height - 380f);
+                float previewSize = Mathf.Min(availW, availH);
+
+                Rect containerRect = EditorGUILayout.GetControlRect(false, previewSize + 8f);
+                float cx = containerRect.x + (containerRect.width - previewSize) * 0.5f;
+                float cy = containerRect.y + (containerRect.height - previewSize) * 0.5f;
+                Rect centeredRect = new Rect(cx, cy, previewSize, previewSize);
+
+                EditorGUI.DrawRect(centeredRect, new Color(0.10f, 0.11f, 0.13f, 1f));
+                skeletonPreviewController.DrawPreview(centeredRect);
+            }
+            else
+            {
+                float emptyH = Mathf.Max(120f, position.height - 420f);
+                Rect emptyRect = EditorGUILayout.GetControlRect(false, emptyH);
+                EditorGUI.DrawRect(emptyRect, new Color(0.10f, 0.11f, 0.13f, 1f));
+                GUI.Label(emptyRect, prefabAsset == null ? "No Prefab Selected" : "No Spine Skeleton", EditorStyles.centeredGreyMiniLabel);
+            }
+
+            EditorGUILayout.EndVertical();
+
+            EditorGUILayout.Space(6f);
+
+            // ── RIGHT COLUMN: UnitView Browser ──
+            EditorGUILayout.BeginVertical(cardStyle, GUILayout.Width(280f), GUILayout.ExpandHeight(true));
+            DrawUnitViewPrefabList();
+            EditorGUILayout.EndVertical();
+
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.Space(8f);
         }
 
         private void DrawSkeletonSection()
@@ -1882,39 +1926,6 @@ namespace GameSystems.Battle.Editor
             }
         }
 
-        private void DrawUnitViewPrefabPicker()
-        {
-            EnsureUnitViewPrefabCache();
-
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Prefab Asset", GUILayout.Width(120f));
-
-            if (unitViewPrefabs.Count == 0)
-            {
-                EditorGUI.BeginDisabledGroup(true);
-                EditorGUILayout.Popup(0, new[] { "(No UnitView prefabs found)" });
-                EditorGUI.EndDisabledGroup();
-            }
-            else
-            {
-                int nextIndex = EditorGUILayout.Popup(
-                    Mathf.Max(0, unitViewPrefabIndex),
-                    unitViewPrefabLabels);
-                if (nextIndex >= 0 && nextIndex < unitViewPrefabs.Count && nextIndex != unitViewPrefabIndex)
-                {
-                    unitViewPrefabIndex = nextIndex;
-                    SetPrefabAsset(unitViewPrefabs[nextIndex]);
-                }
-            }
-
-            if (GUILayout.Button("Scan", secondaryButtonStyle, GUILayout.Width(72f)))
-            {
-                RefreshUnitViewPrefabCache();
-            }
-
-            EditorGUILayout.EndHorizontal();
-        }
-
         private void DrawUnitViewPrefabList()
         {
             EnsureUnitViewPrefabCache();
@@ -2314,6 +2325,10 @@ namespace GameSystems.Battle.Editor
 
             if (workingPrefabRoot != null)
             {
+                if (Selection.activeGameObject != null && (Selection.activeGameObject == workingPrefabRoot || Selection.activeGameObject.transform.IsChildOf(workingPrefabRoot.transform)))
+                {
+                    Selection.activeObject = null;
+                }
                 PrefabUtility.UnloadPrefabContents(workingPrefabRoot);
             }
 
