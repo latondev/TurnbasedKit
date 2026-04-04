@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using GameSystems.Battle;
 using GameSystems.Battle.Demo;
 using GameSystems.Skills;
@@ -106,10 +107,46 @@ namespace GameSystems.Battle.Editor
         private readonly List<AnimationInfo> animationInfos = new List<AnimationInfo>();
         private readonly Dictionary<string, string> animationUsageCache = new Dictionary<string, string>();
         private readonly List<string> eventNames = new List<string>();
+        private const string DefaultUnitViewPrefabSearchFolder = "Assets/AssetGame/ArtWork/Prefab/BattleUnits";
+        private const string DefaultCharacterDataSearchFolder = "Assets/SO";
+        private const string DefaultSkeletonDataSearchFolder = "Assets";
+        private const string UnitCreationTemplatePrefabPath = "Assets/AssetGame/ArtWork/Prefab/BattleUnits/1000_jing_wei.prefab";
+        private const double UnitViewPrefabScanFrameBudgetSeconds = 0.004d;
+        private const int UnitViewPrefabScanBatchSize = 20;
         private readonly List<GameObject> unitViewPrefabs = new List<GameObject>();
+        private readonly Dictionary<int, CharacterDataSO> characterDataById = new Dictionary<int, CharacterDataSO>();
         private string[] unitViewPrefabLabels = Array.Empty<string>();
+        private readonly Dictionary<GameObject, Texture2D> unitViewPreviewCache = new Dictionary<GameObject, Texture2D>();
+        private readonly HashSet<Texture2D> unitViewGeneratedPreviewTextures = new HashSet<Texture2D>();
         private bool unitViewPrefabCacheDirty = true;
+        private bool characterDataIndexDirty = true;
+        private bool skeletonDataListDirty = true;
+        [SerializeField] private string characterDataSearchFolderPath = DefaultCharacterDataSearchFolder;
+        [SerializeField] private string prefabSearchFolderPath = DefaultUnitViewPrefabSearchFolder;
+        [SerializeField] private string skeletonDataSearchFolderPath = DefaultSkeletonDataSearchFolder;
+        private bool unitViewPrefabListLoaded;
+        private bool isUnitViewPrefabScanRunning;
+        private bool unitViewPrefabScanFullProject;
+        private string[] unitViewPrefabScanGuids = Array.Empty<string>();
+        private int unitViewPrefabScanIndex;
+        private int unitViewPrefabScanTotal;
+        private readonly List<string> scannedUnitViewPrefabPaths = new List<string>();
+        private readonly HashSet<string> scannedUnitViewPrefabPathSet =
+            new HashSet<string>(StringComparer.Ordinal);
+        private string unitViewPrefabScanStatus = "Not loaded";
+        private string unitViewAutoBindStatus = string.Empty;
+        [SerializeField] private SkeletonDataAsset createSkeletonDataAsset;
+        private readonly List<SkeletonDataAsset> skeletonDataFolderAssets = new List<SkeletonDataAsset>();
+        private readonly List<string> skeletonDataFolderPaths = new List<string>();
+        private bool skeletonDataListLoaded;
+        private string skeletonDataListStatus = "Not loaded";
+        [SerializeField] private Vector2 skeletonDataListScroll;
+        [SerializeField] private int selectedSkeletonDataListIndex = -1;
+        [SerializeField] private string skeletonDataListFilter = string.Empty;
+        [SerializeField] private string createUnitAssetStatus = string.Empty;
+        [SerializeField] private bool createUnitAssetStatusIsError;
         private Vector2 unitViewListScroll;
+        [SerializeField] private UnitViewBrowserMode unitViewBrowserMode = UnitViewBrowserMode.List;
         [SerializeField] private int selectedUnitViewListIndex = -1;
         private SkillSequencePreviewController previewController;
         private SkillSequencePreviewController skeletonPreviewController;
@@ -132,6 +169,15 @@ namespace GameSystems.Battle.Editor
         [SerializeField] private bool showPreviewStepDetails;
         [SerializeField] private string draggedPreviewMarkerName;
         [SerializeField] private float draggedPreviewMarkerWorldZ;
+        private bool skeletonMetadataLoaded;
+
+        private enum UnitViewBrowserMode
+        {
+            List,
+            Detail
+        }
+
+        private static readonly string[] UnitViewBrowserModeLabels = { "List", "Detail" };
 
         private enum SequenceTemplateArchetype
         {
@@ -176,6 +222,8 @@ namespace GameSystems.Battle.Editor
         {
             EditorApplication.update -= HandleEditorUpdate;
             EditorApplication.update += HandleEditorUpdate;
+            EditorApplication.projectChanged -= HandleProjectChanged;
+            EditorApplication.projectChanged += HandleProjectChanged;
 
             if (previewController == null)
             {
@@ -197,12 +245,7 @@ namespace GameSystems.Battle.Editor
             skeletonPreviewController.Speed = previewPlaybackSpeed;
 
             EnsureDefaultPreviewTargetPrefab();
-
-            if (prefabAsset != null && workingPrefabRoot == null)
-            {
-                LoadPrefabWorkingCopy(prefabAsset);
-            }
-
+            RestoreUnitViewPrefabCache();
             RefreshSequenceLibrary();
         }
 
@@ -216,6 +259,7 @@ namespace GameSystems.Battle.Editor
             if (texSecondaryContainer != null) { DestroyImmediate(texSecondaryContainer); texSecondaryContainer = null; }
 
             EditorApplication.update -= HandleEditorUpdate;
+            EditorApplication.projectChanged -= HandleProjectChanged;
             SkillViewStepDrawer.SetAnimationOptions(null);
             ClearPreviewAnimationOverride(false);
             if (skeletonPreviewController != null)
@@ -230,12 +274,16 @@ namespace GameSystems.Battle.Editor
             }
 
             draggedPreviewMarkerName = null;
+            StopUnitViewPrefabScan();
+            ClearUnitViewPreviewCache();
 
             UnloadPrefabWorkingCopy();
         }
 
         private void HandleEditorUpdate()
         {
+            ProcessUnitViewPrefabScan();
+
             if (previewController != null)
             {
                 bool shouldTickSkillPreview = currentTab == 5;
@@ -279,11 +327,6 @@ namespace GameSystems.Battle.Editor
             DrawHeader();
 
             EditorGUILayout.Space(6f);
-
-            if (workingPrefabRoot == null && prefabAsset != null)
-            {
-                LoadPrefabWorkingCopy(prefabAsset);
-            }
 
             EditorGUILayout.BeginHorizontal();
 
@@ -409,26 +452,68 @@ namespace GameSystems.Battle.Editor
             var nextPrefabAsset = (GameObject)EditorGUILayout.ObjectField("Prefab Asset", prefabAsset, typeof(GameObject), false);
             if (EditorGUI.EndChangeCheck()) SetPrefabAsset(nextPrefabAsset);
 
+            EditorGUI.BeginChangeCheck();
+            DefaultAsset skeletonFolderAsset = GetFolderAsset(skeletonDataSearchFolderPath);
+            var nextSkeletonFolderAsset = (DefaultAsset)EditorGUILayout.ObjectField(
+                "Skeleton Folder",
+                skeletonFolderAsset,
+                typeof(DefaultAsset),
+                false
+            );
+            if (EditorGUI.EndChangeCheck())
+            {
+                SetSkeletonDataSearchFolder(nextSkeletonFolderAsset);
+            }
+
+            EditorGUI.BeginChangeCheck();
+            var nextCreateSkeletonData = (SkeletonDataAsset)EditorGUILayout.ObjectField(
+                "Skeleton Data Asset",
+                createSkeletonDataAsset,
+                typeof(SkeletonDataAsset),
+                false
+            );
+            if (EditorGUI.EndChangeCheck())
+            {
+                createSkeletonDataAsset = nextCreateSkeletonData;
+                SyncSkeletonDataSelection();
+                createUnitAssetStatus = string.Empty;
+                createUnitAssetStatusIsError = false;
+            }
+
+            DrawSkeletonDataPickerControls();
+
             EditorGUILayout.Space(8f);
             Rect separatorRect = EditorGUILayout.GetControlRect(false, 1f);
             EditorGUI.DrawRect(separatorRect, new Color(1f, 1f, 1f, 0.06f));
             EditorGUILayout.Space(8f);
 
-            EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Use Selection", primaryButtonStyle, GUILayout.Height(28f)))
-                UseSelection();
-            if (GUILayout.Button("Create SO", secondaryButtonStyle, GUILayout.Height(28f)))
-                CreateCharacterDataAsset();
-            EditorGUILayout.EndHorizontal();
+            bool canCreateUnitAssets = TryValidateCreateInputs(
+                createSkeletonDataAsset,
+                out string createValidationMessage,
+                out _,
+                out _,
+                out _
+            );
+            using (new EditorGUI.DisabledScope(!canCreateUnitAssets))
+            {
+                if (GUILayout.Button("Create Prefab + SO", primaryButtonStyle, GUILayout.Height(28f)))
+                {
+                    TryCreateUnitAssetsFromSkeleton(createSkeletonDataAsset);
+                }
+            }
 
-            EditorGUILayout.Space(4f);
+            if (!canCreateUnitAssets && !string.IsNullOrEmpty(createValidationMessage))
+            {
+                EditorGUILayout.LabelField(createValidationMessage, EditorStyles.miniLabel);
+            }
 
-            EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Sync Names", secondaryButtonStyle, GUILayout.Height(28f)))
-                SyncAssetNames();
-            if (GUILayout.Button("Reload Prefab", secondaryButtonStyle, GUILayout.Height(28f)) && prefabAsset != null)
-                LoadPrefabWorkingCopy(prefabAsset);
-            EditorGUILayout.EndHorizontal();
+            if (!string.IsNullOrEmpty(createUnitAssetStatus))
+            {
+                EditorGUILayout.HelpBox(
+                    createUnitAssetStatus,
+                    createUnitAssetStatusIsError ? MessageType.Warning : MessageType.Info
+                );
+            }
 
             EditorGUILayout.Space(8f);
             Rect separatorRect2 = EditorGUILayout.GetControlRect(false, 1f);
@@ -472,7 +557,12 @@ namespace GameSystems.Battle.Editor
                 float emptyH = Mathf.Max(120f, position.height - 420f);
                 Rect emptyRect = EditorGUILayout.GetControlRect(false, emptyH);
                 EditorGUI.DrawRect(emptyRect, new Color(0.10f, 0.11f, 0.13f, 1f));
-                GUI.Label(emptyRect, prefabAsset == null ? "No Prefab Selected" : "No Spine Skeleton", EditorStyles.centeredGreyMiniLabel);
+                string emptyLabel = prefabAsset == null
+                    ? "No Prefab Selected"
+                    : workingPrefabRoot == null
+                        ? "Preview not loaded"
+                        : "No Spine Skeleton";
+                GUI.Label(emptyRect, emptyLabel, EditorStyles.centeredGreyMiniLabel);
             }
 
             EditorGUILayout.EndVertical();
@@ -490,6 +580,8 @@ namespace GameSystems.Battle.Editor
 
         private void DrawSkeletonSection()
         {
+            EnsureWorkingPrefabLoaded(true);
+
             EditorGUILayout.BeginVertical(cardStyle);
             try
             {
@@ -768,6 +860,8 @@ namespace GameSystems.Battle.Editor
 
         private void DrawCharacterSection()
         {
+            EnsureWorkingPrefabLoaded(true);
+
             EditorGUILayout.BeginVertical(cardStyle);
             EditorGUILayout.LabelField("Character Data", sectionHeaderStyle);
             EditorGUILayout.LabelField("Edit stats, identity, and combat actions directly from the linked SO.", subtitleStyle);
@@ -850,6 +944,8 @@ namespace GameSystems.Battle.Editor
 
         private void DrawPrefabSection()
         {
+            EnsureWorkingPrefabLoaded(true);
+
             EditorGUILayout.BeginVertical(cardStyle);
             EditorGUILayout.LabelField("Prefab Authoring", sectionHeaderStyle);
             EditorGUILayout.LabelField("Edit the prefab's working copy, then save it back to the asset.", subtitleStyle);
@@ -867,7 +963,6 @@ namespace GameSystems.Battle.Editor
 
             DrawComponentStringSection();
             DrawComponentOrderSection();
-            DrawMarkerEditorSection();
 
             EditorGUILayout.EndVertical();
             EditorGUILayout.Space(4f);
@@ -925,6 +1020,8 @@ namespace GameSystems.Battle.Editor
 
         private void DrawSkillSequencesSection()
         {
+            EnsureWorkingPrefabLoaded(true);
+
             EditorGUILayout.BeginVertical(cardStyle);
             EditorGUILayout.LabelField("Global Sequence Library", sectionHeaderStyle);
             EditorGUILayout.LabelField("Manage all SkillViewSequence assets across the project here.", subtitleStyle);
@@ -1852,12 +1949,50 @@ namespace GameSystems.Battle.Editor
             EditorGUILayout.Space(4f);
             EditorGUILayout.LabelField("Component Mapping", sectionHeaderStyle);
 
+            DrawUnitViewAuthoringSection();
             DrawActionRunnerSection();
 
             DrawComponentStrings("Behit Behavior", behitBehavior, new[]
             {
                 "behitAnimation", "dieAnimation", "idleAnimation"
             });
+        }
+
+        private void DrawUnitViewAuthoringSection()
+        {
+            EditorGUILayout.BeginVertical(sectionBodyStyle);
+            EditorGUILayout.LabelField("Unit View", sectionHeaderStyle);
+
+            if (unitView == null)
+            {
+                EditorGUILayout.HelpBox("UnitView component not found in prefab.", MessageType.Warning);
+                EditorGUILayout.EndVertical();
+                return;
+            }
+
+            var unitViewSo = new SerializedObject(unitView);
+            unitViewSo.Update();
+
+            SerializedProperty authoringIdProp = unitViewSo.FindProperty("authoringUnitId");
+            if (authoringIdProp != null)
+            {
+                int nextId = EditorGUILayout.IntField("Authoring Unit Id", authoringIdProp.intValue);
+                if (nextId != authoringIdProp.intValue)
+                {
+                    authoringIdProp.intValue = nextId;
+                }
+            }
+            else
+            {
+                EditorGUILayout.HelpBox("Field 'authoringUnitId' not found on UnitView.", MessageType.Warning);
+            }
+
+            if (unitViewSo.ApplyModifiedProperties())
+            {
+                EditorUtility.SetDirty(unitView);
+            }
+
+            EditorGUILayout.EndVertical();
         }
 
         private void DrawActionRunnerSection()
@@ -2028,7 +2163,7 @@ namespace GameSystems.Battle.Editor
 
             if (refreshNeeded)
             {
-                RefreshPrefabCache();
+                RefreshPrefabCache(skeletonMetadataLoaded);
             }
 
             for (int i = 0; i < RequiredMarkers.Length; i++)
@@ -2068,7 +2203,7 @@ namespace GameSystems.Battle.Editor
                 if (GUILayout.Button($"Create {definition.Name}", secondaryButtonStyle, GUILayout.Height(22f)))
                 {
                     CreateMarker(definition);
-                    RefreshPrefabCache();
+                    RefreshPrefabCache(skeletonMetadataLoaded);
                 }
 
                 EditorGUILayout.EndVertical();
@@ -2455,6 +2590,8 @@ namespace GameSystems.Battle.Editor
 
         private void DrawSkillSequencePreviewTab()
         {
+            EnsureWorkingPrefabLoaded(true);
+
             EditorGUILayout.BeginVertical(sectionBodyStyle);
             try
             {
@@ -2942,6 +3079,397 @@ namespace GameSystems.Battle.Editor
             EditorGUILayout.EndVertical();
         }
 
+        private bool TryCreateUnitAssetsFromSkeleton(SkeletonDataAsset sourceSkeletonData)
+        {
+            if (
+                !TryValidateCreateInputs(
+                    sourceSkeletonData,
+                    out string validationMessage,
+                    out string soFolderPath,
+                    out string prefabFolderPath,
+                    out string templatePrefabPath
+                )
+            )
+            {
+                createUnitAssetStatus = validationMessage;
+                createUnitAssetStatusIsError = true;
+                return false;
+            }
+
+            string unitName = DeriveUnitNameFromSkeletonData(sourceSkeletonData);
+            int nextId = GenerateNextUnitIdFromSoFolder(soFolderPath);
+            string unitKey = $"{nextId}_{unitName}";
+            string soAssetPath = $"{soFolderPath}/{unitKey}.asset";
+            string prefabAssetPath = $"{prefabFolderPath}/{unitKey}.prefab";
+
+            if (
+                AssetDatabase.LoadAssetAtPath<CharacterDataSO>(soAssetPath) != null
+                || AssetDatabase.LoadAssetAtPath<GameObject>(prefabAssetPath) != null
+            )
+            {
+                createUnitAssetStatus = $"Assets already exist: {unitKey}";
+                createUnitAssetStatusIsError = true;
+                return false;
+            }
+
+            CharacterDataSO createdCharacterData = null;
+            bool createdCharacterDataAsset = false;
+            bool createdPrefabAsset = false;
+            try
+            {
+                createdCharacterData = CreateInstance<CharacterDataSO>();
+                createdCharacterData.id = nextId;
+                createdCharacterData.nameHero = unitName;
+                if (createdCharacterData.level <= 0)
+                {
+                    createdCharacterData.level = 1;
+                }
+
+                createdCharacterData.InitializeDefaultStats();
+                createdCharacterData.EnsureActionsData();
+                AssetDatabase.CreateAsset(createdCharacterData, soAssetPath);
+                createdCharacterDataAsset = true;
+
+                if (!AssetDatabase.CopyAsset(templatePrefabPath, prefabAssetPath))
+                {
+                    createUnitAssetStatus = $"Failed to copy template prefab: {templatePrefabPath}";
+                    createUnitAssetStatusIsError = true;
+                    return false;
+                }
+
+                createdPrefabAsset = true;
+
+                if (
+                    !ConfigureNewUnitPrefab(
+                        prefabAssetPath,
+                        unitKey,
+                        nextId,
+                        sourceSkeletonData,
+                        out string configureError
+                    )
+                )
+                {
+                    createUnitAssetStatus = configureError;
+                    createUnitAssetStatusIsError = true;
+                    return false;
+                }
+
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
+
+                CharacterDataSO createdDataAsset = AssetDatabase.LoadAssetAtPath<CharacterDataSO>(soAssetPath);
+                GameObject createdPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabAssetPath);
+                characterDataIndexDirty = true;
+                characterData = createdDataAsset;
+                SetPrefabAsset(createdPrefab);
+                StartUnitViewPrefabScan(false);
+
+                Selection.activeObject = createdPrefab != null ? (UnityEngine.Object)createdPrefab : createdDataAsset;
+                if (Selection.activeObject != null)
+                {
+                    EditorGUIUtility.PingObject(Selection.activeObject);
+                }
+
+                createUnitAssetStatus = $"Created: {unitKey}";
+                createUnitAssetStatusIsError = false;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                createUnitAssetStatus = $"Create failed: {ex.Message}";
+                createUnitAssetStatusIsError = true;
+                return false;
+            }
+            finally
+            {
+                if (createUnitAssetStatusIsError)
+                {
+                    if (createdPrefabAsset && AssetDatabase.LoadAssetAtPath<GameObject>(prefabAssetPath) != null)
+                    {
+                        AssetDatabase.DeleteAsset(prefabAssetPath);
+                    }
+
+                    if (createdCharacterDataAsset && AssetDatabase.LoadAssetAtPath<CharacterDataSO>(soAssetPath) != null)
+                    {
+                        AssetDatabase.DeleteAsset(soAssetPath);
+                    }
+
+                    AssetDatabase.SaveAssets();
+                    AssetDatabase.Refresh();
+                }
+            }
+        }
+
+        private bool TryValidateCreateInputs(
+            SkeletonDataAsset sourceSkeletonData,
+            out string validationMessage,
+            out string soFolderPath,
+            out string prefabFolderPath,
+            out string templatePrefabPath
+        )
+        {
+            soFolderPath = characterDataSearchFolderPath;
+            prefabFolderPath = prefabSearchFolderPath;
+            templatePrefabPath = UnitCreationTemplatePrefabPath;
+            validationMessage = string.Empty;
+
+            if (sourceSkeletonData == null)
+            {
+                validationMessage = "Select Skeleton Data Asset first.";
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(soFolderPath) || !AssetDatabase.IsValidFolder(soFolderPath))
+            {
+                validationMessage = "SO Folder is invalid.";
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(prefabFolderPath) || !AssetDatabase.IsValidFolder(prefabFolderPath))
+            {
+                validationMessage = "Prefab Folder is invalid.";
+                return false;
+            }
+
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(templatePrefabPath) == null)
+            {
+                validationMessage = $"Template prefab not found: {templatePrefabPath}";
+                return false;
+            }
+
+            return true;
+        }
+
+        private int GenerateNextUnitIdFromSoFolder(string soFolderPath)
+        {
+            if (string.IsNullOrEmpty(soFolderPath) || !AssetDatabase.IsValidFolder(soFolderPath))
+            {
+                return 1;
+            }
+
+            int maxId = 0;
+            string[] guids = AssetDatabase.FindAssets("t:CharacterDataSO", new[] { soFolderPath });
+            for (int i = 0; i < guids.Length; i++)
+            {
+                string assetPath = AssetDatabase.GUIDToAssetPath(guids[i]);
+                if (string.IsNullOrEmpty(assetPath))
+                {
+                    continue;
+                }
+
+                CharacterDataSO data = AssetDatabase.LoadAssetAtPath<CharacterDataSO>(assetPath);
+                if (data != null && data.id > maxId)
+                {
+                    maxId = data.id;
+                }
+            }
+
+            return maxId + 1;
+        }
+
+        private string DeriveUnitNameFromSkeletonData(SkeletonDataAsset sourceSkeletonData)
+        {
+            if (sourceSkeletonData == null)
+            {
+                return "unit";
+            }
+
+            if (TryDeriveUnitNameFromExistingPrefab(sourceSkeletonData, out string existingUnitName))
+            {
+                return NormalizeUnitNamePart(existingUnitName);
+            }
+
+            string baseName = sourceSkeletonData.name;
+            baseName = RemoveSuffixInsensitive(baseName, "_SkeletonDataAsset");
+            baseName = RemoveSuffixInsensitive(baseName, "_SkeletonData");
+            baseName = RemoveSuffixInsensitive(baseName, "SkeletonDataAsset");
+            baseName = RemoveSuffixInsensitive(baseName, "SkeletonData");
+            string snakeCaseName = ToSnakeCase(baseName);
+            return NormalizeUnitNamePart(string.IsNullOrWhiteSpace(snakeCaseName) ? baseName : snakeCaseName);
+        }
+
+        private bool ConfigureNewUnitPrefab(
+            string prefabAssetPath,
+            string unitKey,
+            int unitId,
+            SkeletonDataAsset sourceSkeletonData,
+            out string error
+        )
+        {
+            error = string.Empty;
+            GameObject prefabRoot = null;
+            try
+            {
+                prefabRoot = PrefabUtility.LoadPrefabContents(prefabAssetPath);
+                if (prefabRoot == null)
+                {
+                    error = "Failed to open new prefab for editing.";
+                    return false;
+                }
+
+                prefabRoot.name = unitKey;
+
+                UnitView prefabUnitView = prefabRoot.GetComponentInChildren<UnitView>(true);
+                if (prefabUnitView != null)
+                {
+                    var unitViewSerializedObject = new SerializedObject(prefabUnitView);
+                    SerializedProperty authoringIdProperty = unitViewSerializedObject.FindProperty("authoringUnitId");
+                    if (authoringIdProperty != null)
+                    {
+                        authoringIdProperty.intValue = unitId;
+                        unitViewSerializedObject.ApplyModifiedPropertiesWithoutUndo();
+                    }
+                }
+
+                SkeletonAnimation prefabSkeletonAnimation =
+                    prefabRoot.transform.Find("model")?.GetComponent<SkeletonAnimation>()
+                    ?? prefabRoot.GetComponentInChildren<SkeletonAnimation>(true);
+                if (prefabSkeletonAnimation == null)
+                {
+                    error = "Template prefab is missing SkeletonAnimation.";
+                    return false;
+                }
+
+                prefabSkeletonAnimation.skeletonDataAsset = sourceSkeletonData;
+                prefabSkeletonAnimation.Initialize(true);
+                prefabSkeletonAnimation.LateUpdate();
+                EditorUtility.SetDirty(prefabSkeletonAnimation);
+
+                PrefabUtility.SaveAsPrefabAsset(prefabRoot, prefabAssetPath);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = $"Failed to configure prefab: {ex.Message}";
+                return false;
+            }
+            finally
+            {
+                if (prefabRoot != null)
+                {
+                    PrefabUtility.UnloadPrefabContents(prefabRoot);
+                }
+            }
+        }
+
+        private bool TryDeriveUnitNameFromExistingPrefab(SkeletonDataAsset sourceSkeletonData, out string unitName)
+        {
+            unitName = null;
+            string[] searchFolders = GetSelectedUnitViewSearchFolders();
+            if (searchFolders == null)
+            {
+                return false;
+            }
+
+            string[] prefabGuids = AssetDatabase.FindAssets("t:Prefab", searchFolders);
+            string fallbackUnitName = null;
+            for (int i = 0; i < prefabGuids.Length; i++)
+            {
+                string prefabPath = AssetDatabase.GUIDToAssetPath(prefabGuids[i]);
+                if (string.IsNullOrEmpty(prefabPath))
+                {
+                    continue;
+                }
+
+                GameObject candidatePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                if (candidatePrefab == null)
+                {
+                    continue;
+                }
+
+                SkeletonAnimation candidateSkeleton = candidatePrefab.GetComponentInChildren<SkeletonAnimation>(true);
+                if (candidateSkeleton == null || candidateSkeleton.skeletonDataAsset != sourceSkeletonData)
+                {
+                    continue;
+                }
+
+                string parsedName = RemoveLeadingIdPrefix(candidatePrefab.name);
+                if (!string.IsNullOrWhiteSpace(parsedName))
+                {
+                    if (string.Equals(prefabPath, UnitCreationTemplatePrefabPath, StringComparison.Ordinal))
+                    {
+                        unitName = parsedName;
+                        return true;
+                    }
+
+                    fallbackUnitName ??= parsedName;
+                }
+            }
+
+            unitName = fallbackUnitName;
+            return !string.IsNullOrWhiteSpace(unitName);
+        }
+
+        private static string RemoveLeadingIdPrefix(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+
+            int index = 0;
+            while (index < value.Length && char.IsDigit(value[index]))
+            {
+                index++;
+            }
+
+            if (index > 0 && index < value.Length && value[index] == '_')
+            {
+                return value.Substring(index + 1);
+            }
+
+            return value;
+        }
+
+        private static string ToSnakeCase(string rawValue)
+        {
+            if (string.IsNullOrWhiteSpace(rawValue))
+            {
+                return "unit";
+            }
+
+            var builder = new StringBuilder(rawValue.Length + 8);
+            char previousOutput = '\0';
+            for (int i = 0; i < rawValue.Length; i++)
+            {
+                char ch = rawValue[i];
+                if (char.IsLetterOrDigit(ch))
+                {
+                    bool isUpper = char.IsUpper(ch);
+                    bool currentIsDigit = char.IsDigit(ch);
+                    bool previousIsDigit = char.IsDigit(previousOutput);
+                    bool previousIsLetter = char.IsLetter(previousOutput);
+                    bool shouldInsertUnderscore =
+                        builder.Length > 0
+                        && previousOutput != '_'
+                        && (
+                            (isUpper && (char.IsLower(previousOutput) || previousIsDigit))
+                            || (currentIsDigit && previousIsLetter)
+                            || (!currentIsDigit && previousIsDigit)
+                        );
+
+                    if (shouldInsertUnderscore)
+                    {
+                        builder.Append('_');
+                    }
+
+                    char lowerChar = char.ToLowerInvariant(ch);
+                    builder.Append(lowerChar);
+                    previousOutput = lowerChar;
+                    continue;
+                }
+
+                if (builder.Length > 0 && previousOutput != '_')
+                {
+                    builder.Append('_');
+                    previousOutput = '_';
+                }
+            }
+
+            string snakeCase = builder.ToString().Trim('_');
+            return string.IsNullOrWhiteSpace(snakeCase) ? "unit" : snakeCase;
+        }
+
         private void UseSelection()
         {
             var selected = Selection.activeObject;
@@ -3012,7 +3540,7 @@ namespace GameSystems.Battle.Editor
 
 
 
-        private void SyncAssetNames()
+        private void SyncAssetNames(string forcedUnitName = null)
         {
             if (workingPrefabRoot != null)
             {
@@ -3021,23 +3549,32 @@ namespace GameSystems.Battle.Editor
 
             if (characterData != null)
             {
-                SyncCharacterAssetName(characterData);
+                SyncCharacterAssetName(characterData, forcedUnitName);
             }
 
             if (prefabAsset != null)
             {
-                SyncPrefabAssetName(prefabAsset);
+                SyncPrefabAssetName(prefabAsset, forcedUnitName);
             }
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
         }
 
-        private void SyncCharacterAssetName(CharacterDataSO data)
+        private void SyncCharacterAssetName(CharacterDataSO data, string forcedUnitName = null)
         {
             if (data == null)
             {
                 return;
+            }
+
+            string normalizedName = NormalizeUnitNamePart(
+                string.IsNullOrWhiteSpace(forcedUnitName) ? data.nameHero : forcedUnitName
+            );
+            if (!string.Equals(data.nameHero, normalizedName, StringComparison.Ordinal))
+            {
+                data.nameHero = normalizedName;
+                EditorUtility.SetDirty(data);
             }
 
             string expectedName = GetCharacterAssetName(data);
@@ -3054,7 +3591,7 @@ namespace GameSystems.Battle.Editor
             }
         }
 
-        private void SyncPrefabAssetName(GameObject prefab)
+        private void SyncPrefabAssetName(GameObject prefab, string forcedUnitName = null)
         {
             if (prefab == null)
             {
@@ -3068,7 +3605,7 @@ namespace GameSystems.Battle.Editor
             }
 
             string expectedName = characterData != null
-                ? GetPrefabAssetName(characterData)
+                ? $"{characterData.id}_{NormalizeUnitNamePart(string.IsNullOrWhiteSpace(forcedUnitName) ? characterData.nameHero : forcedUnitName)}"
                 : Path.GetFileNameWithoutExtension(assetPath);
 
             string currentName = Path.GetFileNameWithoutExtension(assetPath);
@@ -3086,25 +3623,51 @@ namespace GameSystems.Battle.Editor
                 return "CharacterData";
             }
 
-            string safeName = string.IsNullOrWhiteSpace(data.nameHero) ? "Character" : data.nameHero.Trim();
+            string safeName = NormalizeUnitNamePart(data.nameHero);
             return $"{data.id}_{safeName}";
         }
 
-        private static string GetPrefabAssetName(CharacterDataSO data)
+        private string DeriveUnitNameForSaveAll()
         {
-            if (data == null)
+            if (prefabAsset != null)
             {
-                return "CharacterPrefab";
+                return NormalizeUnitNamePart(prefabAsset.name);
             }
 
-            string safeName = string.IsNullOrWhiteSpace(data.nameHero) ? "Character" : data.nameHero.Trim();
-            return $"{data.id}_{safeName}_Unit";
+            if (characterData != null)
+            {
+                return NormalizeUnitNamePart(characterData.nameHero);
+            }
+
+            return "Character";
+        }
+
+        private static string NormalizeUnitNamePart(string rawName)
+        {
+            string value = string.IsNullOrWhiteSpace(rawName) ? "Character" : rawName.Trim();
+            value = RemoveSuffixInsensitive(value, "_BattleUnit");
+            value = RemoveSuffixInsensitive(value, "_Unit");
+            value = value.Trim('_', ' ');
+            return string.IsNullOrWhiteSpace(value) ? "Character" : value;
+        }
+
+        private static string RemoveSuffixInsensitive(string value, string suffix)
+        {
+            if (string.IsNullOrEmpty(value) || string.IsNullOrEmpty(suffix))
+            {
+                return value;
+            }
+
+            return value.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
+                ? value.Substring(0, value.Length - suffix.Length)
+                : value;
         }
 
         private void SetPrefabAsset(GameObject newPrefab)
         {
             if (prefabAsset == newPrefab && workingPrefabRoot != null)
             {
+                TryAutoBindCharacterDataFromPrefab(newPrefab);
                 if (previewController != null)
                 {
                     previewController.BindPrefab(prefabAsset);
@@ -3117,8 +3680,9 @@ namespace GameSystems.Battle.Editor
             }
 
             prefabAsset = newPrefab;
+            TryAutoBindCharacterDataFromPrefab(newPrefab);
             ClearPreviewAnimationOverride(false);
-            LoadPrefabWorkingCopy(newPrefab);
+            LoadPrefabWorkingCopy(newPrefab, false);
             SyncUnitViewPrefabSelection();
 
             if (previewController != null)
@@ -3133,59 +3697,1009 @@ namespace GameSystems.Battle.Editor
 
         private void DrawUnitViewPrefabList()
         {
-            EnsureUnitViewPrefabCache();
-
             EditorGUILayout.LabelField("UnitView List", sectionHeaderStyle);
+            DrawUnitViewSearchFolderSettings();
+
+            EditorGUILayout.BeginHorizontal();
+            GUI.enabled = !isUnitViewPrefabScanRunning;
+            string loadButtonLabel = unitViewPrefabListLoaded ? "Reload UnitView List" : "Load UnitView List";
+            if (GUILayout.Button(loadButtonLabel, secondaryButtonStyle, GUILayout.Height(22f)))
+            {
+                StartUnitViewPrefabScan(false);
+            }
+
+            if (GUILayout.Button("Rescan Folder", secondaryButtonStyle, GUILayout.Height(22f)))
+            {
+                StartUnitViewPrefabScan(false);
+            }
+            GUI.enabled = true;
+
+            if (isUnitViewPrefabScanRunning)
+            {
+                if (GUILayout.Button("Cancel", secondaryButtonStyle, GUILayout.Width(64f), GUILayout.Height(22f)))
+                {
+                    StopUnitViewPrefabScan();
+                }
+            }
+            EditorGUILayout.EndHorizontal();
+            DrawUnitViewModeSwitcher();
+
+            EditorGUILayout.LabelField(unitViewPrefabScanStatus, EditorStyles.miniLabel);
+            if (unitViewPrefabCacheDirty && !isUnitViewPrefabScanRunning && unitViewPrefabListLoaded)
+            {
+                EditorGUILayout.LabelField("Cache is stale and waiting for refresh.", EditorStyles.miniLabel);
+            }
+
+            if (!string.IsNullOrEmpty(unitViewAutoBindStatus))
+            {
+                EditorGUILayout.LabelField(unitViewAutoBindStatus, EditorStyles.miniLabel);
+            }
+
+            if (isUnitViewPrefabScanRunning)
+            {
+                float progress = unitViewPrefabScanTotal > 0
+                    ? unitViewPrefabScanIndex / (float)unitViewPrefabScanTotal
+                    : 0f;
+                Rect progressRect = GUILayoutUtility.GetRect(1f, 18f, GUILayout.ExpandWidth(true));
+                EditorGUI.ProgressBar(
+                    progressRect,
+                    progress,
+                    $"{unitViewPrefabScanIndex}/{unitViewPrefabScanTotal}"
+                );
+            }
+
             using (var scope = new EditorGUILayout.ScrollViewScope(unitViewListScroll, GUILayout.Height(180f)))
             {
                 unitViewListScroll = scope.scrollPosition;
 
                 if (unitViewPrefabs.Count == 0)
                 {
-                    EditorGUILayout.LabelField("(No UnitView prefabs found)", EditorStyles.miniLabel);
+                    string placeholder = unitViewPrefabListLoaded
+                        ? "(No UnitView prefabs found)"
+                        : "(UnitView list not loaded)";
+                    EditorGUILayout.LabelField(placeholder, EditorStyles.miniLabel);
                     return;
                 }
 
-                for (int i = 0; i < unitViewPrefabs.Count; i++)
+                if (unitViewBrowserMode == UnitViewBrowserMode.Detail)
                 {
-                    var prefab = unitViewPrefabs[i];
-                    if (prefab == null)
-                    {
-                        continue;
-                    }
-
-                    bool isSelected = i == selectedUnitViewListIndex || prefab == prefabAsset;
-                    var style = isSelected ? tabSelectedStyle : tabNormalStyle;
-                    if (GUILayout.Button(prefab.name, style))
-                    {
-                        selectedUnitViewListIndex = i;
-                        SetPrefabAsset(prefab);
-                    }
+                    DrawUnitViewDetailItems();
+                }
+                else
+                {
+                    DrawUnitViewListItems();
                 }
             }
         }
 
-        private int unitViewPrefabIndex = -1;
-
-        private void EnsureUnitViewPrefabCache()
+        private void DrawUnitViewSearchFolderSettings()
         {
-            if (!unitViewPrefabCacheDirty)
+            EditorGUI.BeginChangeCheck();
+            DefaultAsset soFolderAsset = GetFolderAsset(characterDataSearchFolderPath);
+            var nextSoFolderAsset = (DefaultAsset)EditorGUILayout.ObjectField(
+                "SO Folder",
+                soFolderAsset,
+                typeof(DefaultAsset),
+                false
+            );
+            if (EditorGUI.EndChangeCheck())
+            {
+                SetCharacterDataSearchFolder(nextSoFolderAsset);
+            }
+
+            EditorGUI.BeginChangeCheck();
+            DefaultAsset prefabFolderAsset = GetFolderAsset(prefabSearchFolderPath);
+            var nextPrefabFolderAsset = (DefaultAsset)EditorGUILayout.ObjectField(
+                "Prefab Folder",
+                prefabFolderAsset,
+                typeof(DefaultAsset),
+                false
+            );
+            if (EditorGUI.EndChangeCheck())
+            {
+                SetPrefabSearchFolder(nextPrefabFolderAsset);
+            }
+        }
+
+        private static DefaultAsset GetFolderAsset(string folderPath)
+        {
+            if (string.IsNullOrEmpty(folderPath) || !AssetDatabase.IsValidFolder(folderPath))
+            {
+                return null;
+            }
+
+            return AssetDatabase.LoadAssetAtPath<DefaultAsset>(folderPath);
+        }
+
+        private void SetCharacterDataSearchFolder(DefaultAsset folderAsset)
+        {
+            string selectedPath = folderAsset != null ? AssetDatabase.GetAssetPath(folderAsset) : null;
+            string nextPath = ResolveFolderPath(selectedPath, DefaultCharacterDataSearchFolder);
+            if (string.Equals(characterDataSearchFolderPath, nextPath, StringComparison.Ordinal))
             {
                 return;
             }
 
-            RefreshUnitViewPrefabCache();
+            characterDataSearchFolderPath = nextPath;
+            characterDataIndexDirty = true;
+            SaveUnitViewSearchFoldersToCache();
+            TryAutoBindCharacterDataFromPrefab(prefabAsset);
         }
 
-        private void RefreshUnitViewPrefabCache()
+        private void SetPrefabSearchFolder(DefaultAsset folderAsset)
         {
-            unitViewPrefabCacheDirty = false;
-            unitViewPrefabs.Clear();
+            string selectedPath = folderAsset != null ? AssetDatabase.GetAssetPath(folderAsset) : null;
+            string nextPath = ResolveFolderPath(selectedPath, DefaultUnitViewPrefabSearchFolder);
+            if (string.Equals(prefabSearchFolderPath, nextPath, StringComparison.Ordinal))
+            {
+                return;
+            }
 
-            string[] guids = AssetDatabase.FindAssets("t:Prefab");
+            prefabSearchFolderPath = nextPath;
+            unitViewPrefabCacheDirty = true;
+            SaveUnitViewSearchFoldersToCache();
+            StartUnitViewPrefabScan(false);
+        }
+
+        private void SetSkeletonDataSearchFolder(DefaultAsset folderAsset)
+        {
+            string selectedPath = folderAsset != null ? AssetDatabase.GetAssetPath(folderAsset) : null;
+            string nextPath = ResolveFolderPath(selectedPath, DefaultSkeletonDataSearchFolder);
+            if (string.Equals(skeletonDataSearchFolderPath, nextPath, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            skeletonDataSearchFolderPath = nextPath;
+            skeletonDataListDirty = true;
+            SaveUnitViewSearchFoldersToCache();
+            ReloadSkeletonDataListFromFolder();
+        }
+
+        private void DrawSkeletonDataPickerControls()
+        {
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Choose Skeleton...", secondaryButtonStyle, GUILayout.Height(22f)))
+            {
+                SkeletonDataPickerWindow.ShowPicker(
+                    skeletonDataSearchFolderPath,
+                    createSkeletonDataAsset,
+                    OnSkeletonDataPickedFromPopup
+                );
+            }
+
+            if (GUILayout.Button("Reload Cache", secondaryButtonStyle, GUILayout.Width(96f), GUILayout.Height(22f)))
+            {
+                ReloadSkeletonDataListFromFolder();
+            }
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.LabelField($"Skeleton Cache: {skeletonDataListStatus}", EditorStyles.miniLabel);
+        }
+
+        private void OnSkeletonDataPickedFromPopup(SkeletonDataAsset pickedSkeletonData)
+        {
+            createSkeletonDataAsset = pickedSkeletonData;
+            SyncSkeletonDataSelection();
+            createUnitAssetStatus = string.Empty;
+            createUnitAssetStatusIsError = false;
+            Repaint();
+        }
+
+        private void DrawSkeletonDataListBrowser()
+        {
+            if (!skeletonDataListLoaded && skeletonDataListDirty)
+            {
+                ReloadSkeletonDataListFromFolder();
+            }
+
+            EditorGUILayout.BeginVertical(sectionBodyStyle);
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Skeleton Library", EditorStyles.miniBoldLabel);
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Reload", secondaryButtonStyle, GUILayout.Width(64f), GUILayout.Height(20f)))
+            {
+                ReloadSkeletonDataListFromFolder();
+            }
+
+            bool hasSelectedSkeleton = createSkeletonDataAsset != null;
+            using (new EditorGUI.DisabledScope(!hasSelectedSkeleton))
+            {
+                if (GUILayout.Button("Clear", secondaryButtonStyle, GUILayout.Width(56f), GUILayout.Height(20f)))
+                {
+                    createSkeletonDataAsset = null;
+                    selectedSkeletonDataListIndex = -1;
+                    createUnitAssetStatus = string.Empty;
+                    createUnitAssetStatusIsError = false;
+                }
+            }
+
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Search", EditorStyles.miniLabel, GUILayout.Width(42f));
+            string nextFilter = EditorGUILayout.TextField(skeletonDataListFilter ?? string.Empty, searchFieldStyle, GUILayout.MinHeight(18f));
+            if (!string.Equals(nextFilter, skeletonDataListFilter, StringComparison.Ordinal))
+            {
+                skeletonDataListFilter = nextFilter;
+            }
+
+            if (GUILayout.Button("x", secondaryButtonStyle, GUILayout.Width(22f), GUILayout.Height(18f)))
+            {
+                skeletonDataListFilter = string.Empty;
+            }
+            EditorGUILayout.EndHorizontal();
+
+            List<int> filteredIndices = BuildFilteredSkeletonIndices();
+            string summary = $"{skeletonDataListStatus} | Showing {filteredIndices.Count}/{skeletonDataFolderAssets.Count}";
+            EditorGUILayout.LabelField(summary, EditorStyles.miniLabel);
+
+            if (skeletonDataListDirty && skeletonDataListLoaded)
+            {
+                EditorGUILayout.LabelField("Skeleton cache is stale and waiting for refresh.", EditorStyles.miniLabel);
+            }
+
+            using (var scope = new EditorGUILayout.ScrollViewScope(skeletonDataListScroll, GUILayout.Height(128f)))
+            {
+                skeletonDataListScroll = scope.scrollPosition;
+
+                if (skeletonDataFolderAssets.Count == 0)
+                {
+                    string folderLabel = string.IsNullOrEmpty(skeletonDataSearchFolderPath)
+                        ? "(Invalid Skeleton folder)"
+                        : skeletonDataSearchFolderPath;
+                    string message = skeletonDataListLoaded
+                        ? $"(No SkeletonDataAsset in {folderLabel})"
+                        : "(Skeleton list not loaded)";
+                    EditorGUILayout.LabelField(message, EditorStyles.miniLabel);
+                    EditorGUILayout.EndVertical();
+                    return;
+                }
+
+                if (filteredIndices.Count == 0)
+                {
+                    EditorGUILayout.LabelField("(No result for current filter)", EditorStyles.miniLabel);
+                    EditorGUILayout.EndVertical();
+                    return;
+                }
+
+                GUIStyle pathStyle = new GUIStyle(EditorStyles.miniLabel)
+                {
+                    clipping = TextClipping.Clip,
+                    normal = { textColor = TextOnSurfaceVariant }
+                };
+
+                const float rowHeight = 36f;
+                for (int n = 0; n < filteredIndices.Count; n++)
+                {
+                    int i = filteredIndices[n];
+                    SkeletonDataAsset asset = skeletonDataFolderAssets[i];
+                    if (asset == null)
+                    {
+                        continue;
+                    }
+
+                    bool isSelected = i == selectedSkeletonDataListIndex || asset == createSkeletonDataAsset;
+                    Rect rowRect = GUILayoutUtility.GetRect(1f, rowHeight, GUILayout.ExpandWidth(true));
+                    if (isSelected)
+                    {
+                        EditorGUI.DrawRect(rowRect, new Color(Primary.r, Primary.g, Primary.b, 0.16f));
+                    }
+                    else if ((n & 1) == 0)
+                    {
+                        EditorGUI.DrawRect(rowRect, new Color(1f, 1f, 1f, 0.02f));
+                    }
+
+                    if (!isSelected && rowRect.Contains(UnityEngine.Event.current.mousePosition))
+                    {
+                        EditorGUI.DrawRect(rowRect, new Color(1f, 1f, 1f, 0.05f));
+                    }
+
+                    string path = i >= 0 && i < skeletonDataFolderPaths.Count ? skeletonDataFolderPaths[i] : string.Empty;
+                    string compactPath = GetCompactSkeletonAssetPath(path);
+                    Texture icon = AssetDatabase.GetCachedIcon(path);
+                    Rect iconRect = new Rect(rowRect.x + 6f, rowRect.y + 8f, 16f, 16f);
+                    if (icon != null)
+                    {
+                        GUI.DrawTexture(iconRect, icon, ScaleMode.ScaleToFit, true);
+                    }
+
+                    float textLeft = iconRect.xMax + 6f;
+                    Rect nameRect = new Rect(textLeft, rowRect.y + 3f, rowRect.width - (textLeft - rowRect.x) - 6f, 16f);
+                    Rect pathRect = new Rect(textLeft, rowRect.y + 18f, rowRect.width - (textLeft - rowRect.x) - 6f, 14f);
+                    GUI.Label(nameRect, asset.name, isSelected ? EditorStyles.miniBoldLabel : EditorStyles.miniLabel);
+                    GUI.Label(pathRect, new GUIContent(compactPath, path), pathStyle);
+
+                    if (GUI.Button(rowRect, GUIContent.none, GUIStyle.none))
+                    {
+                        selectedSkeletonDataListIndex = i;
+                        createSkeletonDataAsset = asset;
+                        createUnitAssetStatus = string.Empty;
+                        createUnitAssetStatusIsError = false;
+                        GUI.FocusControl(null);
+                    }
+                }
+            }
+
+            EditorGUILayout.EndVertical();
+        }
+
+        private void ReloadSkeletonDataListFromFolder()
+        {
+            if (string.IsNullOrEmpty(skeletonDataSearchFolderPath) || !AssetDatabase.IsValidFolder(skeletonDataSearchFolderPath))
+            {
+                RebuildSkeletonDataListFromPaths(null);
+                skeletonDataListLoaded = false;
+                skeletonDataListStatus = "Invalid skeleton folder";
+                skeletonDataListDirty = false;
+                return;
+            }
+
+            string[] guids = AssetDatabase.FindAssets("t:SkeletonDataAsset", new[] { skeletonDataSearchFolderPath });
+            var paths = new List<string>(guids.Length);
             for (int i = 0; i < guids.Length; i++)
             {
                 string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+                if (!string.IsNullOrEmpty(path))
+                {
+                    paths.Add(path);
+                }
+            }
+
+            RebuildSkeletonDataListFromPaths(paths);
+            skeletonDataListLoaded = true;
+            skeletonDataListDirty = false;
+            skeletonDataListStatus = $"Ready ({skeletonDataFolderAssets.Count})";
+            UnitAuthoringPrefabCacheState.instance.SaveSkeletonDataCache(skeletonDataFolderPaths);
+        }
+
+        private void RestoreSkeletonDataListCache()
+        {
+            IReadOnlyList<string> cachedPaths = UnitAuthoringPrefabCacheState.instance.GetCachedSkeletonDataPaths();
+            if (cachedPaths == null || cachedPaths.Count == 0)
+            {
+                skeletonDataListLoaded = false;
+                skeletonDataListStatus = "Not loaded";
+                skeletonDataListDirty = true;
+                RebuildSkeletonDataListFromPaths(null);
+                return;
+            }
+
+            RebuildSkeletonDataListFromPaths(cachedPaths);
+            skeletonDataListLoaded = true;
+            skeletonDataListStatus = skeletonDataListDirty
+                ? $"Ready ({skeletonDataFolderAssets.Count}) - stale"
+                : $"Ready ({skeletonDataFolderAssets.Count})";
+        }
+
+        private void RebuildSkeletonDataListFromPaths(IEnumerable<string> paths)
+        {
+            skeletonDataFolderAssets.Clear();
+            skeletonDataFolderPaths.Clear();
+
+            if (paths != null)
+            {
+                foreach (string path in paths)
+                {
+                    if (string.IsNullOrEmpty(path))
+                    {
+                        continue;
+                    }
+
+                    SkeletonDataAsset asset = AssetDatabase.LoadAssetAtPath<SkeletonDataAsset>(path);
+                    if (asset == null)
+                    {
+                        continue;
+                    }
+
+                    skeletonDataFolderAssets.Add(asset);
+                    skeletonDataFolderPaths.Add(path);
+                }
+            }
+
+            if (skeletonDataFolderAssets.Count > 1)
+            {
+                var ordered = skeletonDataFolderAssets
+                    .Select((asset, index) => new { asset, path = skeletonDataFolderPaths[index] })
+                    .OrderBy(x => x.asset.name, StringComparer.Ordinal)
+                    .ToList();
+                skeletonDataFolderAssets.Clear();
+                skeletonDataFolderPaths.Clear();
+                for (int i = 0; i < ordered.Count; i++)
+                {
+                    skeletonDataFolderAssets.Add(ordered[i].asset);
+                    skeletonDataFolderPaths.Add(ordered[i].path);
+                }
+            }
+
+            if (createSkeletonDataAsset == null && skeletonDataFolderAssets.Count > 0)
+            {
+                createSkeletonDataAsset = skeletonDataFolderAssets[0];
+            }
+
+            SyncSkeletonDataSelection();
+        }
+
+        private void SyncSkeletonDataSelection()
+        {
+            selectedSkeletonDataListIndex = -1;
+            if (createSkeletonDataAsset == null || skeletonDataFolderAssets.Count == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < skeletonDataFolderAssets.Count; i++)
+            {
+                if (skeletonDataFolderAssets[i] == createSkeletonDataAsset)
+                {
+                    selectedSkeletonDataListIndex = i;
+                    return;
+                }
+            }
+        }
+
+        private List<int> BuildFilteredSkeletonIndices()
+        {
+            var result = new List<int>(skeletonDataFolderAssets.Count);
+            string filter = (skeletonDataListFilter ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(filter))
+            {
+                for (int i = 0; i < skeletonDataFolderAssets.Count; i++)
+                {
+                    result.Add(i);
+                }
+
+                return result;
+            }
+
+            for (int i = 0; i < skeletonDataFolderAssets.Count; i++)
+            {
+                SkeletonDataAsset asset = skeletonDataFolderAssets[i];
+                if (asset == null)
+                {
+                    continue;
+                }
+
+                string path = i >= 0 && i < skeletonDataFolderPaths.Count ? skeletonDataFolderPaths[i] : string.Empty;
+                bool matchName = asset.name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0;
+                bool matchPath = !string.IsNullOrEmpty(path) && path.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0;
+                if (matchName || matchPath)
+                {
+                    result.Add(i);
+                }
+            }
+
+            return result;
+        }
+
+        private string GetCompactSkeletonAssetPath(string fullPath)
+        {
+            if (string.IsNullOrEmpty(fullPath))
+            {
+                return "(No path)";
+            }
+
+            string normalized = fullPath.Replace('\\', '/');
+            if (!string.IsNullOrEmpty(skeletonDataSearchFolderPath))
+            {
+                string folderPrefix = skeletonDataSearchFolderPath.Replace('\\', '/').TrimEnd('/') + "/";
+                if (normalized.StartsWith(folderPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    return normalized.Substring(folderPrefix.Length);
+                }
+            }
+
+            const int maxLength = 56;
+            if (normalized.Length <= maxLength)
+            {
+                return normalized;
+            }
+
+            return "..." + normalized.Substring(normalized.Length - (maxLength - 3));
+        }
+
+        private static string ResolveFolderPath(string candidatePath, string fallbackPath)
+        {
+            if (!string.IsNullOrEmpty(candidatePath) && AssetDatabase.IsValidFolder(candidatePath))
+            {
+                return candidatePath;
+            }
+
+            if (!string.IsNullOrEmpty(fallbackPath) && AssetDatabase.IsValidFolder(fallbackPath))
+            {
+                return fallbackPath;
+            }
+
+            return null;
+        }
+
+        private void SaveUnitViewSearchFoldersToCache()
+        {
+            UnitAuthoringPrefabCacheState.instance.SaveSearchFolders(
+                prefabSearchFolderPath,
+                characterDataSearchFolderPath,
+                skeletonDataSearchFolderPath
+            );
+        }
+
+        private void EnsureCharacterDataIndex()
+        {
+            if (!characterDataIndexDirty)
+            {
+                return;
+            }
+
+            characterDataById.Clear();
+            characterDataIndexDirty = false;
+
+            if (string.IsNullOrEmpty(characterDataSearchFolderPath) || !AssetDatabase.IsValidFolder(characterDataSearchFolderPath))
+            {
+                return;
+            }
+
+            string[] guids = AssetDatabase.FindAssets("t:CharacterDataSO", new[] { characterDataSearchFolderPath });
+            for (int i = 0; i < guids.Length; i++)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+                if (string.IsNullOrEmpty(path))
+                {
+                    continue;
+                }
+
+                CharacterDataSO data = AssetDatabase.LoadAssetAtPath<CharacterDataSO>(path);
+                if (data == null || characterDataById.ContainsKey(data.id))
+                {
+                    continue;
+                }
+
+                characterDataById.Add(data.id, data);
+            }
+        }
+
+        private void TryAutoBindCharacterDataFromPrefab(GameObject selectedPrefab)
+        {
+            unitViewAutoBindStatus = string.Empty;
+            if (selectedPrefab == null)
+            {
+                return;
+            }
+
+            UnitView selectedView = selectedPrefab.GetComponentInChildren<UnitView>(true);
+            if (selectedView == null)
+            {
+                unitViewAutoBindStatus = "Selected prefab has no UnitView component.";
+                return;
+            }
+
+            int unitId = selectedView.AuthoringUnitId;
+            if (unitId <= 0)
+            {
+                unitViewAutoBindStatus = "UnitView AuthoringUnitId is not set (<= 0).";
+                return;
+            }
+
+            EnsureCharacterDataIndex();
+            if (characterDataById.TryGetValue(unitId, out CharacterDataSO matched))
+            {
+                characterData = matched;
+                unitViewAutoBindStatus = $"Auto-bound SO #{unitId}: {matched.name}";
+                return;
+            }
+
+            string folderLabel = string.IsNullOrEmpty(characterDataSearchFolderPath)
+                ? "(Invalid SO folder)"
+                : characterDataSearchFolderPath;
+            unitViewAutoBindStatus = $"No CharacterDataSO with id={unitId} found in {folderLabel}.";
+        }
+
+        private void DrawUnitViewModeSwitcher()
+        {
+            int selectedMode = GUILayout.Toolbar(
+                (int)unitViewBrowserMode,
+                UnitViewBrowserModeLabels,
+                GUILayout.Height(20f)
+            );
+            if (selectedMode != (int)unitViewBrowserMode)
+            {
+                unitViewBrowserMode = (UnitViewBrowserMode)selectedMode;
+            }
+        }
+
+        private void DrawUnitViewListItems()
+        {
+            for (int i = 0; i < unitViewPrefabs.Count; i++)
+            {
+                var prefab = unitViewPrefabs[i];
+                if (prefab == null)
+                {
+                    continue;
+                }
+
+                bool isSelected = i == selectedUnitViewListIndex || prefab == prefabAsset;
+                var style = isSelected ? tabSelectedStyle : tabNormalStyle;
+                if (GUILayout.Button(prefab.name, style))
+                {
+                    selectedUnitViewListIndex = i;
+                    SetPrefabAsset(prefab);
+                }
+            }
+        }
+
+        private void DrawUnitViewDetailItems()
+        {
+            const float rowHeight = 60f;
+            var pathStyle = new GUIStyle(EditorStyles.miniLabel)
+            {
+                normal = { textColor = TextOnSurfaceVariant }
+            };
+
+            for (int i = 0; i < unitViewPrefabs.Count; i++)
+            {
+                GameObject prefab = unitViewPrefabs[i];
+                if (prefab == null)
+                {
+                    continue;
+                }
+
+                bool isSelected = i == selectedUnitViewListIndex || prefab == prefabAsset;
+                Rect rowRect = GUILayoutUtility.GetRect(1f, rowHeight, GUILayout.ExpandWidth(true));
+
+                if (isSelected)
+                {
+                    EditorGUI.DrawRect(rowRect, new Color(Primary.r, Primary.g, Primary.b, 0.18f));
+                }
+                else if ((i & 1) == 0)
+                {
+                    EditorGUI.DrawRect(rowRect, new Color(1f, 1f, 1f, 0.02f));
+                }
+
+                if (!isSelected && rowRect.Contains(UnityEngine.Event.current.mousePosition))
+                {
+                    EditorGUI.DrawRect(rowRect, new Color(1f, 1f, 1f, 0.05f));
+                }
+
+                Rect iconRect = new Rect(rowRect.x + 6f, rowRect.y + 6f, 48f, 48f);
+                Texture2D previewTexture = TryGetPrefabPreviewTexture(prefab);
+                if (previewTexture != null)
+                {
+                    GUI.DrawTexture(iconRect, previewTexture, ScaleMode.ScaleToFit, true);
+                }
+                else
+                {
+                    EditorGUI.DrawRect(iconRect, new Color(1f, 1f, 1f, 0.06f));
+                    GUI.Label(iconRect, "...", EditorStyles.centeredGreyMiniLabel);
+                }
+
+                float textLeft = iconRect.xMax + 8f;
+                Rect nameRect = new Rect(textLeft, rowRect.y + 9f, rowRect.width - (textLeft - rowRect.x) - 6f, 18f);
+                Rect pathRect = new Rect(textLeft, rowRect.y + 29f, rowRect.width - (textLeft - rowRect.x) - 6f, 18f);
+                GUI.Label(nameRect, prefab.name, isSelected ? EditorStyles.miniBoldLabel : EditorStyles.miniLabel);
+                string path = AssetDatabase.GetAssetPath(prefab);
+                GUI.Label(pathRect, string.IsNullOrEmpty(path) ? "(No path)" : path, pathStyle);
+
+                if (GUI.Button(rowRect, GUIContent.none, GUIStyle.none))
+                {
+                    selectedUnitViewListIndex = i;
+                    SetPrefabAsset(prefab);
+                    GUI.FocusControl(null);
+                }
+            }
+        }
+
+        private Texture2D TryGetPrefabPreviewTexture(GameObject prefab)
+        {
+            if (prefab == null)
+            {
+                return null;
+            }
+
+            if (unitViewPreviewCache.TryGetValue(prefab, out Texture2D cachedTexture) && cachedTexture != null)
+            {
+                return cachedTexture;
+            }
+
+            Texture2D previewTexture = AssetPreview.GetAssetPreview(prefab);
+            Texture2D miniThumbnail = AssetPreview.GetMiniThumbnail(prefab) as Texture2D;
+            if (previewTexture != null)
+            {
+                // Ignore generic mini icon (blue cube) and prefer an actual rendered unit preview.
+                if (miniThumbnail == null || previewTexture != miniThumbnail)
+                {
+                    unitViewPreviewCache[prefab] = previewTexture;
+                    return previewTexture;
+                }
+            }
+
+            previewTexture = RenderPrefabPreviewTexture(prefab, 96);
+            if (previewTexture != null)
+            {
+                unitViewPreviewCache[prefab] = previewTexture;
+                return previewTexture;
+            }
+
+            if (miniThumbnail != null)
+            {
+                unitViewPreviewCache[prefab] = miniThumbnail;
+                return miniThumbnail;
+            }
+
+            if (previewTexture != null)
+            {
+                unitViewPreviewCache[prefab] = previewTexture;
+                return previewTexture;
+            }
+
+            return null;
+        }
+
+        private Texture2D RenderPrefabPreviewTexture(GameObject prefab, int previewSize)
+        {
+            string prefabPath = AssetDatabase.GetAssetPath(prefab);
+            if (string.IsNullOrEmpty(prefabPath))
+            {
+                return null;
+            }
+
+            PreviewRenderUtility previewUtility = null;
+            GameObject previewRoot = null;
+            try
+            {
+                previewRoot = PrefabUtility.LoadPrefabContents(prefabPath);
+                if (previewRoot == null)
+                {
+                    return null;
+                }
+
+                previewRoot.transform.position = Vector3.zero;
+                previewRoot.transform.rotation = Quaternion.identity;
+
+                PrepareSpinePreviewPose(previewRoot);
+
+                if (!TryGetRendererBounds(previewRoot, out Bounds rendererBounds))
+                {
+                    return null;
+                }
+
+                previewUtility = new PreviewRenderUtility(true);
+                previewUtility.camera.clearFlags = CameraClearFlags.SolidColor;
+                previewUtility.camera.backgroundColor = new Color(0.10f, 0.11f, 0.13f, 1f);
+                previewUtility.camera.orthographic = true;
+                previewUtility.lights[0].intensity = 1.0f;
+                previewUtility.lights[0].transform.rotation = Quaternion.Euler(40f, 40f, 0f);
+                previewUtility.lights[1].intensity = 0.75f;
+                previewUtility.lights[1].transform.rotation = Quaternion.Euler(340f, 218f, 177f);
+                previewUtility.ambientColor = new Color(0.45f, 0.45f, 0.45f, 1f);
+
+                ConfigurePreviewCamera(previewUtility.camera, rendererBounds);
+                previewUtility.AddSingleGO(previewRoot);
+                previewUtility.BeginStaticPreview(new Rect(0f, 0f, previewSize, previewSize));
+                previewUtility.camera.Render();
+                Texture2D staticPreview = previewUtility.EndStaticPreview();
+                if (staticPreview != null)
+                {
+                    unitViewGeneratedPreviewTextures.Add(staticPreview);
+                }
+
+                return staticPreview;
+            }
+            catch
+            {
+                return null;
+            }
+            finally
+            {
+                if (previewRoot != null)
+                {
+                    PrefabUtility.UnloadPrefabContents(previewRoot);
+                }
+
+                if (previewUtility != null)
+                {
+                    previewUtility.Cleanup();
+                }
+            }
+        }
+
+        private static void PrepareSpinePreviewPose(GameObject root)
+        {
+            SkeletonAnimation[] skeletonAnimations = root.GetComponentsInChildren<SkeletonAnimation>(true);
+            for (int i = 0; i < skeletonAnimations.Length; i++)
+            {
+                SkeletonAnimation skeletonAnimation = skeletonAnimations[i];
+                if (skeletonAnimation == null)
+                {
+                    continue;
+                }
+
+                skeletonAnimation.Initialize(false);
+                if (skeletonAnimation.AnimationState != null && skeletonAnimation.Skeleton != null)
+                {
+                    Spine.Animation idleAnimation = skeletonAnimation.Skeleton.Data.FindAnimation("idle");
+                    if (idleAnimation != null)
+                    {
+                        skeletonAnimation.AnimationState.SetAnimation(0, idleAnimation, true);
+                    }
+
+                    skeletonAnimation.AnimationState.Update(0f);
+                    skeletonAnimation.AnimationState.Apply(skeletonAnimation.Skeleton);
+                    skeletonAnimation.Skeleton.UpdateWorldTransform();
+                }
+
+                skeletonAnimation.LateUpdate();
+            }
+        }
+
+        private static bool TryGetRendererBounds(GameObject root, out Bounds bounds)
+        {
+            var renderers = root.GetComponentsInChildren<Renderer>(true);
+            if (renderers == null || renderers.Length == 0)
+            {
+                bounds = default;
+                return false;
+            }
+
+            bool hasBounds = false;
+            bounds = new Bounds(root.transform.position, Vector3.zero);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Renderer renderer = renderers[i];
+                if (renderer == null || !renderer.enabled)
+                {
+                    continue;
+                }
+
+                if (!hasBounds)
+                {
+                    bounds = renderer.bounds;
+                    hasBounds = true;
+                    continue;
+                }
+
+                bounds.Encapsulate(renderer.bounds);
+            }
+
+            return hasBounds;
+        }
+
+        private static void ConfigurePreviewCamera(Camera camera, Bounds bounds)
+        {
+            if (camera == null)
+            {
+                return;
+            }
+
+            float maxExtent = Mathf.Max(bounds.extents.x, bounds.extents.y, 0.01f);
+            camera.orthographicSize = Mathf.Max(0.5f, maxExtent * 1.3f);
+            camera.transform.position = new Vector3(bounds.center.x, bounds.center.y, bounds.min.z - 10f);
+            camera.transform.rotation = Quaternion.identity;
+            camera.nearClipPlane = 0.01f;
+            camera.farClipPlane = 200f;
+        }
+
+        private void ClearUnitViewPreviewCache()
+        {
+            foreach (Texture2D texture in unitViewGeneratedPreviewTextures)
+            {
+                if (texture != null)
+                {
+                    DestroyImmediate(texture);
+                }
+            }
+
+            unitViewGeneratedPreviewTextures.Clear();
+            unitViewPreviewCache.Clear();
+        }
+
+        private int unitViewPrefabIndex = -1;
+
+        private void HandleProjectChanged()
+        {
+            unitViewPrefabCacheDirty = true;
+            characterDataIndexDirty = true;
+            skeletonDataListDirty = true;
+            UnitAuthoringPrefabCacheState.instance.MarkDirty();
+
+            if (unitViewPrefabListLoaded && !isUnitViewPrefabScanRunning)
+            {
+                StartUnitViewPrefabScan(true);
+            }
+
+            if (skeletonDataListLoaded)
+            {
+                ReloadSkeletonDataListFromFolder();
+            }
+        }
+
+        private void RestoreUnitViewPrefabCache()
+        {
+            var cache = UnitAuthoringPrefabCacheState.instance;
+            unitViewPrefabCacheDirty = cache.IsDirty;
+            unitViewPrefabScanFullProject = false;
+            prefabSearchFolderPath = ResolveFolderPath(cache.PrefabSearchFolderPath, DefaultUnitViewPrefabSearchFolder);
+            characterDataSearchFolderPath = ResolveFolderPath(cache.CharacterDataSearchFolderPath, DefaultCharacterDataSearchFolder);
+            skeletonDataSearchFolderPath = ResolveFolderPath(cache.SkeletonDataSearchFolderPath, DefaultSkeletonDataSearchFolder);
+            skeletonDataListDirty = true;
+            SaveUnitViewSearchFoldersToCache();
+            characterDataIndexDirty = true;
+            RestoreSkeletonDataListCache();
+
+            IReadOnlyList<string> cachedPaths = cache.GetCachedPrefabPaths();
+            if (cachedPaths == null || cachedPaths.Count == 0)
+            {
+                unitViewPrefabListLoaded = false;
+                unitViewPrefabScanStatus = "Not loaded";
+                return;
+            }
+
+            RebuildUnitViewPrefabListFromPaths(cachedPaths, false);
+            unitViewPrefabListLoaded = true;
+            unitViewPrefabScanStatus = unitViewPrefabCacheDirty
+                ? $"Ready ({unitViewPrefabs.Count}) - stale"
+                : $"Ready ({unitViewPrefabs.Count})";
+
+            if (unitViewPrefabCacheDirty)
+            {
+                StartUnitViewPrefabScan(true);
+            }
+        }
+
+        private void StartUnitViewPrefabScan(bool silentStatus)
+        {
+            scannedUnitViewPrefabPaths.Clear();
+            scannedUnitViewPrefabPathSet.Clear();
+
+            string[] searchFolders = GetSelectedUnitViewSearchFolders();
+            string[] guids = searchFolders == null
+                ? Array.Empty<string>()
+                : AssetDatabase.FindAssets("t:Prefab", searchFolders);
+
+            unitViewPrefabScanGuids = guids ?? Array.Empty<string>();
+            unitViewPrefabScanIndex = 0;
+            unitViewPrefabScanTotal = unitViewPrefabScanGuids.Length;
+            unitViewPrefabScanFullProject = false;
+            isUnitViewPrefabScanRunning = true;
+
+            if (!silentStatus)
+            {
+                unitViewPrefabScanStatus = searchFolders == null
+                    ? "Invalid prefab folder"
+                    : unitViewPrefabScanTotal == 0
+                    ? "No prefabs found for scan"
+                    : "Loading...";
+            }
+
+            if (unitViewPrefabScanTotal == 0)
+            {
+                CompleteUnitViewPrefabScan();
+            }
+
+            Repaint();
+        }
+
+        private void ProcessUnitViewPrefabScan()
+        {
+            if (!isUnitViewPrefabScanRunning)
+            {
+                return;
+            }
+
+            double startTime = EditorApplication.timeSinceStartup;
+            int processedCount = 0;
+            while (unitViewPrefabScanIndex < unitViewPrefabScanTotal)
+            {
+                if (processedCount >= UnitViewPrefabScanBatchSize)
+                {
+                    break;
+                }
+
+                if (EditorApplication.timeSinceStartup - startTime >= UnitViewPrefabScanFrameBudgetSeconds)
+                {
+                    break;
+                }
+
+                processedCount++;
+                string guid = unitViewPrefabScanGuids[unitViewPrefabScanIndex++];
+                string path = AssetDatabase.GUIDToAssetPath(guid);
                 if (string.IsNullOrEmpty(path))
                 {
                     continue;
@@ -3197,10 +4711,97 @@ namespace GameSystems.Battle.Editor
                     continue;
                 }
 
-                bool hasUnitView = prefab.GetComponentInChildren<UnitView>(true) != null;
-
-                if (hasUnitView)
+                if (
+                    prefab.GetComponentInChildren<UnitView>(true) != null
+                    && scannedUnitViewPrefabPathSet.Add(path)
+                )
                 {
+                    scannedUnitViewPrefabPaths.Add(path);
+                }
+            }
+
+            if (unitViewPrefabScanTotal > 0)
+            {
+                unitViewPrefabScanStatus = $"Loading {unitViewPrefabScanIndex}/{unitViewPrefabScanTotal}";
+            }
+
+            if (unitViewPrefabScanIndex >= unitViewPrefabScanTotal)
+            {
+                CompleteUnitViewPrefabScan();
+            }
+            else if (processedCount > 0)
+            {
+                Repaint();
+            }
+        }
+
+        private void CompleteUnitViewPrefabScan()
+        {
+            isUnitViewPrefabScanRunning = false;
+            RebuildUnitViewPrefabListFromPaths(scannedUnitViewPrefabPaths, false);
+            unitViewPrefabListLoaded = true;
+            unitViewPrefabCacheDirty = false;
+            unitViewPrefabScanStatus = $"Ready ({unitViewPrefabs.Count})";
+
+            UnitAuthoringPrefabCacheState.instance.SaveCache(
+                scannedUnitViewPrefabPaths,
+                unitViewPrefabScanFullProject
+            );
+
+            unitViewPrefabScanGuids = Array.Empty<string>();
+            scannedUnitViewPrefabPaths.Clear();
+            scannedUnitViewPrefabPathSet.Clear();
+            Repaint();
+        }
+
+        private void StopUnitViewPrefabScan()
+        {
+            isUnitViewPrefabScanRunning = false;
+            unitViewPrefabScanGuids = Array.Empty<string>();
+            unitViewPrefabScanIndex = 0;
+            unitViewPrefabScanTotal = 0;
+            scannedUnitViewPrefabPaths.Clear();
+            scannedUnitViewPrefabPathSet.Clear();
+            unitViewPrefabScanStatus = unitViewPrefabListLoaded
+                ? $"Ready ({unitViewPrefabs.Count})"
+                : "Not loaded";
+            Repaint();
+        }
+
+        private string[] GetSelectedUnitViewSearchFolders()
+        {
+            if (string.IsNullOrEmpty(prefabSearchFolderPath) || !AssetDatabase.IsValidFolder(prefabSearchFolderPath))
+            {
+                return null;
+            }
+
+            return new[] { prefabSearchFolderPath };
+        }
+
+        private void RebuildUnitViewPrefabListFromPaths(IEnumerable<string> prefabPaths, bool validateUnitView)
+        {
+            ClearUnitViewPreviewCache();
+            unitViewPrefabs.Clear();
+            if (prefabPaths != null)
+            {
+                foreach (string path in prefabPaths)
+                {
+                    if (string.IsNullOrEmpty(path))
+                    {
+                        continue;
+                    }
+
+                    GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                    if (prefab == null)
+                    {
+                        continue;
+                    }
+
+                    if (validateUnitView && prefab.GetComponentInChildren<UnitView>(true) == null)
+                    {
+                        continue;
+                    }
+
                     unitViewPrefabs.Add(prefab);
                 }
             }
@@ -3243,7 +4844,31 @@ namespace GameSystems.Battle.Editor
             }
         }
 
-        private void LoadPrefabWorkingCopy(GameObject sourcePrefab)
+        private void EnsureWorkingPrefabLoaded(bool includeSkeletonMetadata)
+        {
+            if (prefabAsset == null)
+            {
+                if (workingPrefabRoot != null)
+                {
+                    UnloadPrefabWorkingCopy();
+                }
+
+                return;
+            }
+
+            if (workingPrefabRoot == null)
+            {
+                LoadPrefabWorkingCopy(prefabAsset, includeSkeletonMetadata);
+                return;
+            }
+
+            if (includeSkeletonMetadata)
+            {
+                EnsureSkeletonMetadataLoaded();
+            }
+        }
+
+        private void LoadPrefabWorkingCopy(GameObject sourcePrefab, bool includeSkeletonMetadata)
         {
             UnloadPrefabWorkingCopy();
 
@@ -3260,13 +4885,15 @@ namespace GameSystems.Battle.Editor
 
             workingPrefabPath = assetPath;
             workingPrefabRoot = PrefabUtility.LoadPrefabContents(assetPath);
-            RefreshPrefabCache();
+            RefreshPrefabCache(includeSkeletonMetadata);
         }
 
-        private void RefreshPrefabCache()
+        private void RefreshPrefabCache(bool includeSkeletonMetadata)
         {
             animationNames.Clear();
             eventNames.Clear();
+            animationInfos.Clear();
+            skeletonMetadataLoaded = false;
 
             if (workingPrefabRoot == null)
             {
@@ -3285,6 +4912,23 @@ namespace GameSystems.Battle.Editor
             behitBehavior = workingPrefabRoot.GetComponentInChildren<BehitBehavior>(true);
             animationHandle = workingPrefabRoot.GetComponentInChildren<AnimationHandle>(true);
             unitView = workingPrefabRoot.GetComponentInChildren<UnitView>(true);
+
+            if (includeSkeletonMetadata)
+            {
+                EnsureSkeletonMetadataLoaded();
+            }
+        }
+
+        private void EnsureSkeletonMetadataLoaded()
+        {
+            if (skeletonMetadataLoaded)
+            {
+                return;
+            }
+
+            animationNames.Clear();
+            eventNames.Clear();
+            animationInfos.Clear();
 
             if (skeletonDataAsset != null)
             {
@@ -3342,6 +4986,8 @@ namespace GameSystems.Battle.Editor
                     Debug.LogWarning($"[UnitAuthoringWindow] Failed to read skeleton data: {ex.Message}");
                 }
             }
+
+            skeletonMetadataLoaded = true;
         }
 
         private void SavePrefabWorkingCopy()
@@ -3359,7 +5005,7 @@ namespace GameSystems.Battle.Editor
         private void SaveAll()
         {
             SavePrefabWorkingCopy();
-            SyncAssetNames();
+            SyncAssetNames(DeriveUnitNameForSaveAll());
         }
 
         private Texture2D MakeTex(int width, int height, Color col)
@@ -3590,6 +5236,7 @@ namespace GameSystems.Battle.Editor
             animationNames.Clear();
             eventNames.Clear();
             animationInfos.Clear();
+            skeletonMetadataLoaded = false;
 
             if (previewController != null)
             {

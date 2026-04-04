@@ -19,23 +19,6 @@ MonoBehaviour:
   falldownEventName: audio
   idleAnimationName: idle
   steps:
-  - stepType: 0
-    targetType: 0
-    moveMode: 1
-    animationName: skill
-    fallbackAnimationName: skill
-    loop: 0
-    delay: 0
-    duration: 0.28
-    moveDistance: 1.05
-    sortingOrder: 0
-    flipX: 0
-    worldPosition: {x: 0, y: 0, z: 0}
-    offset: {x: 0, y: 0, z: 0}
-    vfxPrefab: {fileID: 0}
-    waitForAnimationEnd: 1
-    triggerHitEffect: 0
-    hitCount: 1
   - stepType: 2
     targetType: 0
     moveMode: 0
@@ -45,6 +28,23 @@ MonoBehaviour:
     delay: 0
     duration: 0.12
     moveDistance: 1
+    sortingOrder: 0
+    flipX: 0
+    worldPosition: {x: 0, y: 0, z: 0}
+    offset: {x: 0, y: 0, z: 0}
+    vfxPrefab: {fileID: 0}
+    waitForAnimationEnd: 1
+    triggerHitEffect: 0
+    hitCount: 1
+  - stepType: 0
+    targetType: 0
+    moveMode: 1
+    animationName: skill
+    fallbackAnimationName: skill
+    loop: 0
+    delay: 0
+    duration: 0.28
+    moveDistance: 1.05
     sortingOrder: 0
     flipX: 0
     worldPosition: {x: 0, y: 0, z: 0}
@@ -87,23 +87,6 @@ MonoBehaviour:
     waitForAnimationEnd: 0
     triggerHitEffect: 1
     hitCount: 1
-  - stepType: 1
-    targetType: 2
-    moveMode: 0
-    animationName: skill
-    fallbackAnimationName: skill
-    loop: 0
-    delay: 0
-    duration: 0.24
-    moveDistance: 1
-    sortingOrder: 0
-    flipX: 0
-    worldPosition: {x: 0, y: 0, z: 0}
-    offset: {x: 0, y: 0, z: 0}
-    vfxPrefab: {fileID: 0}
-    waitForAnimationEnd: 1
-    triggerHitEffect: 0
-    hitCount: 1
   - stepType: 6
     targetType: 2
     moveMode: 0
@@ -119,6 +102,23 @@ MonoBehaviour:
     offset: {x: 0, y: 0, z: 0}
     vfxPrefab: {fileID: 0}
     waitForAnimationEnd: 0
+    triggerHitEffect: 0
+    hitCount: 1
+  - stepType: 1
+    targetType: 2
+    moveMode: 0
+    animationName: skill
+    fallbackAnimationName: skill
+    loop: 0
+    delay: 0
+    duration: 0.24
+    moveDistance: 1
+    sortingOrder: 0
+    flipX: 0
+    worldPosition: {x: 0, y: 0, z: 0}
+    offset: {x: 0, y: 0, z: 0}
+    vfxPrefab: {fileID: 0}
+    waitForAnimationEnd: 1
     triggerHitEffect: 0
     hitCount: 1
   - stepType: 9

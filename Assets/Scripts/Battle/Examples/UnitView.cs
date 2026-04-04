@@ -14,6 +14,7 @@ namespace GameSystems.Battle.Demo
     /// </summary>
     public class UnitView : MonoBehaviour
     {
+        [SerializeField] private int authoringUnitId;
         // ─── Refs (auto-find từ prefab children) ───
         private AttackBehavior _attackBehavior;
         private SkillBehavior _skillBehavior;
@@ -34,6 +35,7 @@ namespace GameSystems.Battle.Demo
         // ─── Properties ───
         public BattleUnit unit => _unit;
         public string unitId => _unit?.UnitId;
+        public int AuthoringUnitId => authoringUnitId;
         public bool isAlive => _unit?.IsAlive ?? false;
 
         // ─── Animation names (war_ prefix cho battle) ───
