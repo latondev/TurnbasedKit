@@ -1,4 +1,5 @@
 using System;
+using System;
 using System.Collections.Generic;
 using GameSystems.Battle;
 using UnityEditor;
@@ -10,6 +11,29 @@ namespace GameSystems.Battle.Editor
     public class SkillViewStepDrawer : PropertyDrawer
     {
         private static IReadOnlyList<string> animationOptions = Array.Empty<string>();
+        private static readonly SkillViewStepType[] StepTypePopupValues =
+        {
+            SkillViewStepType.MoveToTarget,
+            SkillViewStepType.MoveBack,
+            SkillViewStepType.PlayAnimation,
+            SkillViewStepType.Wait,
+            SkillViewStepType.SetFlipX,
+            SkillViewStepType.ResetSortingOrder,
+            SkillViewStepType.SetSortingOrder,
+            SkillViewStepType.SetIdleAnimation,
+        };
+
+        private static readonly GUIContent[] StepTypePopupLabels =
+        {
+            new GUIContent("Move To Target"),
+            new GUIContent("Move Back"),
+            new GUIContent("Play Animation"),
+            new GUIContent("Wait"),
+            new GUIContent("Set Flip X"),
+            new GUIContent("Reset Sorting Order"),
+            new GUIContent("Set Sorting Order"),
+            new GUIContent("Set Idle Animation"),
+        };
 
         public static void SetAnimationOptions(IReadOnlyList<string> options)
         {
@@ -40,12 +64,15 @@ namespace GameSystems.Battle.Editor
             if (ShowMoveDistance(stepType)) height += EditorGUIUtility.singleLineHeight + 2f;
             if (ShowSortingOrder(stepType)) height += EditorGUIUtility.singleLineHeight + 2f;
             if (ShowFlipX(stepType)) height += EditorGUIUtility.singleLineHeight + 2f;
-            if (ShowPosition(stepType)) height += EditorGUIUtility.singleLineHeight + 2f;
-            if (ShowOffset(stepType)) height += EditorGUIUtility.singleLineHeight + 2f;
-            if (ShowVfx(stepType)) height += EditorGUIUtility.singleLineHeight + 2f;
             if (ShowWaitNext(stepType)) height += EditorGUIUtility.singleLineHeight + 2f;
-            if (ShowTriggerHit(stepType)) height += EditorGUIUtility.singleLineHeight + 2f;
-            if (ShowHitCount(stepType)) height += EditorGUIUtility.singleLineHeight + 2f;
+            if (ShowAnimationEvents(stepType))
+            {
+                var animationEventsProp = property.FindPropertyRelative("animationEvents");
+                if (animationEventsProp != null)
+                {
+                    height += EditorGUI.GetPropertyHeight(animationEventsProp, true) + 2f;
+                }
+            }
             
             return height + 4f;
         }
@@ -57,17 +84,18 @@ namespace GameSystems.Battle.Editor
             var stepTypeProp = property.FindPropertyRelative("stepType");
             var animationNameProp = property.FindPropertyRelative("animationName");
             var vfxPrefabProp = property.FindPropertyRelative("vfxPrefab");
+            var animationEventsProp = property.FindPropertyRelative("animationEvents");
 
             SkillViewStepType stepType = (SkillViewStepType)stepTypeProp.enumValueIndex;
             
-            string title = $"{stepType}";
+            string title = GetStepTypeDisplayName(stepType);
             if (stepType == SkillViewStepType.PlayAnimation || stepType == SkillViewStepType.MoveToTarget || stepType == SkillViewStepType.MoveBack || stepType == SkillViewStepType.SetIdleAnimation)
             {
                 title += $" [{animationNameProp.stringValue}]";
-            }
-            else if (stepType == SkillViewStepType.SpawnVfx && vfxPrefabProp.objectReferenceValue != null)
-            {
-                title += $" [{vfxPrefabProp.objectReferenceValue.name}]";
+                if (stepType == SkillViewStepType.PlayAnimation && animationEventsProp != null && animationEventsProp.isArray && animationEventsProp.arraySize > 0)
+                {
+                    title += $" (+{animationEventsProp.arraySize} events)";
+                }
             }
 
             Rect headerRect = new Rect(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight);
@@ -79,7 +107,7 @@ namespace GameSystems.Battle.Editor
                 
                 Rect fieldRect = new Rect(position.x, position.y + EditorGUIUtility.singleLineHeight + 4f, position.width, EditorGUIUtility.singleLineHeight);
                 
-                EditorGUI.PropertyField(fieldRect, stepTypeProp);
+                DrawStepTypePopup(ref fieldRect, stepTypeProp);
                 fieldRect.y += EditorGUIUtility.singleLineHeight + 2f;
 
                 if (ShowTargetType(stepType)) DrawField(ref fieldRect, property.FindPropertyRelative("targetType"));
@@ -97,12 +125,8 @@ namespace GameSystems.Battle.Editor
                 if (ShowMoveDistance(stepType)) DrawField(ref fieldRect, property.FindPropertyRelative("moveDistance"));
                 if (ShowSortingOrder(stepType)) DrawField(ref fieldRect, property.FindPropertyRelative("sortingOrder"));
                 if (ShowFlipX(stepType)) DrawField(ref fieldRect, property.FindPropertyRelative("flipX"));
-                if (ShowPosition(stepType)) DrawField(ref fieldRect, property.FindPropertyRelative("worldPosition"));
-                if (ShowOffset(stepType)) DrawField(ref fieldRect, property.FindPropertyRelative("offset"));
-                if (ShowVfx(stepType)) DrawField(ref fieldRect, vfxPrefabProp);
                 if (ShowWaitNext(stepType)) DrawField(ref fieldRect, property.FindPropertyRelative("waitForAnimationEnd"));
-                if (ShowTriggerHit(stepType)) DrawField(ref fieldRect, property.FindPropertyRelative("triggerHitEffect"));
-                if (ShowHitCount(stepType)) DrawField(ref fieldRect, property.FindPropertyRelative("hitCount"));
+                if (ShowAnimationEvents(stepType)) DrawField(ref fieldRect, animationEventsProp, "Animation Events");
 
                 EditorGUI.indentLevel--;
             }
@@ -110,10 +134,43 @@ namespace GameSystems.Battle.Editor
             EditorGUI.EndProperty();
         }
 
-        private void DrawField(ref Rect rect, SerializedProperty property)
+        private void DrawField(ref Rect rect, SerializedProperty property, string label = null)
         {
             if (property == null) return;
-            EditorGUI.PropertyField(rect, property, true);
+            float height = EditorGUI.GetPropertyHeight(property, true);
+            Rect fieldRect = new Rect(rect.x, rect.y, rect.width, height);
+            if (string.IsNullOrEmpty(label))
+            {
+                EditorGUI.PropertyField(fieldRect, property, true);
+            }
+            else
+            {
+                EditorGUI.PropertyField(fieldRect, property, new GUIContent(label), true);
+            }
+            rect.y += height + 2f;
+        }
+
+        private void DrawStepTypePopup(ref Rect rect, SerializedProperty stepTypeProp)
+        {
+            if (stepTypeProp == null)
+            {
+                return;
+            }
+
+            SkillViewStepType current = (SkillViewStepType)stepTypeProp.enumValueIndex;
+            int currentIndex = Array.IndexOf(StepTypePopupValues, current);
+            if (currentIndex < 0)
+            {
+                currentIndex = 0;
+            }
+
+            Rect fieldRect = EditorGUI.PrefixLabel(rect, new GUIContent("Step Type"));
+            int nextIndex = EditorGUI.Popup(fieldRect, currentIndex, StepTypePopupLabels);
+            if (nextIndex >= 0 && nextIndex < StepTypePopupValues.Length && nextIndex != currentIndex)
+            {
+                stepTypeProp.enumValueIndex = (int)StepTypePopupValues[nextIndex];
+            }
+
             rect.y += EditorGUIUtility.singleLineHeight + 2f;
         }
 
@@ -207,11 +264,23 @@ namespace GameSystems.Battle.Editor
         private bool ShowMoveDistance(SkillViewStepType type) => type == SkillViewStepType.MoveToTarget;
         private bool ShowSortingOrder(SkillViewStepType type) => type == SkillViewStepType.SetSortingOrder;
         private bool ShowFlipX(SkillViewStepType type) => type == SkillViewStepType.SetFlipX;
-        private bool ShowPosition(SkillViewStepType type) => type == SkillViewStepType.SpawnVfx;
-        private bool ShowOffset(SkillViewStepType type) => type == SkillViewStepType.MoveToTarget || type == SkillViewStepType.SpawnVfx;
-        private bool ShowVfx(SkillViewStepType type) => type == SkillViewStepType.SpawnVfx;
-        private bool ShowWaitNext(SkillViewStepType type) => type == SkillViewStepType.PlayAnimation || type == SkillViewStepType.SpawnVfx || type == SkillViewStepType.TriggerHit;
-        private bool ShowTriggerHit(SkillViewStepType type) => type == SkillViewStepType.TriggerHit;
-        private bool ShowHitCount(SkillViewStepType type) => type == SkillViewStepType.TriggerHit;
+        private bool ShowWaitNext(SkillViewStepType type) => type == SkillViewStepType.PlayAnimation;
+        private bool ShowAnimationEvents(SkillViewStepType type) => type == SkillViewStepType.PlayAnimation;
+
+        private static string GetStepTypeDisplayName(SkillViewStepType type)
+        {
+            return type switch
+            {
+                SkillViewStepType.MoveToTarget => "Move To Target",
+                SkillViewStepType.MoveBack => "Move Back",
+                SkillViewStepType.PlayAnimation => "Play Animation",
+                SkillViewStepType.Wait => "Wait",
+                SkillViewStepType.SetFlipX => "Set Flip X",
+                SkillViewStepType.ResetSortingOrder => "Reset Sorting Order",
+                SkillViewStepType.SetSortingOrder => "Set Sorting Order",
+                SkillViewStepType.SetIdleAnimation => "Set Idle Animation",
+                _ => type.ToString(),
+            };
+        }
     }
 }

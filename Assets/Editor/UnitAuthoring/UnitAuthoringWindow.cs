@@ -261,6 +261,7 @@ namespace GameSystems.Battle.Editor
             EditorApplication.update -= HandleEditorUpdate;
             EditorApplication.projectChanged -= HandleProjectChanged;
             SkillViewStepDrawer.SetAnimationOptions(null);
+            SkillViewAnimationEventDrawer.SetEventOptions(null);
             ClearPreviewAnimationOverride(false);
             if (skeletonPreviewController != null)
             {
@@ -324,6 +325,7 @@ namespace GameSystems.Battle.Editor
             BuildStyles();
             EditorGUI.DrawRect(new Rect(0, 0, position.width, position.height), BaseBackground);
             SkillViewStepDrawer.SetAnimationOptions(animationNames);
+            SkillViewAnimationEventDrawer.SetEventOptions(eventNames);
             DrawHeader();
 
             EditorGUILayout.Space(6f);
@@ -1404,50 +1406,74 @@ namespace GameSystems.Battle.Editor
                     0f,
                     1f,
                     SkillViewMoveMode.Direct),
-                new SkillViewStep(SkillViewStepType.PlayAnimation, SkillViewTargetType.PrimaryTarget, animationName, animationName, false, 0.12f),
                 new SkillViewStep(
-                    SkillViewStepType.TriggerHit,
+                    SkillViewStepType.PlayAnimation,
                     SkillViewTargetType.PrimaryTarget,
                     animationName,
                     animationName,
                     false,
-                    0f,
-                    0f,
-                    1f,
-                    SkillViewMoveMode.Direct,
-                    false,
-                    true,
-                    1),
+                    0.12f,
+                    animationEvents: new[]
+                    {
+                        new SkillViewAnimationEvent(
+                            SkillViewAnimationEventType.TriggerHit,
+                            SkillViewEventTiming.OnEnd,
+                            string.Empty,
+                            SkillViewTargetType.PrimaryTarget,
+                            UnitSocketPoint.None,
+                            null,
+                            null,
+                            null,
+                            true,
+                            1,
+                            true),
+                    }),
                 new SkillViewStep(SkillViewStepType.Wait, SkillViewTargetType.Actor, animationName, animationName, false, 0.06f),
-                new SkillViewStep(SkillViewStepType.PlayAnimation, SkillViewTargetType.PrimaryTarget, animationName, animationName, false, 0.12f),
                 new SkillViewStep(
-                    SkillViewStepType.TriggerHit,
+                    SkillViewStepType.PlayAnimation,
                     SkillViewTargetType.PrimaryTarget,
                     animationName,
                     animationName,
                     false,
-                    0f,
-                    0f,
-                    1f,
-                    SkillViewMoveMode.Direct,
-                    false,
-                    true,
-                    1),
+                    0.12f,
+                    animationEvents: new[]
+                    {
+                        new SkillViewAnimationEvent(
+                            SkillViewAnimationEventType.TriggerHit,
+                            SkillViewEventTiming.OnEnd,
+                            string.Empty,
+                            SkillViewTargetType.PrimaryTarget,
+                            UnitSocketPoint.None,
+                            null,
+                            null,
+                            null,
+                            true,
+                            1,
+                            true),
+                    }),
                 new SkillViewStep(SkillViewStepType.Wait, SkillViewTargetType.Actor, animationName, animationName, false, 0.05f),
-                new SkillViewStep(SkillViewStepType.PlayAnimation, SkillViewTargetType.PrimaryTarget, animationName, animationName, false, 0.12f),
                 new SkillViewStep(
-                    SkillViewStepType.TriggerHit,
+                    SkillViewStepType.PlayAnimation,
                     SkillViewTargetType.PrimaryTarget,
                     animationName,
                     animationName,
                     false,
-                    0f,
-                    0f,
-                    1f,
-                    SkillViewMoveMode.Direct,
-                    false,
-                    true,
-                    1),
+                    0.12f,
+                    animationEvents: new[]
+                    {
+                        new SkillViewAnimationEvent(
+                            SkillViewAnimationEventType.TriggerHit,
+                            SkillViewEventTiming.OnEnd,
+                            string.Empty,
+                            SkillViewTargetType.PrimaryTarget,
+                            UnitSocketPoint.None,
+                            null,
+                            null,
+                            null,
+                            true,
+                            1,
+                            true),
+                    }),
                 new SkillViewStep(SkillViewStepType.MoveBack, SkillViewTargetType.Actor, animationName, animationName, false, 0.24f),
                 new SkillViewStep(SkillViewStepType.SetIdleAnimation, SkillViewTargetType.Actor, "idle", "idle", true, 0.1f)
             };
@@ -1457,27 +1483,31 @@ namespace GameSystems.Battle.Editor
         {
             return new[]
             {
-                new SkillViewStep(SkillViewStepType.PlayAnimation, SkillViewTargetType.Actor, animationName, animationName, false, 0.18f),
                 new SkillViewStep(
-                    SkillViewStepType.SpawnVfx,
+                    SkillViewStepType.PlayAnimation,
                     SkillViewTargetType.Actor,
                     animationName,
                     animationName,
                     false,
                     0.15f,
-                    0f,
-                    1f,
-                    SkillViewMoveMode.Direct,
-                    waitForAnimationEnd: true,
-                    triggerHitEffect: false,
-                    hitCount: 1,
-                    sortingOrder: 0,
-                    flipX: false,
-                    worldPosition: null,
-                    offset: new Vector3(-0.42f, 0.74f, 0f)),
+                    animationEvents: new[]
+                    {
+                        new SkillViewAnimationEvent(
+                            SkillViewAnimationEventType.SpawnVfx,
+                            SkillViewEventTiming.OnEnd,
+                            string.Empty,
+                            SkillViewTargetType.Actor,
+                            UnitSocketPoint.BuffTop,
+                            null,
+                            null,
+                            null,
+                            true,
+                            1,
+                            true),
+                    }),
                 new SkillViewStep(SkillViewStepType.Wait, SkillViewTargetType.Actor, animationName, animationName, false, 0.08f),
                 new SkillViewStep(
-                    SkillViewStepType.TriggerHit,
+                    SkillViewStepType.PlayAnimation,
                     SkillViewTargetType.AllTargets,
                     animationName,
                     animationName,
@@ -1487,11 +1517,28 @@ namespace GameSystems.Battle.Editor
                     1f,
                     SkillViewMoveMode.Direct,
                     false,
-                    true,
-                    1),
+                    false,
+                    1,
+                    0,
+                    false,
+                    animationEvents: new[]
+                    {
+                        new SkillViewAnimationEvent(
+                            SkillViewAnimationEventType.TriggerHit,
+                            SkillViewEventTiming.OnStart,
+                            string.Empty,
+                            SkillViewTargetType.AllTargets,
+                            UnitSocketPoint.None,
+                            null,
+                            null,
+                            null,
+                            true,
+                            1,
+                            true),
+                    }),
                 new SkillViewStep(SkillViewStepType.Wait, SkillViewTargetType.Actor, animationName, animationName, false, 0.08f),
                 new SkillViewStep(
-                    SkillViewStepType.TriggerHit,
+                    SkillViewStepType.PlayAnimation,
                     SkillViewTargetType.AllTargets,
                     animationName,
                     animationName,
@@ -1501,8 +1548,25 @@ namespace GameSystems.Battle.Editor
                     1f,
                     SkillViewMoveMode.Direct,
                     false,
-                    true,
-                    1),
+                    false,
+                    1,
+                    0,
+                    false,
+                    animationEvents: new[]
+                    {
+                        new SkillViewAnimationEvent(
+                            SkillViewAnimationEventType.TriggerHit,
+                            SkillViewEventTiming.OnStart,
+                            string.Empty,
+                            SkillViewTargetType.AllTargets,
+                            UnitSocketPoint.None,
+                            null,
+                            null,
+                            null,
+                            true,
+                            1,
+                            true),
+                    }),
                 new SkillViewStep(SkillViewStepType.SetIdleAnimation, SkillViewTargetType.Actor, "idle", "idle", true, 0.1f)
             };
         }
@@ -1595,7 +1659,15 @@ namespace GameSystems.Battle.Editor
                         EditorGUI.DrawRect(new Rect(actionX, rowY + rowHeight - 5f, actionWidth, 1f), new Color(1f, 1f, 1f, 0.5f));
                     }
 
-                    if (step != null && step.StepType == SkillViewStepType.TriggerHit)
+                    if (
+                        step != null
+                        && step.StepType == SkillViewStepType.PlayAnimation
+                        && step.AnimationEvents != null
+                        && step.AnimationEvents.Any(
+                            animationEvent =>
+                                animationEvent != null
+                                && animationEvent.Enabled
+                                && animationEvent.EventType == SkillViewAnimationEventType.TriggerHit))
                     {
                         EditorGUI.DrawRect(
                             new Rect(actionX - 1f, rowY + 3f, 2f, rowHeight - 6f),
@@ -1682,11 +1754,9 @@ namespace GameSystems.Battle.Editor
 
             return step.StepType switch
             {
-                SkillViewStepType.TriggerHit => 0.05f,
                 SkillViewStepType.SetFlipX => 0.03f,
                 SkillViewStepType.SetSortingOrder => 0.03f,
                 SkillViewStepType.ResetSortingOrder => 0.03f,
-                SkillViewStepType.SpawnVfx => 0.08f,
                 _ => 0.04f,
             };
         }
@@ -1699,8 +1769,6 @@ namespace GameSystems.Battle.Editor
                 SkillViewStepType.MoveBack => new Color(0.29f, 0.65f, 1f, 0.95f),
                 SkillViewStepType.PlayAnimation => new Color(0.96f, 0.68f, 0.38f, 0.96f),
                 SkillViewStepType.Wait => new Color(0.76f, 0.76f, 0.76f, 0.82f),
-                SkillViewStepType.SpawnVfx => new Color(0.66f, 0.48f, 1f, 0.95f),
-                SkillViewStepType.TriggerHit => new Color(1f, 0.45f, 0.45f, 0.96f),
                 SkillViewStepType.SetFlipX => new Color(0.38f, 1f, 0.72f, 0.95f),
                 SkillViewStepType.SetSortingOrder => new Color(0.42f, 0.88f, 1f, 0.95f),
                 SkillViewStepType.ResetSortingOrder => new Color(0.42f, 0.88f, 1f, 0.8f),
@@ -1738,14 +1806,11 @@ namespace GameSystems.Battle.Editor
             DrawKeyValueRow("Duration", $"{step.Duration:0.00}s");
             DrawKeyValueRow("Delay", $"{step.Delay:0.00}s");
             DrawKeyValueRow("Move Mode", step.MoveMode.ToString());
-            DrawKeyValueRow("Wait For End", step.WaitForAnimationEnd ? "Yes" : "No");
-            DrawKeyValueRow("Trigger Hit", step.TriggerHitEffect ? "Yes" : "No");
-            DrawKeyValueRow("Hit Count", step.HitCount.ToString());
-            if (step.StepType == SkillViewStepType.SpawnVfx)
+            if (step.StepType == SkillViewStepType.PlayAnimation)
             {
-                DrawKeyValueRow("VFX", step.VfxPrefab != null ? step.VfxPrefab.name : "-");
-                DrawKeyValueRow("Offset", step.Offset.ToString("F2"));
-                DrawKeyValueRow("World Pos", step.WorldPosition.ToString("F2"));
+                DrawKeyValueRow("Wait For End", step.WaitForAnimationEnd ? "Yes" : "No");
+                DrawKeyValueRow("Animation Events", step.AnimationEvents != null ? step.AnimationEvents.Count.ToString() : "0");
+                DrawAnimationEventRows(step.AnimationEvents);
             }
             else if (step.StepType == SkillViewStepType.MoveToTarget || step.StepType == SkillViewStepType.MoveBack)
             {
@@ -1762,6 +1827,46 @@ namespace GameSystems.Battle.Editor
             }
 
             EditorGUILayout.EndVertical();
+        }
+
+        private void DrawAnimationEventRows(IReadOnlyList<SkillViewAnimationEvent> eventsList)
+        {
+            if (eventsList == null || eventsList.Count == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < eventsList.Count; i++)
+            {
+                SkillViewAnimationEvent animationEvent = eventsList[i];
+                if (animationEvent == null)
+                {
+                    continue;
+                }
+
+                string eventLabel = $"{animationEvent.EventType} / {animationEvent.Timing}";
+                if (!string.IsNullOrWhiteSpace(animationEvent.AnimationEventName))
+                {
+                    eventLabel += $" [{animationEvent.AnimationEventName}]";
+                }
+
+                string targetLabel = animationEvent.TargetType.ToString();
+                if (animationEvent.EventType == SkillViewAnimationEventType.SpawnVfx)
+                {
+                    string socketLabel = animationEvent.SpawnSocket.ToString();
+                    string suffix = animationEvent.Enabled ? string.Empty : " [Disabled]";
+                    DrawKeyValueRow($"Event {i + 1}", $"{eventLabel} -> {targetLabel} / {socketLabel}{suffix}");
+                }
+                else
+                {
+                    string hitLabel = animationEvent.IsHitEffectEvent ? "Hit Effect" : "Logic Hit";
+                    string suffix = animationEvent.Enabled ? string.Empty : " [Disabled]";
+                    DrawKeyValueRow(
+                        $"Event {i + 1}",
+                        $"{eventLabel} -> {targetLabel} / {hitLabel} x{animationEvent.HitCount}{suffix}"
+                    );
+                }
+            }
         }
 
         private void DrawPreviewMarkerOverlay(Rect previewRect)

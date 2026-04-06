@@ -77,6 +77,8 @@ MonoBehaviour:
         worldPosition: {x: 0, y: 0, z: 0}
         offset: {x: -1.3, y: 0, z: 0}
         vfxPrefab: {fileID: 0}
+        spawnSocket: 0
+        animationEvents: []
         waitForAnimationEnd: 1
         triggerHitEffect: 0
         hitCount: 1
@@ -98,6 +100,8 @@ MonoBehaviour:
         worldPosition: {x: 0, y: 0, z: 0}
         offset: {x: 0, y: 0, z: 0}
         vfxPrefab: {fileID: 0}
+        spawnSocket: 0
+        animationEvents: []
         waitForAnimationEnd: 1
         triggerHitEffect: 0
         hitCount: 1
@@ -119,6 +123,8 @@ MonoBehaviour:
         worldPosition: {x: 0, y: 0, z: 0}
         offset: {x: 0, y: 0, z: 0}
         vfxPrefab: {fileID: 0}
+        spawnSocket: 0
+        animationEvents: []
         waitForAnimationEnd: 1
         triggerHitEffect: 0
         hitCount: 1
@@ -140,6 +146,8 @@ MonoBehaviour:
         worldPosition: {x: 0, y: 0, z: 0}
         offset: {x: 0, y: 0, z: 0}
         vfxPrefab: {fileID: 0}
+        spawnSocket: 0
+        animationEvents: []
         waitForAnimationEnd: 1
         triggerHitEffect: 0
         hitCount: 1
@@ -263,45 +271,48 @@ MonoBehaviour:
     hitEventName: hit
     falldownEventName: falldown
     stepSelections:
-    - sequence: {fileID: 11400000, guid: bd78272dcf6194b4fb991ec4465dcbcc, type: 2}
-      stepIndex: 1
+    - sequence: {fileID: 11400000, guid: f0e87682cee668c4a8555993812cbe8a, type: 2}
+      stepIndex: 0
       useLocalOverride: 1
       localOverrideStep:
         stepType: 2
-        targetType: 0
+        targetType: 2
         moveMode: 0
         animationName: attack
         fallbackAnimationName: attack
         loop: 0
         delay: 0
-        duration: 1
+        duration: 0.15
         moveDistance: 1
         sortingOrder: 0
         flipX: 0
         worldPosition: {x: 0, y: 0, z: 0}
         offset: {x: 0, y: 0, z: 0}
         vfxPrefab: {fileID: 0}
-        waitForAnimationEnd: 1
-        triggerHitEffect: 0
-        hitCount: 1
-    - sequence: {fileID: 11400000, guid: bd78272dcf6194b4fb991ec4465dcbcc, type: 2}
-      stepIndex: 6
-      useLocalOverride: 1
-      localOverrideStep:
-        stepType: 9
-        targetType: 2
-        moveMode: 0
-        animationName: idle
-        fallbackAnimationName: idle
-        loop: 1
-        delay: 0
-        duration: 1
-        moveDistance: 1
-        sortingOrder: 0
-        flipX: 0
-        worldPosition: {x: 0, y: 0, z: 0}
-        offset: {x: 0, y: 0, z: 0}
-        vfxPrefab: {fileID: 0}
+        spawnSocket: 0
+        animationEvents:
+        - eventType: 1
+          timing: 1
+          animationEventName: 
+          targetType: 0
+          spawnSocket: 2
+          offset: {x: 0, y: 0, z: 0}
+          worldPosition: {x: 0, y: 0, z: 0}
+          vfxPrefab: {fileID: 0}
+          triggerHitEffect: 1
+          hitCount: 1
+          enabled: 1
+        - eventType: 0
+          timing: 1
+          animationEventName: 
+          targetType: 0
+          spawnSocket: 2
+          offset: {x: 0, y: 0, z: 0}
+          worldPosition: {x: 0, y: 0, z: 0}
+          vfxPrefab: {fileID: 0}
+          triggerHitEffect: 1
+          hitCount: 1
+          enabled: 1
         waitForAnimationEnd: 1
         triggerHitEffect: 0
         hitCount: 1
@@ -352,6 +363,8 @@ MonoBehaviour:
           worldPosition: {x: 0, y: 0, z: 0}
           offset: {x: -1.3, y: 0, z: 0}
           vfxPrefab: {fileID: 0}
+          spawnSocket: 0
+          animationEvents: []
           waitForAnimationEnd: 1
           triggerHitEffect: 0
           hitCount: 1
@@ -373,6 +386,8 @@ MonoBehaviour:
           worldPosition: {x: 0, y: 0, z: 0}
           offset: {x: 0, y: 0, z: 0}
           vfxPrefab: {fileID: 0}
+          spawnSocket: 0
+          animationEvents: []
           waitForAnimationEnd: 1
           triggerHitEffect: 0
           hitCount: 1
@@ -394,6 +409,8 @@ MonoBehaviour:
           worldPosition: {x: 0, y: 0, z: 0}
           offset: {x: 0, y: 0, z: 0}
           vfxPrefab: {fileID: 0}
+          spawnSocket: 0
+          animationEvents: []
           waitForAnimationEnd: 1
           triggerHitEffect: 0
           hitCount: 1
@@ -415,6 +432,8 @@ MonoBehaviour:
           worldPosition: {x: 0, y: 0, z: 0}
           offset: {x: 0, y: 0, z: 0}
           vfxPrefab: {fileID: 0}
+          spawnSocket: 0
+          animationEvents: []
           waitForAnimationEnd: 1
           triggerHitEffect: 0
           hitCount: 1
@@ -444,6 +463,8 @@ MonoBehaviour:
         worldPosition: {x: 0, y: 0, z: 0}
         offset: {x: -1.3, y: 0, z: 0}
         vfxPrefab: {fileID: 0}
+        spawnSocket: 0
+        animationEvents: []
         waitForAnimationEnd: 1
         triggerHitEffect: 0
         hitCount: 1
@@ -465,6 +486,8 @@ MonoBehaviour:
         worldPosition: {x: 0, y: 0, z: 0}
         offset: {x: 0, y: 0, z: 0}
         vfxPrefab: {fileID: 0}
+        spawnSocket: 0
+        animationEvents: []
         waitForAnimationEnd: 1
         triggerHitEffect: 0
         hitCount: 1
@@ -486,6 +509,8 @@ MonoBehaviour:
         worldPosition: {x: 0, y: 0, z: 0}
         offset: {x: 0, y: 0, z: 0}
         vfxPrefab: {fileID: 0}
+        spawnSocket: 0
+        animationEvents: []
         waitForAnimationEnd: 1
         triggerHitEffect: 0
         hitCount: 1
@@ -507,6 +532,8 @@ MonoBehaviour:
         worldPosition: {x: 0, y: 0, z: 0}
         offset: {x: 0, y: 0, z: 0}
         vfxPrefab: {fileID: 0}
+        spawnSocket: 0
+        animationEvents: []
         waitForAnimationEnd: 1
         triggerHitEffect: 0
         hitCount: 1
@@ -565,6 +592,8 @@ MonoBehaviour:
         worldPosition: {x: 0, y: 0, z: 0}
         offset: {x: 0, y: 0, z: 0}
         vfxPrefab: {fileID: 0}
+        spawnSocket: 0
+        animationEvents: []
         waitForAnimationEnd: 1
         triggerHitEffect: 0
         hitCount: 1

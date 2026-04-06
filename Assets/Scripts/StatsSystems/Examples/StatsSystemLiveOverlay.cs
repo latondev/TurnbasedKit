@@ -559,7 +559,7 @@ namespace StatsSystems.Examples
 				return;
 			}
 
-			var dockedLayout = FindFirstObjectByType<BattleUIView>() != null;
+			var dockedLayout = false;
 			var mainPanel = CreatePanel(root, "StatsBattleMainPanel", backgroundColor);
 			var mainRect = mainPanel.GetComponent<RectTransform>();
 			if (dockedLayout)

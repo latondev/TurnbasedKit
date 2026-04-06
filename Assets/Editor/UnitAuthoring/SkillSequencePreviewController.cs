@@ -57,6 +57,7 @@ namespace GameSystems.Battle.Editor
         private bool loopPlayback;
         private bool targetPreviewRegistered;
         private bool terminalIdleLoopActive;
+        private SkillViewStep activeAnimationStep;
 
         public SkillViewSequence Sequence
         {
@@ -771,6 +772,8 @@ namespace GameSystems.Battle.Editor
 
         private void ResetPlayback(bool autoPlay)
         {
+            activeAnimationStep = null;
+
             isPlaying = autoPlay && sequence != null && previewGameObject != null;
             isPaused = false;
             sequenceFinished = false;
@@ -813,6 +816,14 @@ namespace GameSystems.Battle.Editor
             {
                 FinishPlayback();
                 return false;
+            }
+
+            var previousStep = currentStepIndex >= 0 && currentStepIndex < sequence.Steps.Count
+                ? sequence.Steps[currentStepIndex]
+                : null;
+            if (previousStep != null && previousStep.StepType == SkillViewStepType.PlayAnimation)
+            {
+                FinishPreviewAnimationStep(previousStep);
             }
 
             currentStepIndex++;
@@ -863,6 +874,7 @@ namespace GameSystems.Battle.Editor
                     break;
 
                 case SkillViewStepType.PlayAnimation:
+                    BeginPreviewAnimationStep(currentStep);
                     if (currentStep.Loop && IsTerminalLoopStep(currentStepIndex, currentStep))
                     {
                         PlayTerminalLoopAnimation(currentStep);
@@ -877,14 +889,6 @@ namespace GameSystems.Battle.Editor
 
                 case SkillViewStepType.Wait:
                     currentStepHasDuration = currentStep.Duration > 0f;
-                    break;
-
-                case SkillViewStepType.SpawnVfx:
-                    SpawnVfx(currentStep);
-                    break;
-
-                case SkillViewStepType.TriggerHit:
-                    statusText = BuildStatusText(currentStep);
                     break;
 
                 case SkillViewStepType.ResetSortingOrder:
@@ -1056,8 +1060,6 @@ namespace GameSystems.Battle.Editor
                 case SkillViewStepType.SetIdleAnimation:
                     PlayIdleAnimation(step);
                     break;
-                case SkillViewStepType.SpawnVfx:
-                case SkillViewStepType.TriggerHit:
                 case SkillViewStepType.Wait:
                 default:
                     break;
@@ -1091,8 +1093,6 @@ namespace GameSystems.Battle.Editor
                     return !step.WaitForAnimationEnd || step.Duration <= 0f;
                 case SkillViewStepType.Wait:
                     return step.Duration <= 0f;
-                case SkillViewStepType.SpawnVfx:
-                case SkillViewStepType.TriggerHit:
                 case SkillViewStepType.ResetSortingOrder:
                 case SkillViewStepType.SetSortingOrder:
                 case SkillViewStepType.SetFlipX:
@@ -1279,16 +1279,16 @@ namespace GameSystems.Battle.Editor
             return PrimaryTargetPosition - (direction * signedDistance) + step.Offset;
         }
 
-        private void SpawnVfx(SkillViewStep step)
+        private void SpawnVfx(SkillViewAnimationEvent animationEvent)
         {
-            if (step == null || step.VfxPrefab == null || previewUtility == null)
+            if (animationEvent == null || animationEvent.VfxPrefab == null || previewUtility == null)
             {
                 return;
             }
 
-            Vector3 spawnPosition = ResolveDestination(step);
+            Vector3 spawnPosition = ResolveAnimationEventWorldPosition(animationEvent);
             ParticleSystem instance = UnityEngine.Object.Instantiate(
-                step.VfxPrefab,
+                animationEvent.VfxPrefab,
                 spawnPosition,
                 Quaternion.identity
             );
@@ -1303,6 +1303,66 @@ namespace GameSystems.Battle.Editor
             previewUtility.AddSingleGO(instanceGO);
             instance.Play(true);
             spawnedVfxObjects.Add(instanceGO);
+        }
+
+        private Vector3 ResolveAnimationEventWorldPosition(SkillViewAnimationEvent animationEvent)
+        {
+            if (animationEvent == null)
+            {
+                return previewGameObject != null ? previewGameObject.transform.position : ActorStartPosition;
+            }
+
+            if (animationEvent.TargetType == SkillViewTargetType.WorldPosition)
+            {
+                return animationEvent.WorldPosition + animationEvent.Offset;
+            }
+
+            GameObject host = ResolveAnimationEventHost(animationEvent.TargetType);
+            if (host != null && animationEvent.SpawnSocket != UnitSocketPoint.None)
+            {
+                Transform socket = FindDeepChild(host.transform, animationEvent.SpawnSocket.ToString());
+                if (socket != null)
+                {
+                    return socket.position + animationEvent.Offset;
+                }
+            }
+
+            Vector3 basePosition = ResolveAnimationEventBasePosition(animationEvent.TargetType);
+            return basePosition + animationEvent.Offset;
+        }
+
+        private GameObject ResolveAnimationEventHost(SkillViewTargetType targetType)
+        {
+            switch (targetType)
+            {
+                case SkillViewTargetType.Actor:
+                    return previewGameObject;
+                case SkillViewTargetType.AllTargets:
+                    return previewTargetGameObject != null ? previewTargetGameObject : previewGameObject;
+                case SkillViewTargetType.WorldPosition:
+                    return null;
+                default:
+                    return previewTargetGameObject != null ? previewTargetGameObject : previewGameObject;
+            }
+        }
+
+        private Vector3 ResolveAnimationEventBasePosition(SkillViewTargetType targetType)
+        {
+            switch (targetType)
+            {
+                case SkillViewTargetType.Actor:
+                    return previewGameObject != null ? previewGameObject.transform.position : ActorStartPosition;
+                case SkillViewTargetType.AllTargets:
+                    return previewTargetGameObject != null
+                        ? previewTargetGameObject.transform.position
+                        : PrimaryTargetPosition;
+                case SkillViewTargetType.WorldPosition:
+                    return Vector3.zero;
+                default:
+                    return previewTargetGameObject != null
+                        ? previewTargetGameObject.transform.position
+                        : PrimaryTargetPosition;
+            }
         }
 
         private void RenderPreviewScene()
@@ -1357,6 +1417,12 @@ namespace GameSystems.Battle.Editor
 
         private void FinishPlayback()
         {
+            if (activeAnimationStep != null)
+            {
+                FinishPreviewAnimationStep(activeAnimationStep);
+                activeAnimationStep = null;
+            }
+
             if (HasTerminalIdleLoopStep(sequence))
             {
                 isPlaying = true;
@@ -1420,7 +1486,13 @@ namespace GameSystems.Battle.Editor
 
         private void HandlePreviewEvent(string animationName, string eventName)
         {
-            if (!showEventPopups || string.IsNullOrWhiteSpace(eventName))
+            bool handledSubEvent = false;
+            if (!string.IsNullOrWhiteSpace(eventName))
+            {
+                handledSubEvent = HandleActiveAnimationEvent(eventName);
+            }
+
+            if (!showEventPopups || string.IsNullOrWhiteSpace(eventName) || handledSubEvent)
             {
                 return;
             }
@@ -1434,6 +1506,108 @@ namespace GameSystems.Battle.Editor
                 new EventPopup(eventName, popupWorldPosition, EditorApplication.timeSinceStartup)
             );
             RequestRepaint();
+        }
+
+        private bool HandleActiveAnimationEvent(string eventName)
+        {
+            if (activeAnimationStep == null)
+            {
+                return false;
+            }
+
+            return ExecuteAnimationEvents(
+                activeAnimationStep,
+                SkillViewEventTiming.OnAnimationEvent,
+                eventName);
+        }
+
+        private void BeginPreviewAnimationStep(SkillViewStep step)
+        {
+            activeAnimationStep = step;
+            ExecuteAnimationEvents(step, SkillViewEventTiming.OnStart);
+        }
+
+        private void FinishPreviewAnimationStep(SkillViewStep step)
+        {
+            ExecuteAnimationEvents(step, SkillViewEventTiming.OnEnd);
+            if (activeAnimationStep == step)
+            {
+                activeAnimationStep = null;
+            }
+        }
+
+        private bool ExecuteAnimationEvents(
+            SkillViewStep step,
+            SkillViewEventTiming timing,
+            string animationEventName = null)
+        {
+            if (step?.AnimationEvents == null || step.AnimationEvents.Count == 0)
+            {
+                return false;
+            }
+
+            bool executed = false;
+            for (int i = 0; i < step.AnimationEvents.Count; i++)
+            {
+                SkillViewAnimationEvent animationEvent = step.AnimationEvents[i];
+                if (animationEvent == null || !animationEvent.Enabled || animationEvent.Timing != timing)
+                {
+                    continue;
+                }
+
+                if (
+                    timing == SkillViewEventTiming.OnAnimationEvent
+                    && !MatchesAnimationEventName(animationEvent.AnimationEventName, animationEventName)
+                )
+                {
+                    continue;
+                }
+
+                ExecuteAnimationEvent(animationEvent, step);
+                executed = true;
+            }
+
+            return executed;
+        }
+
+        private static bool MatchesAnimationEventName(string expected, string actual)
+        {
+            if (string.IsNullOrWhiteSpace(expected))
+            {
+                return true;
+            }
+
+            return string.Equals(expected, actual, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void ExecuteAnimationEvent(SkillViewAnimationEvent animationEvent, SkillViewStep sourceStep)
+        {
+            if (animationEvent == null)
+            {
+                return;
+            }
+
+            switch (animationEvent.EventType)
+            {
+                case SkillViewAnimationEventType.SpawnVfx:
+                    SpawnVfx(animationEvent);
+                    break;
+                case SkillViewAnimationEventType.TriggerHit:
+                    if (showEventPopups)
+                    {
+                        Vector3 popupPosition = ResolveAnimationEventWorldPosition(animationEvent);
+                        string popupLabel = animationEvent.IsHitEffectEvent
+                            ? $"hit effect x{Mathf.Max(1, animationEvent.HitCount)}"
+                            : $"logic hit x{Mathf.Max(1, animationEvent.HitCount)}";
+                        eventPopups.Add(
+                            new EventPopup(
+                                popupLabel,
+                                popupPosition,
+                                EditorApplication.timeSinceStartup));
+                        RequestRepaint();
+                    }
+                    break;
+            }
         }
 
         private void ClearSpawnedVfx()
@@ -1456,6 +1630,8 @@ namespace GameSystems.Battle.Editor
 
         private void StopPlayback(string nextStatus, bool releasePreviewHost)
         {
+            activeAnimationStep = null;
+
             isPlaying = false;
             isPaused = false;
             sequenceFinished = true;
@@ -1479,6 +1655,7 @@ namespace GameSystems.Battle.Editor
         private void ReleasePreviewHost()
         {
             UnbindAnimationEvents();
+            activeAnimationStep = null;
             if (previewGameObject != null)
             {
                 UnityEngine.Object.DestroyImmediate(previewGameObject);

@@ -631,9 +631,56 @@ namespace GameSystems.Battle.Editor
             SetVector3(targetProp, "worldPosition", source.WorldPosition);
             SetVector3(targetProp, "offset", source.Offset);
             SetObjectRef(targetProp, "vfxPrefab", source.VfxPrefab);
+            SetAnimationEvents(targetProp, source.AnimationEvents);
             SetBool(targetProp, "waitForAnimationEnd", source.WaitForAnimationEnd);
             SetBool(targetProp, "triggerHitEffect", source.TriggerHitEffect);
             SetInt(targetProp, "hitCount", source.HitCount);
+        }
+
+        private static void SetAnimationEvents(
+            SerializedProperty targetProp,
+            IReadOnlyList<SkillViewAnimationEvent> sourceEvents
+        )
+        {
+            if (targetProp == null)
+            {
+                return;
+            }
+
+            var eventsProp = targetProp.FindPropertyRelative("animationEvents");
+            if (eventsProp == null)
+            {
+                return;
+            }
+
+            eventsProp.ClearArray();
+            if (sourceEvents == null || sourceEvents.Count == 0)
+            {
+                return;
+            }
+
+            eventsProp.arraySize = sourceEvents.Count;
+            for (int i = 0; i < sourceEvents.Count; i++)
+            {
+                var sourceEvent = sourceEvents[i];
+                var targetEventProp = eventsProp.GetArrayElementAtIndex(i);
+                if (sourceEvent == null || targetEventProp == null)
+                {
+                    continue;
+                }
+
+                SetEnum(targetEventProp, "eventType", (int)sourceEvent.EventType);
+                SetEnum(targetEventProp, "timing", (int)sourceEvent.Timing);
+                SetString(targetEventProp, "animationEventName", sourceEvent.AnimationEventName);
+                SetEnum(targetEventProp, "targetType", (int)sourceEvent.TargetType);
+                SetEnum(targetEventProp, "spawnSocket", (int)sourceEvent.SpawnSocket);
+                SetVector3(targetEventProp, "offset", sourceEvent.Offset);
+                SetVector3(targetEventProp, "worldPosition", sourceEvent.WorldPosition);
+                SetObjectRef(targetEventProp, "vfxPrefab", sourceEvent.VfxPrefab);
+                SetBool(targetEventProp, "triggerHitEffect", sourceEvent.TriggerHitEffect);
+                SetInt(targetEventProp, "hitCount", sourceEvent.HitCount);
+                SetBool(targetEventProp, "enabled", sourceEvent.Enabled);
+            }
         }
 
         private static void SetEnum(SerializedProperty root, string name, int value)

@@ -10,15 +10,34 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 75d6a6918445432aa5c5230aa8138e98, type: 3}
-  m_Name: SkillViewSequence
+  m_Name: NewSkillSequence
   m_EditorClassIdentifier: 
-  sequenceId: basic_strike
-  animationName: attack
-  fallbackAnimationName: attack
+  sequenceId: new_skill_sequence
+  animationName: skill
+  fallbackAnimationName: skill
   hitEventName: hit
-  falldownEventName: audio
+  falldownEventName: falldown
   idleAnimationName: idle
   steps:
+  - stepType: 0
+    targetType: 0
+    moveMode: 0
+    animationName: skill
+    fallbackAnimationName: skill
+    loop: 0
+    delay: 0
+    duration: 0.25
+    moveDistance: 1
+    sortingOrder: 0
+    flipX: 0
+    worldPosition: {x: 0, y: 0, z: 0}
+    offset: {x: 0, y: 0, z: 0}
+    vfxPrefab: {fileID: 0}
+    spawnSocket: 0
+    animationEvents: []
+    waitForAnimationEnd: 1
+    triggerHitEffect: 0
+    hitCount: 1
   - stepType: 2
     targetType: 0
     moveMode: 0
@@ -26,82 +45,38 @@ MonoBehaviour:
     fallbackAnimationName: skill
     loop: 0
     delay: 0
-    duration: 0.12
+    duration: 0.2
     moveDistance: 1
     sortingOrder: 0
     flipX: 0
     worldPosition: {x: 0, y: 0, z: 0}
     offset: {x: 0, y: 0, z: 0}
     vfxPrefab: {fileID: 0}
+    spawnSocket: 0
+    animationEvents:
+    - eventType: 1
+      timing: 1
+      animationEventName: hit
+      targetType: 0
+      spawnSocket: 0
+      offset: {x: 0, y: 0, z: 0}
+      worldPosition: {x: 0, y: 0, z: 0}
+      vfxPrefab: {fileID: 0}
+      triggerHitEffect: 1
+      hitCount: 1
+      enabled: 1
+    - eventType: 1
+      timing: 2
+      animationEventName: 
+      targetType: 0
+      spawnSocket: 0
+      offset: {x: 0, y: 0, z: 0}
+      worldPosition: {x: 0, y: 0, z: 0}
+      vfxPrefab: {fileID: 0}
+      triggerHitEffect: 1
+      hitCount: 1
+      enabled: 1
     waitForAnimationEnd: 1
-    triggerHitEffect: 0
-    hitCount: 1
-  - stepType: 0
-    targetType: 0
-    moveMode: 1
-    animationName: skill
-    fallbackAnimationName: skill
-    loop: 0
-    delay: 0
-    duration: 0.28
-    moveDistance: 1.05
-    sortingOrder: 0
-    flipX: 0
-    worldPosition: {x: 0, y: 0, z: 0}
-    offset: {x: 0, y: 0, z: 0}
-    vfxPrefab: {fileID: 0}
-    waitForAnimationEnd: 1
-    triggerHitEffect: 0
-    hitCount: 1
-  - stepType: 6
-    targetType: 2
-    moveMode: 0
-    animationName: skill
-    fallbackAnimationName: skill
-    loop: 0
-    delay: 0
-    duration: 0
-    moveDistance: -1
-    sortingOrder: 0
-    flipX: 1
-    worldPosition: {x: 0, y: 0, z: 0}
-    offset: {x: 0, y: 0, z: 0}
-    vfxPrefab: {fileID: 0}
-    waitForAnimationEnd: 0
-    triggerHitEffect: 0
-    hitCount: 1
-  - stepType: 5
-    targetType: 0
-    moveMode: 0
-    animationName: skill
-    fallbackAnimationName: skill
-    loop: 0
-    delay: 0
-    duration: 0
-    moveDistance: 1
-    sortingOrder: 0
-    flipX: 0
-    worldPosition: {x: 0, y: 0, z: 0}
-    offset: {x: 0, y: 0, z: 0}
-    vfxPrefab: {fileID: 0}
-    waitForAnimationEnd: 0
-    triggerHitEffect: 1
-    hitCount: 1
-  - stepType: 6
-    targetType: 2
-    moveMode: 0
-    animationName: skill
-    fallbackAnimationName: skill
-    loop: 0
-    delay: 0
-    duration: 0
-    moveDistance: 1
-    sortingOrder: 0
-    flipX: 0
-    worldPosition: {x: 0, y: 0, z: 0}
-    offset: {x: 0, y: 0, z: 0}
-    vfxPrefab: {fileID: 0}
-    waitForAnimationEnd: 0
     triggerHitEffect: 0
     hitCount: 1
   - stepType: 1
@@ -111,17 +86,19 @@ MonoBehaviour:
     fallbackAnimationName: skill
     loop: 0
     delay: 0
-    duration: 0.24
+    duration: 0.25
     moveDistance: 1
     sortingOrder: 0
     flipX: 0
     worldPosition: {x: 0, y: 0, z: 0}
     offset: {x: 0, y: 0, z: 0}
     vfxPrefab: {fileID: 0}
+    spawnSocket: 0
+    animationEvents: []
     waitForAnimationEnd: 1
     triggerHitEffect: 0
     hitCount: 1
-  - stepType: 9
+  - stepType: 7
     targetType: 2
     moveMode: 0
     animationName: idle
@@ -135,6 +112,8 @@ MonoBehaviour:
     worldPosition: {x: 0, y: 0, z: 0}
     offset: {x: 0, y: 0, z: 0}
     vfxPrefab: {fileID: 0}
+    spawnSocket: 0
+    animationEvents: []
     waitForAnimationEnd: 1
     triggerHitEffect: 0
     hitCount: 1

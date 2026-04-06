@@ -11,20 +11,22 @@ namespace GameSystems.Battle
         {
             if (runner == null || step == null)
             {
-                return null;
+                yield break;
             }
 
+            runner.BeginPlayAnimationStep(step);
             runner.PlaySequenceAnimation(step, 1);
             if (step.WaitForAnimationEnd && step.Duration > 0f)
             {
                 float wait = runner.GetScaledDuration(step.Duration);
                 if (wait > 0f)
                 {
-                    return WaitRoutine(wait);
+                    yield return WaitRoutine(wait);
                 }
             }
 
-            return null;
+            runner.FinishPlayAnimationStep(step);
+            yield break;
         }
 
         private static IEnumerator WaitRoutine(float duration)

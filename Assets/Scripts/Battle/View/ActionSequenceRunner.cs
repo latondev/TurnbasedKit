@@ -17,8 +17,6 @@ namespace GameSystems.Battle
                 { SkillViewStepType.MoveBack, new MoveBackStepHandler() },
                 { SkillViewStepType.PlayAnimation, new PlayAnimationStepHandler() },
                 { SkillViewStepType.Wait, new WaitStepHandler() },
-                { SkillViewStepType.SpawnVfx, new SpawnVfxStepHandler() },
-                { SkillViewStepType.TriggerHit, new TriggerHitStepHandler() },
                 { SkillViewStepType.ResetSortingOrder, new ResetSortingOrderStepHandler() },
                 { SkillViewStepType.SetSortingOrder, new SetSortingOrderStepHandler() },
                 { SkillViewStepType.SetFlipX, new SetFlipXStepHandler() },
@@ -27,6 +25,7 @@ namespace GameSystems.Battle
 
         [Header("Runtime")]
         [SerializeField] private AnimationHandle animationHandle;
+        [SerializeField] private UnitSocketResolver socketResolver;
         [SerializeField] private float speed = 1f;
         [SerializeField] private float moveDuration = 0.4f;
 
@@ -46,11 +45,14 @@ namespace GameSystems.Battle
         private string activeHitEvent;
         private string activeFalldownEvent;
         private bool hitSignalSent;
+        private bool currentAnimationStepHitSent;
         private bool falldownSignalSent;
+        private SkillViewStep activeAnimationStep;
         private Vector3 originPosition;
         private bool originInitialized;
 
         internal AnimationHandle AnimationHandle => animationHandle;
+        internal UnitSocketResolver SocketResolver => socketResolver;
         internal SkillViewContext CurrentContext => currentContext;
 
         private void Awake()
@@ -64,6 +66,8 @@ namespace GameSystems.Battle
             {
                 animationHandle = GetComponentInChildren<AnimationHandle>(true);
             }
+
+            EnsureSocketResolver();
 
             if (animationHandle != null)
             {
@@ -88,11 +92,14 @@ namespace GameSystems.Battle
 
         public void Play(CombatActionData action, SkillViewContext context)
         {
+            EnsureSocketResolver();
             currentAction = action;
             currentContext = context;
             currentSequence = action != null ? action.ViewSequence : null;
             hitSignalSent = false;
+            currentAnimationStepHitSent = false;
             falldownSignalSent = false;
+            activeAnimationStep = null;
             activeHitEvent = ResolveHitEventName();
             activeFalldownEvent = ResolveFalldownEventName();
 
@@ -166,6 +173,7 @@ namespace GameSystems.Battle
             }
 
             TriggerFallbackHitIfNeeded();
+            activeAnimationStep = null;
             sequenceCoroutine = null;
             OnEndAction?.Invoke();
         }
@@ -258,12 +266,15 @@ namespace GameSystems.Battle
                 return;
             }
 
+            HandleActiveAnimationStepEvent(eventName);
+
             if (
-                !hitSignalSent
+                !currentAnimationStepHitSent
                 && !string.IsNullOrWhiteSpace(activeHitEvent)
                 && string.Equals(eventName, activeHitEvent, StringComparison.OrdinalIgnoreCase)
             )
             {
+                currentAnimationStepHitSent = true;
                 hitSignalSent = true;
                 OnEndStepAction?.Invoke(ResolveHitCount(null), false);
                 return;
@@ -308,6 +319,104 @@ namespace GameSystems.Battle
             }
 
             return FallbackHitEvent;
+        }
+
+        internal void BeginPlayAnimationStep(SkillViewStep step)
+        {
+            activeAnimationStep = step;
+            currentAnimationStepHitSent = false;
+            ExecuteAnimationEvents(step, SkillViewEventTiming.OnStart);
+        }
+
+        internal void FinishPlayAnimationStep(SkillViewStep step)
+        {
+            ExecuteAnimationEvents(step, SkillViewEventTiming.OnEnd);
+            if (activeAnimationStep == step)
+            {
+                activeAnimationStep = null;
+            }
+        }
+
+        private void HandleActiveAnimationStepEvent(string eventName)
+        {
+            if (activeAnimationStep == null)
+            {
+                return;
+            }
+
+            ExecuteAnimationEvents(activeAnimationStep, SkillViewEventTiming.OnAnimationEvent, eventName);
+        }
+
+        internal void ExecuteAnimationEvents(
+            SkillViewStep step,
+            SkillViewEventTiming timing,
+            string animationEventName = null)
+        {
+            if (step?.AnimationEvents == null || step.AnimationEvents.Count == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < step.AnimationEvents.Count; i++)
+            {
+                var animationEvent = step.AnimationEvents[i];
+                if (animationEvent == null || !animationEvent.Enabled || animationEvent.Timing != timing)
+                {
+                    continue;
+                }
+
+                if (
+                    timing == SkillViewEventTiming.OnAnimationEvent
+                    && !MatchesAnimationEventName(animationEvent.AnimationEventName, animationEventName)
+                )
+                {
+                    continue;
+                }
+
+                ExecuteAnimationEvent(step, animationEvent);
+            }
+        }
+
+        private static bool MatchesAnimationEventName(string expected, string actual)
+        {
+            if (string.IsNullOrWhiteSpace(expected))
+            {
+                return true;
+            }
+
+            return string.Equals(expected, actual, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void ExecuteAnimationEvent(SkillViewStep sourceStep, SkillViewAnimationEvent animationEvent)
+        {
+            if (animationEvent == null)
+            {
+                return;
+            }
+
+            switch (animationEvent.EventType)
+            {
+                case SkillViewAnimationEventType.SpawnVfx:
+                    SpawnVfxInternal(
+                        animationEvent.VfxPrefab,
+                        animationEvent.TargetType,
+                        animationEvent.SpawnSocket,
+                        animationEvent.Offset,
+                        animationEvent.WorldPosition);
+                    break;
+                case SkillViewAnimationEventType.TriggerHit:
+                    if (currentAnimationStepHitSent)
+                    {
+                        return;
+                    }
+
+                    currentAnimationStepHitSent = true;
+                    hitSignalSent = true;
+                    OnEndStepAction?.Invoke(
+                        animationEvent.HitCount > 0 ? animationEvent.HitCount : ResolveHitCount(sourceStep),
+                        animationEvent.IsHitEffectEvent);
+                    break;
+            }
         }
 
         private string ResolveFalldownEventName()
@@ -421,23 +530,28 @@ namespace GameSystems.Battle
             return currentContext.PrimaryTargetPosition - (direction * signedDistance) + step.Offset;
         }
 
-        internal void SpawnStepVfx(SkillViewStep step)
+        private void SpawnVfxInternal(
+            ParticleSystem vfxPrefab,
+            SkillViewTargetType targetType,
+            UnitSocketPoint spawnSocket,
+            Vector3 offset,
+            Vector3 worldPosition)
         {
-            if (step == null || step.VfxPrefab == null)
+            if (vfxPrefab == null)
             {
                 return;
             }
 
             if (
-                step.TargetType == SkillViewTargetType.AllTargets
+                targetType == SkillViewTargetType.AllTargets
                 && currentContext != null
                 && currentContext.TargetPositions.Count > 0
             )
             {
                 for (int i = 0; i < currentContext.TargetPositions.Count; i++)
                 {
-                    Vector3 targetPos = currentContext.TargetPositions[i];
-                    var fx = Instantiate(step.VfxPrefab, targetPos + step.Offset, Quaternion.identity);
+                    Vector3 targetPos = ResolveSpawnPosition(targetType, spawnSocket, worldPosition, offset, i);
+                    var fx = Instantiate(vfxPrefab, targetPos, Quaternion.identity);
                     fx.Play();
                     Destroy(fx.gameObject, 5f);
                 }
@@ -445,21 +559,94 @@ namespace GameSystems.Battle
                 return;
             }
 
-            Vector3 spawnPosition = currentContext != null
-                ? currentContext.PrimaryTargetPosition
-                : transform.position;
-            if (step.TargetType == SkillViewTargetType.Actor && currentContext != null)
-            {
-                spawnPosition = currentContext.ActorStartPosition;
-            }
-            else if (step.TargetType == SkillViewTargetType.WorldPosition)
-            {
-                spawnPosition = step.WorldPosition;
-            }
-
-            var instance = Instantiate(step.VfxPrefab, spawnPosition + step.Offset, Quaternion.identity);
+            Vector3 spawnPosition = ResolveSpawnPosition(targetType, spawnSocket, worldPosition, offset);
+            var instance = Instantiate(vfxPrefab, spawnPosition, Quaternion.identity);
             instance.Play();
             Destroy(instance.gameObject, 5f);
+        }
+
+        private Vector3 ResolveSpawnPosition(
+            SkillViewTargetType targetType,
+            UnitSocketPoint spawnSocket,
+            Vector3 worldPosition,
+            Vector3 offset,
+            int targetIndex = -1)
+        {
+            if (targetType == SkillViewTargetType.WorldPosition)
+            {
+                return worldPosition + offset;
+            }
+
+            if (spawnSocket != UnitSocketPoint.None)
+            {
+                var socketPosition = ResolveSocketSpawnPosition(targetType, spawnSocket, targetIndex);
+                if (socketPosition.HasValue)
+                {
+                    return socketPosition.Value + offset;
+                }
+            }
+
+            if (currentContext == null)
+            {
+                return transform.position + offset;
+            }
+
+            if (targetType == SkillViewTargetType.Actor)
+            {
+                return currentContext.ActorStartPosition + offset;
+            }
+
+            if (targetType == SkillViewTargetType.AllTargets && targetIndex >= 0 && currentContext.TargetPositions.Count > targetIndex)
+            {
+                return currentContext.TargetPositions[targetIndex] + offset;
+            }
+
+            return currentContext.PrimaryTargetPosition + offset;
+        }
+
+        private Vector3? ResolveSocketSpawnPosition(
+            SkillViewTargetType targetType,
+            UnitSocketPoint spawnSocket,
+            int targetIndex)
+        {
+            var resolver = ResolveSocketResolver(targetType, targetIndex);
+            if (resolver == null)
+            {
+                return null;
+            }
+
+            return resolver.GetSocketWorldPosition(spawnSocket);
+        }
+
+        private UnitSocketResolver ResolveSocketResolver(
+            SkillViewTargetType targetType,
+            int targetIndex)
+        {
+            if (currentContext == null)
+            {
+                return socketResolver;
+            }
+
+            if (targetType == SkillViewTargetType.Actor)
+            {
+                return currentContext.ActorSocketResolver ?? socketResolver;
+            }
+
+            if (targetType == SkillViewTargetType.AllTargets)
+            {
+                if (currentContext.TargetSocketResolvers != null && targetIndex >= 0 && targetIndex < currentContext.TargetSocketResolvers.Count)
+                {
+                    var resolver = currentContext.TargetSocketResolvers[targetIndex];
+                    if (resolver != null)
+                    {
+                        return resolver;
+                    }
+                }
+
+                return null;
+            }
+
+            return currentContext.TargetSocketResolver ?? socketResolver;
         }
 
         internal float GetScaledDuration(float duration)
@@ -472,16 +659,18 @@ namespace GameSystems.Battle
             return duration / Mathf.Max(0.01f, speed);
         }
 
-        internal bool TryTriggerHitFromStep(SkillViewStep step)
+        private void EnsureSocketResolver()
         {
-            if (hitSignalSent || !string.IsNullOrWhiteSpace(activeHitEvent))
+            if (socketResolver != null)
             {
-                return false;
+                return;
             }
 
-            OnEndStepAction?.Invoke(ResolveHitCount(step), step.TriggerHitEffect);
-            hitSignalSent = true;
-            return true;
+            socketResolver = GetComponentInParent<UnitSocketResolver>();
+            if (socketResolver == null)
+            {
+                socketResolver = GetComponentInChildren<UnitSocketResolver>(true);
+            }
         }
     }
 }

@@ -137,8 +137,38 @@ namespace GameSystems.Battle
             return new[]
             {
                 new SkillViewStep(SkillViewStepType.MoveToTarget, SkillViewTargetType.PrimaryTarget, attackAnimation, attackAnimation, false, 0.25f, 0f, 1f, SkillViewMoveMode.Direct),
-                new SkillViewStep(SkillViewStepType.PlayAnimation, SkillViewTargetType.PrimaryTarget, attackAnimation, "skill", false, 0.2f, 0f, 1f, SkillViewMoveMode.Direct, true, false, 1),
-                new SkillViewStep(SkillViewStepType.TriggerHit, SkillViewTargetType.PrimaryTarget, attackAnimation, attackAnimation, false, 0f, 0f, 1f, SkillViewMoveMode.Direct, false, true, 1),
+                new SkillViewStep(
+                    SkillViewStepType.PlayAnimation,
+                    SkillViewTargetType.PrimaryTarget,
+                    attackAnimation,
+                    "skill",
+                    false,
+                    0.2f,
+                    0f,
+                    1f,
+                    SkillViewMoveMode.Direct,
+                    true,
+                    false,
+                    1,
+                    0,
+                    false,
+                    null,
+                    null,
+                    null,
+                    UnitSocketPoint.None,
+                    new[]
+                    {
+                        CreateTriggerHitEvent(
+                            animationEventName: "hit",
+                            timing: SkillViewEventTiming.OnAnimationEvent,
+                            targetType: SkillViewTargetType.PrimaryTarget,
+                            hitCount: 1),
+                        CreateTriggerHitEvent(
+                            animationEventName: string.Empty,
+                            timing: SkillViewEventTiming.OnEnd,
+                            targetType: SkillViewTargetType.PrimaryTarget,
+                            hitCount: 1)
+                    }),
                 new SkillViewStep(SkillViewStepType.MoveBack, SkillViewTargetType.Actor, attackAnimation, attackAnimation, false, 0.25f, 0f, 1f, SkillViewMoveMode.Direct),
                 new SkillViewStep(SkillViewStepType.SetIdleAnimation, SkillViewTargetType.Actor, "idle", "idle", true, 0.1f)
             };
@@ -149,10 +179,46 @@ namespace GameSystems.Battle
             return new[]
             {
                 new SkillViewStep(SkillViewStepType.MoveToTarget, SkillViewTargetType.PrimaryTarget, attackAnimation, attackAnimation, false, 0.3f, 0f, 1.2f, SkillViewMoveMode.ThroughTarget),
-                new SkillViewStep(SkillViewStepType.PlayAnimation, SkillViewTargetType.PrimaryTarget, attackAnimation, attackAnimation, false, 0.16f),
-                new SkillViewStep(SkillViewStepType.TriggerHit, SkillViewTargetType.PrimaryTarget, attackAnimation, attackAnimation, false, 0f, 0f, 1f, SkillViewMoveMode.Direct, false, true, 1),
-                new SkillViewStep(SkillViewStepType.PlayAnimation, SkillViewTargetType.PrimaryTarget, attackAnimation, attackAnimation, false, 0.16f),
-                new SkillViewStep(SkillViewStepType.TriggerHit, SkillViewTargetType.PrimaryTarget, attackAnimation, attackAnimation, false, 0f, 0f, 1f, SkillViewMoveMode.Direct, false, true, 1),
+                new SkillViewStep(
+                    SkillViewStepType.PlayAnimation,
+                    SkillViewTargetType.PrimaryTarget,
+                    attackAnimation,
+                    attackAnimation,
+                    false,
+                    0.16f,
+                    animationEvents: new[]
+                    {
+                        CreateTriggerHitEvent(
+                            animationEventName: "hit",
+                            timing: SkillViewEventTiming.OnAnimationEvent,
+                            targetType: SkillViewTargetType.PrimaryTarget,
+                            hitCount: 1),
+                        CreateTriggerHitEvent(
+                            animationEventName: string.Empty,
+                            timing: SkillViewEventTiming.OnEnd,
+                            targetType: SkillViewTargetType.PrimaryTarget,
+                            hitCount: 1)
+                    }),
+                new SkillViewStep(
+                    SkillViewStepType.PlayAnimation,
+                    SkillViewTargetType.PrimaryTarget,
+                    attackAnimation,
+                    attackAnimation,
+                    false,
+                    0.16f,
+                    animationEvents: new[]
+                    {
+                        CreateTriggerHitEvent(
+                            animationEventName: "hit",
+                            timing: SkillViewEventTiming.OnAnimationEvent,
+                            targetType: SkillViewTargetType.PrimaryTarget,
+                            hitCount: 1),
+                        CreateTriggerHitEvent(
+                            animationEventName: string.Empty,
+                            timing: SkillViewEventTiming.OnEnd,
+                            targetType: SkillViewTargetType.PrimaryTarget,
+                            hitCount: 1)
+                    }),
                 new SkillViewStep(SkillViewStepType.MoveBack, SkillViewTargetType.Actor, attackAnimation, attackAnimation, false, 0.28f),
                 new SkillViewStep(SkillViewStepType.SetIdleAnimation, SkillViewTargetType.Actor, "idle", "idle", true, 0.1f)
             };
@@ -162,9 +228,31 @@ namespace GameSystems.Battle
         {
             return new[]
             {
-                new SkillViewStep(SkillViewStepType.PlayAnimation, SkillViewTargetType.Actor, castAnimation, castAnimation, false, 0.2f),
-                new SkillViewStep(SkillViewStepType.SpawnVfx, SkillViewTargetType.PrimaryTarget, castAnimation, castAnimation, false, 0.15f, 0f, 1f, SkillViewMoveMode.Direct, true, false, 1),
-                new SkillViewStep(SkillViewStepType.TriggerHit, SkillViewTargetType.PrimaryTarget, castAnimation, castAnimation, false, 0f, 0f, 1f, SkillViewMoveMode.Direct, false, true, 1),
+                new SkillViewStep(
+                    SkillViewStepType.PlayAnimation,
+                    SkillViewTargetType.Actor,
+                    castAnimation,
+                    castAnimation,
+                    false,
+                    0.2f,
+                    animationEvents: new[]
+                    {
+                        CreateSpawnVfxEvent(
+                            timing: SkillViewEventTiming.OnStart,
+                            targetType: SkillViewTargetType.PrimaryTarget,
+                            spawnSocket: UnitSocketPoint.BuffTop,
+                            animationEventName: string.Empty),
+                        CreateTriggerHitEvent(
+                            animationEventName: "hit",
+                            timing: SkillViewEventTiming.OnAnimationEvent,
+                            targetType: SkillViewTargetType.PrimaryTarget,
+                            hitCount: 1),
+                        CreateTriggerHitEvent(
+                            animationEventName: string.Empty,
+                            timing: SkillViewEventTiming.OnEnd,
+                            targetType: SkillViewTargetType.PrimaryTarget,
+                            hitCount: 1)
+                    }),
                 new SkillViewStep(SkillViewStepType.SetIdleAnimation, SkillViewTargetType.Actor, "idle", "idle", true, 0.1f)
             };
         }
@@ -173,9 +261,31 @@ namespace GameSystems.Battle
         {
             return new[]
             {
-                new SkillViewStep(SkillViewStepType.PlayAnimation, SkillViewTargetType.Actor, castAnimation, castAnimation, false, 0.2f),
-                new SkillViewStep(SkillViewStepType.SpawnVfx, SkillViewTargetType.AllTargets, castAnimation, castAnimation, false, 0.2f, 0f, 1f, SkillViewMoveMode.Direct, true, false, 1),
-                new SkillViewStep(SkillViewStepType.TriggerHit, SkillViewTargetType.AllTargets, castAnimation, castAnimation, false, 0f, 0f, 1f, SkillViewMoveMode.Direct, false, true, 1),
+                new SkillViewStep(
+                    SkillViewStepType.PlayAnimation,
+                    SkillViewTargetType.Actor,
+                    castAnimation,
+                    castAnimation,
+                    false,
+                    0.2f,
+                    animationEvents: new[]
+                    {
+                        CreateSpawnVfxEvent(
+                            timing: SkillViewEventTiming.OnStart,
+                            targetType: SkillViewTargetType.AllTargets,
+                            spawnSocket: UnitSocketPoint.BuffMiddle,
+                            animationEventName: string.Empty),
+                        CreateTriggerHitEvent(
+                            animationEventName: "hit",
+                            timing: SkillViewEventTiming.OnAnimationEvent,
+                            targetType: SkillViewTargetType.AllTargets,
+                            hitCount: 1),
+                        CreateTriggerHitEvent(
+                            animationEventName: string.Empty,
+                            timing: SkillViewEventTiming.OnEnd,
+                            targetType: SkillViewTargetType.AllTargets,
+                            hitCount: 1)
+                    }),
                 new SkillViewStep(SkillViewStepType.SetIdleAnimation, SkillViewTargetType.Actor, "idle", "idle", true, 0.1f)
             };
         }
@@ -185,13 +295,77 @@ namespace GameSystems.Battle
             return new[]
             {
                 new SkillViewStep(SkillViewStepType.MoveToTarget, SkillViewTargetType.PrimaryTarget, attackAnimation, attackAnimation, false, 0.28f, 0f, 1.05f, SkillViewMoveMode.ThroughTarget),
-                new SkillViewStep(SkillViewStepType.PlayAnimation, SkillViewTargetType.PrimaryTarget, attackAnimation, attackAnimation, false, 0.12f),
+                new SkillViewStep(
+                    SkillViewStepType.PlayAnimation,
+                    SkillViewTargetType.PrimaryTarget,
+                    attackAnimation,
+                    attackAnimation,
+                    false,
+                    0.12f,
+                    animationEvents: new[]
+                    {
+                        CreateTriggerHitEvent(
+                            animationEventName: "hit",
+                            timing: SkillViewEventTiming.OnAnimationEvent,
+                            targetType: SkillViewTargetType.PrimaryTarget,
+                            hitCount: 1),
+                        CreateTriggerHitEvent(
+                            animationEventName: string.Empty,
+                            timing: SkillViewEventTiming.OnEnd,
+                            targetType: SkillViewTargetType.PrimaryTarget,
+                            hitCount: 1)
+                    }),
                 new SkillViewStep(SkillViewStepType.SetFlipX, SkillViewTargetType.Actor, attackAnimation, attackAnimation, false, 0f, 0f, -1f, SkillViewMoveMode.Direct, false, false, 1, 0, true),
-                new SkillViewStep(SkillViewStepType.TriggerHit, SkillViewTargetType.PrimaryTarget, attackAnimation, attackAnimation, false, 0f, 0f, 1f, SkillViewMoveMode.Direct, false, true, 1),
                 new SkillViewStep(SkillViewStepType.MoveBack, SkillViewTargetType.Actor, attackAnimation, attackAnimation, false, 0.24f),
                 new SkillViewStep(SkillViewStepType.SetFlipX, SkillViewTargetType.Actor, attackAnimation, attackAnimation, false, 0f, 0f, 1f, SkillViewMoveMode.Direct, false, false, 1, 0, false),
                 new SkillViewStep(SkillViewStepType.SetIdleAnimation, SkillViewTargetType.Actor, "idle", "idle", true, 0.1f)
             };
+        }
+
+        private static SkillViewAnimationEvent CreateTriggerHitEvent(
+            string animationEventName = "hit",
+            SkillViewEventTiming timing = SkillViewEventTiming.OnAnimationEvent,
+            SkillViewTargetType targetType = SkillViewTargetType.PrimaryTarget,
+            int hitCount = 1,
+            bool triggerHitEffect = true,
+            bool enabled = true)
+        {
+            return new SkillViewAnimationEvent(
+                SkillViewAnimationEventType.TriggerHit,
+                timing,
+                animationEventName,
+                targetType,
+                UnitSocketPoint.None,
+                null,
+                null,
+                null,
+                triggerHitEffect,
+                hitCount,
+                enabled);
+        }
+
+        private static SkillViewAnimationEvent CreateSpawnVfxEvent(
+            SkillViewEventTiming timing = SkillViewEventTiming.OnStart,
+            SkillViewTargetType targetType = SkillViewTargetType.PrimaryTarget,
+            UnitSocketPoint spawnSocket = UnitSocketPoint.None,
+            string animationEventName = "",
+            Vector3? offset = null,
+            Vector3? worldPosition = null,
+            ParticleSystem vfxPrefab = null,
+            bool enabled = true)
+        {
+            return new SkillViewAnimationEvent(
+                SkillViewAnimationEventType.SpawnVfx,
+                timing,
+                animationEventName,
+                targetType,
+                spawnSocket,
+                offset,
+                worldPosition,
+                vfxPrefab,
+                true,
+                1,
+                enabled);
         }
     }
 
@@ -212,6 +386,8 @@ namespace GameSystems.Battle
         [SerializeField] private Vector3 worldPosition;
         [SerializeField] private Vector3 offset;
         [SerializeField] private ParticleSystem vfxPrefab;
+        [SerializeField] private UnitSocketPoint spawnSocket = UnitSocketPoint.None;
+        [SerializeField] private List<SkillViewAnimationEvent> animationEvents = new List<SkillViewAnimationEvent>();
         [SerializeField] private bool waitForAnimationEnd = true;
         [SerializeField] private bool triggerHitEffect;
         [SerializeField] private int hitCount = 1;
@@ -230,6 +406,8 @@ namespace GameSystems.Battle
         public Vector3 WorldPosition => worldPosition;
         public Vector3 Offset => offset;
         public ParticleSystem VfxPrefab => vfxPrefab;
+        public UnitSocketPoint SpawnSocket => spawnSocket;
+        public IReadOnlyList<SkillViewAnimationEvent> AnimationEvents => animationEvents;
         public bool WaitForAnimationEnd => waitForAnimationEnd;
         public bool TriggerHitEffect => triggerHitEffect;
         public int HitCount => hitCount;
@@ -257,7 +435,9 @@ namespace GameSystems.Battle
                 flipX,
                 worldPosition,
                 offset,
-                vfxPrefab);
+                vfxPrefab,
+                spawnSocket,
+                animationEvents);
         }
 
         public SkillViewStep(
@@ -277,7 +457,9 @@ namespace GameSystems.Battle
             bool flipX = false,
             Vector3? worldPosition = null,
             Vector3? offset = null,
-            ParticleSystem vfxPrefab = null)
+            ParticleSystem vfxPrefab = null,
+            UnitSocketPoint spawnSocket = UnitSocketPoint.None,
+            IEnumerable<SkillViewAnimationEvent> animationEvents = null)
         {
             this.stepType = stepType;
             this.targetType = targetType;
@@ -296,7 +478,117 @@ namespace GameSystems.Battle
             this.worldPosition = worldPosition ?? Vector3.zero;
             this.offset = offset ?? Vector3.zero;
             this.vfxPrefab = vfxPrefab;
+            this.spawnSocket = spawnSocket;
+            this.animationEvents = animationEvents != null
+                ? new List<SkillViewAnimationEvent>(CloneEvents(animationEvents))
+                : new List<SkillViewAnimationEvent>();
         }
+
+        private static IEnumerable<SkillViewAnimationEvent> CloneEvents(IEnumerable<SkillViewAnimationEvent> source)
+        {
+            if (source == null)
+            {
+                yield break;
+            }
+
+            foreach (var evt in source)
+            {
+                if (evt != null)
+                {
+                    yield return evt.Clone();
+                }
+            }
+        }
+    }
+
+    [Serializable]
+    public class SkillViewAnimationEvent
+    {
+        [SerializeField] private SkillViewAnimationEventType eventType = SkillViewAnimationEventType.SpawnVfx;
+        [SerializeField] private SkillViewEventTiming timing = SkillViewEventTiming.OnStart;
+        [SerializeField] private string animationEventName;
+        [SerializeField] private SkillViewTargetType targetType = SkillViewTargetType.PrimaryTarget;
+        [SerializeField] private UnitSocketPoint spawnSocket = UnitSocketPoint.None;
+        [SerializeField] private Vector3 offset;
+        [SerializeField] private Vector3 worldPosition;
+        [SerializeField] private ParticleSystem vfxPrefab;
+        [Tooltip("Primary flag for hit events. When true, the hit should drive hit reaction / impact behavior.")]
+        [SerializeField] private bool triggerHitEffect = true;
+        [SerializeField] private int hitCount = 1;
+        [Tooltip("Temporary authoring toggle. Disabled events are skipped at runtime.")]
+        [SerializeField] private bool enabled = true;
+
+        public SkillViewAnimationEventType EventType => eventType;
+        public SkillViewEventTiming Timing => timing;
+        public string AnimationEventName => animationEventName;
+        public SkillViewTargetType TargetType => targetType;
+        public UnitSocketPoint SpawnSocket => spawnSocket;
+        public Vector3 Offset => offset;
+        public Vector3 WorldPosition => worldPosition;
+        public ParticleSystem VfxPrefab => vfxPrefab;
+        public bool TriggerHitEffect => triggerHitEffect;
+        public int HitCount => hitCount;
+        public bool Enabled => enabled;
+        public bool IsHitEffectEvent => eventType == SkillViewAnimationEventType.TriggerHit && triggerHitEffect;
+
+        public SkillViewAnimationEvent()
+        {
+        }
+
+        public SkillViewAnimationEvent(
+            SkillViewAnimationEventType eventType,
+            SkillViewEventTiming timing = SkillViewEventTiming.OnStart,
+            string animationEventName = "",
+            SkillViewTargetType targetType = SkillViewTargetType.PrimaryTarget,
+            UnitSocketPoint spawnSocket = UnitSocketPoint.None,
+            Vector3? offset = null,
+            Vector3? worldPosition = null,
+            ParticleSystem vfxPrefab = null,
+            bool triggerHitEffect = true,
+            int hitCount = 1,
+            bool enabled = true)
+        {
+            this.eventType = eventType;
+            this.timing = timing;
+            this.animationEventName = animationEventName;
+            this.targetType = targetType;
+            this.spawnSocket = spawnSocket;
+            this.offset = offset ?? Vector3.zero;
+            this.worldPosition = worldPosition ?? Vector3.zero;
+            this.vfxPrefab = vfxPrefab;
+            this.triggerHitEffect = triggerHitEffect;
+            this.hitCount = hitCount;
+            this.enabled = enabled;
+        }
+
+        public SkillViewAnimationEvent Clone()
+        {
+            return new SkillViewAnimationEvent(
+                eventType,
+                timing,
+                animationEventName,
+                targetType,
+                spawnSocket,
+                offset,
+                worldPosition,
+                vfxPrefab,
+                triggerHitEffect,
+                hitCount,
+                enabled);
+        }
+    }
+
+    public enum SkillViewAnimationEventType
+    {
+        SpawnVfx,
+        TriggerHit,
+    }
+
+    public enum SkillViewEventTiming
+    {
+        OnStart,
+        OnAnimationEvent,
+        OnEnd,
     }
 
     public enum SkillViewStepType
@@ -305,8 +597,6 @@ namespace GameSystems.Battle
         MoveBack,
         PlayAnimation,
         Wait,
-        SpawnVfx,
-        TriggerHit,
         SetFlipX,
         ResetSortingOrder,
         SetSortingOrder,
@@ -336,7 +626,10 @@ namespace GameSystems.Battle
             Vector3 actorStartPosition,
             Vector3 primaryTargetPosition,
             List<Vector3> targetPositions,
-            BattleAction action = null)
+            BattleAction action = null,
+            UnitSocketResolver actorSocketResolver = null,
+            UnitSocketResolver targetSocketResolver = null,
+            IReadOnlyList<UnitSocketResolver> targetSocketResolvers = null)
         {
             Actor = actor;
             Target = target;
@@ -344,6 +637,9 @@ namespace GameSystems.Battle
             PrimaryTargetPosition = primaryTargetPosition;
             TargetPositions = targetPositions ?? new List<Vector3>();
             Action = action;
+            ActorSocketResolver = actorSocketResolver;
+            TargetSocketResolver = targetSocketResolver;
+            TargetSocketResolvers = targetSocketResolvers ?? Array.Empty<UnitSocketResolver>();
         }
 
         public BattleUnit Actor { get; }
@@ -352,6 +648,9 @@ namespace GameSystems.Battle
         public Vector3 ActorStartPosition { get; }
         public Vector3 PrimaryTargetPosition { get; }
         public List<Vector3> TargetPositions { get; }
+        public UnitSocketResolver ActorSocketResolver { get; }
+        public UnitSocketResolver TargetSocketResolver { get; }
+        public IReadOnlyList<UnitSocketResolver> TargetSocketResolvers { get; }
         public Vector3 DirectionToTarget
         {
             get

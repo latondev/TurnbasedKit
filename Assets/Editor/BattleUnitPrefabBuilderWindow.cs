@@ -40,7 +40,7 @@ namespace GameSystems.Battle.Editor
         {
             EditorGUILayout.LabelField("Battle Unit Prefab Builder", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
-                "Drag prefab assets here. The tool keeps AnimationHandle on the SkeletonAnimation host, and wires unified step-system runtime components onto the prefab root (UnitView + ActionSequenceRunner + Behit). FloatingText is generated once as a shared prefab.",
+                "Drag prefab assets here. The tool keeps AnimationHandle on the SkeletonAnimation host, and wires the unified step-system runtime components onto the prefab root (UnitView + ActionSequenceRunner + Behit). FloatingText is generated once as a shared prefab.",
                 MessageType.Info);
 
             DrawSettings();
@@ -191,10 +191,10 @@ namespace GameSystems.Battle.Editor
 
                 var viewRoot = EnsureViewRoot(prefabRoot, skeletonHost);
                 EnsureAnimationHandle(skeletonHost, skeletonAnimation);
+                EnsureRootComponent<UnitSocketResolver>(viewRoot, skeletonHost);
 
                 if (addBattleBehaviours)
                 {
-                    RemoveLegacyActionBehaviours(viewRoot);
                     EnsureRootComponent<ActionSequenceRunner>(viewRoot, skeletonHost);
                     EnsureRootComponent<BehitBehavior>(viewRoot, skeletonHost);
                 }
@@ -379,20 +379,22 @@ namespace GameSystems.Battle.Editor
             }
 
             var components = prefabRoot.GetComponentsInChildren<Component>(true);
-            foreach (var component in components)
-            {
-                if (component == null)
+                foreach (var component in components)
                 {
-                    continue;
-                }
+                    if (component == null)
+                    {
+                        continue;
+                    }
 
-                TryAssignSerializedReference(component, "animationHandle", animationHandle);
-                TryAssignSerializedReference(component, "animationController", animationHandle);
-                TryAssignSerializedReference(component, "statusView", prefabRoot.GetComponent<StatusView>());
+                    TryAssignSerializedReference(component, "animationHandle", animationHandle);
+                    TryAssignSerializedReference(component, "animationController", animationHandle);
+                    TryAssignSerializedReference(component, "socketResolver", prefabRoot.GetComponent<UnitSocketResolver>());
+                    TryAssignSerializedReference(component, "unitSocketResolver", prefabRoot.GetComponent<UnitSocketResolver>());
+                    TryAssignSerializedReference(component, "statusView", prefabRoot.GetComponent<StatusView>());
 
-                if (floatingTextPrefab != null)
-                {
-                    TryAssignSerializedReference(component, "floatingTextPrefab", floatingTextPrefab);
+                    if (floatingTextPrefab != null)
+                    {
+                        TryAssignSerializedReference(component, "floatingTextPrefab", floatingTextPrefab);
                 }
             }
         }
@@ -613,37 +615,6 @@ namespace GameSystems.Battle.Editor
             EditorUtility.SetDirty(prefabRoot);
             EditorUtility.SetDirty(rootComponent);
             return rootComponent;
-        }
-
-        private void RemoveLegacyActionBehaviours(GameObject prefabRoot)
-        {
-            if (prefabRoot == null)
-            {
-                return;
-            }
-
-            RemoveComponentsInChildren<AttackBehavior>(prefabRoot);
-            RemoveComponentsInChildren<SkillBehavior>(prefabRoot);
-            RemoveComponentsInChildren<BasicSkill>(prefabRoot);
-        }
-
-        private void RemoveComponentsInChildren<T>(GameObject root) where T : Component
-        {
-            if (root == null)
-            {
-                return;
-            }
-
-            var components = root.GetComponentsInChildren<T>(true);
-            for (int i = 0; i < components.Length; i++)
-            {
-                if (components[i] == null)
-                {
-                    continue;
-                }
-
-                Object.DestroyImmediate(components[i]);
-            }
         }
 
         private void AddSelectedPrefabs()

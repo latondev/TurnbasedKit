@@ -389,7 +389,13 @@ namespace GameSystems.Skills.Editor
             string animationLabel = string.IsNullOrWhiteSpace(step.AnimationName)
                 ? string.Empty
                 : $" [{step.AnimationName}]";
-            return $"{sequenceLabel} / #{stepIndex} {step.StepType}{animationLabel}";
+            string eventLabel =
+                step.StepType == SkillViewStepType.PlayAnimation
+                    && step.AnimationEvents != null
+                    && step.AnimationEvents.Count > 0
+                        ? $" (+{step.AnimationEvents.Count} evt)"
+                        : string.Empty;
+            return $"{sequenceLabel} / #{stepIndex} {step.StepType}{animationLabel}{eventLabel}";
         }
 
         private static string BuildMissingStepLabel(SkillViewSequence sequence, int stepIndex)
@@ -1056,6 +1062,10 @@ namespace GameSystems.Skills.Editor
             var worldPositionProp = localOverrideStepProp.FindPropertyRelative("worldPosition");
             var offsetProp = localOverrideStepProp.FindPropertyRelative("offset");
             var vfxPrefabProp = localOverrideStepProp.FindPropertyRelative("vfxPrefab");
+            var spawnSocketProp = localOverrideStepProp.FindPropertyRelative("spawnSocket");
+            var animationEventsProp = localOverrideStepProp.FindPropertyRelative(
+                "animationEvents"
+            );
             var waitForAnimationEndProp = localOverrideStepProp.FindPropertyRelative(
                 "waitForAnimationEnd"
             );
@@ -1141,6 +1151,16 @@ namespace GameSystems.Skills.Editor
                 changedFields,
                 sourceStep.VfxPrefab != vfxPrefabProp.objectReferenceValue,
                 GetStepFieldLabel("vfxPrefab")
+            );
+            AppendDiffField(
+                changedFields,
+                sourceStep.SpawnSocket != (UnitSocketPoint)spawnSocketProp.enumValueIndex,
+                GetStepFieldLabel("spawnSocket")
+            );
+            AppendDiffField(
+                changedFields,
+                HasAnimationEventsChanged(sourceStep, animationEventsProp),
+                GetStepFieldLabel("animationEvents")
             );
             AppendDiffField(
                 changedFields,
@@ -1235,6 +1255,10 @@ namespace GameSystems.Skills.Editor
                     return "Offset";
                 case "vfxPrefab":
                     return "VFX";
+                case "spawnSocket":
+                    return "Spawn Socket";
+                case "animationEvents":
+                    return "Anim Events";
                 case "waitForAnimationEnd":
                     return "Wait";
                 case "triggerHitEffect":
@@ -1301,9 +1325,158 @@ namespace GameSystems.Skills.Editor
             CopyVector3Property(sourceStepProp, destStepProp, "worldPosition");
             CopyVector3Property(sourceStepProp, destStepProp, "offset");
             CopyObjectReferenceProperty(sourceStepProp, destStepProp, "vfxPrefab");
+            CopyEnumProperty(sourceStepProp, destStepProp, "spawnSocket");
+            CopyAnimationEventsProperty(sourceStepProp, destStepProp);
             CopyBoolProperty(sourceStepProp, destStepProp, "waitForAnimationEnd");
             CopyBoolProperty(sourceStepProp, destStepProp, "triggerHitEffect");
             CopyIntProperty(sourceStepProp, destStepProp, "hitCount");
+        }
+
+        private static void CopyAnimationEventsProperty(
+            SerializedProperty sourceStepProp,
+            SerializedProperty destStepProp
+        )
+        {
+            var sourceProp = sourceStepProp.FindPropertyRelative("animationEvents");
+            var destProp = destStepProp.FindPropertyRelative("animationEvents");
+            if (sourceProp == null || destProp == null)
+            {
+                return;
+            }
+
+            destProp.ClearArray();
+            if (!sourceProp.isArray || sourceProp.arraySize == 0)
+            {
+                return;
+            }
+
+            destProp.arraySize = sourceProp.arraySize;
+            for (int i = 0; i < sourceProp.arraySize; i++)
+            {
+                CopyAnimationEvent(
+                    sourceProp.GetArrayElementAtIndex(i),
+                    destProp.GetArrayElementAtIndex(i));
+            }
+        }
+
+        private static void CopyAnimationEvent(
+            SerializedProperty sourceEventProp,
+            SerializedProperty destEventProp
+        )
+        {
+            if (sourceEventProp == null || destEventProp == null)
+            {
+                return;
+            }
+
+            CopyEnumProperty(sourceEventProp, destEventProp, "eventType");
+            CopyEnumProperty(sourceEventProp, destEventProp, "timing");
+            CopyStringProperty(sourceEventProp, destEventProp, "animationEventName");
+            CopyEnumProperty(sourceEventProp, destEventProp, "targetType");
+            CopyEnumProperty(sourceEventProp, destEventProp, "spawnSocket");
+            CopyVector3Property(sourceEventProp, destEventProp, "offset");
+            CopyVector3Property(sourceEventProp, destEventProp, "worldPosition");
+            CopyObjectReferenceProperty(sourceEventProp, destEventProp, "vfxPrefab");
+            CopyBoolProperty(sourceEventProp, destEventProp, "triggerHitEffect");
+            CopyIntProperty(sourceEventProp, destEventProp, "hitCount");
+            CopyBoolProperty(sourceEventProp, destEventProp, "enabled");
+        }
+
+        private static bool HasAnimationEventsChanged(
+            SkillViewStep sourceStep,
+            SerializedProperty animationEventsProp
+        )
+        {
+            if (sourceStep == null)
+            {
+                return animationEventsProp != null && animationEventsProp.arraySize > 0;
+            }
+
+            var sourceEvents = sourceStep.AnimationEvents;
+            int sourceCount = sourceEvents != null ? sourceEvents.Count : 0;
+            int targetCount = animationEventsProp != null && animationEventsProp.isArray
+                ? animationEventsProp.arraySize
+                : 0;
+
+            if (sourceCount != targetCount)
+            {
+                return true;
+            }
+
+            for (int i = 0; i < sourceCount; i++)
+            {
+                var sourceEvent = sourceEvents[i];
+                var targetEventProp = animationEventsProp.GetArrayElementAtIndex(i);
+                if (sourceEvent == null || targetEventProp == null)
+                {
+                    if (sourceEvent != null || targetEventProp != null)
+                    {
+                        return true;
+                    }
+
+                    continue;
+                }
+
+                if (sourceEvent.EventType != (SkillViewAnimationEventType)targetEventProp.FindPropertyRelative("eventType").enumValueIndex)
+                {
+                    return true;
+                }
+
+                if (sourceEvent.Timing != (SkillViewEventTiming)targetEventProp.FindPropertyRelative("timing").enumValueIndex)
+                {
+                    return true;
+                }
+
+                if (!string.Equals(
+                        sourceEvent.AnimationEventName ?? string.Empty,
+                        targetEventProp.FindPropertyRelative("animationEventName").stringValue ?? string.Empty,
+                        StringComparison.Ordinal))
+                {
+                    return true;
+                }
+
+                if (sourceEvent.TargetType != (SkillViewTargetType)targetEventProp.FindPropertyRelative("targetType").enumValueIndex)
+                {
+                    return true;
+                }
+
+                if (sourceEvent.SpawnSocket != (UnitSocketPoint)targetEventProp.FindPropertyRelative("spawnSocket").enumValueIndex)
+                {
+                    return true;
+                }
+
+                if (sourceEvent.Offset != targetEventProp.FindPropertyRelative("offset").vector3Value)
+                {
+                    return true;
+                }
+
+                if (sourceEvent.WorldPosition != targetEventProp.FindPropertyRelative("worldPosition").vector3Value)
+                {
+                    return true;
+                }
+
+                if (sourceEvent.VfxPrefab != targetEventProp.FindPropertyRelative("vfxPrefab").objectReferenceValue)
+                {
+                    return true;
+                }
+
+                if (sourceEvent.TriggerHitEffect != targetEventProp.FindPropertyRelative("triggerHitEffect").boolValue)
+                {
+                    return true;
+                }
+
+                if (sourceEvent.HitCount != targetEventProp.FindPropertyRelative("hitCount").intValue)
+                {
+                    return true;
+                }
+
+                if (sourceEvent.Enabled != targetEventProp.FindPropertyRelative("enabled").boolValue)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static void CopyEnumProperty(
