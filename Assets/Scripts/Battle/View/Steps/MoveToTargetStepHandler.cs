@@ -14,7 +14,7 @@ namespace GameSystems.Battle
             }
 
             runner.PlaySequenceAnimation(step, 1);
-            return runner.MoveToTargetStep(runner.ResolveDestination(step), step.Duration);
+            return runner.MoveToTargetStep(step);
         }
     }
 }

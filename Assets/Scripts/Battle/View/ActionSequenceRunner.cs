@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace GameSystems.Battle
@@ -10,18 +9,7 @@ namespace GameSystems.Battle
     /// </summary>
     public class ActionSequenceRunner : MonoBehaviour
     {
-        private static readonly Dictionary<SkillViewStepType, ISkillViewStepHandler> StepHandlers =
-            new Dictionary<SkillViewStepType, ISkillViewStepHandler>
-            {
-                { SkillViewStepType.MoveToTarget, new MoveToTargetStepHandler() },
-                { SkillViewStepType.MoveBack, new MoveBackStepHandler() },
-                { SkillViewStepType.PlayAnimation, new PlayAnimationStepHandler() },
-                { SkillViewStepType.Wait, new WaitStepHandler() },
-                { SkillViewStepType.ResetSortingOrder, new ResetSortingOrderStepHandler() },
-                { SkillViewStepType.SetSortingOrder, new SetSortingOrderStepHandler() },
-                { SkillViewStepType.SetFlipX, new SetFlipXStepHandler() },
-                { SkillViewStepType.SetIdleAnimation, new SetIdleAnimationStepHandler() },
-            };
+        private static readonly SkillViewStepHandlerRegistry StepHandlers = SkillViewStepHandlerRegistry.CreateDefault();
 
         [Header("Runtime")]
         [SerializeField] private AnimationHandle animationHandle;
@@ -189,7 +177,17 @@ namespace GameSystems.Battle
             OnEndStepAction?.Invoke(ResolveHitCount(null), false);
         }
 
+        internal IEnumerator MoveToTargetStep(SkillViewStep step)
+        {
+            return SkillViewMoveHandlerRegistry.Default.Execute(this, step);
+        }
+
         internal IEnumerator MoveToTargetStep(Vector3 destination, float desiredDuration)
+        {
+            return MoveToPosition(destination, desiredDuration);
+        }
+
+        internal IEnumerator MoveToPosition(Vector3 destination, float desiredDuration)
         {
             float duration = desiredDuration > 0f
                 ? desiredDuration
@@ -210,21 +208,7 @@ namespace GameSystems.Battle
 
         internal IEnumerator MoveBackStep(float desiredDuration)
         {
-            float duration = desiredDuration > 0f
-                ? desiredDuration
-                : moveDuration / Mathf.Max(0.01f, speed);
-            duration = Mathf.Max(0.01f, duration);
-            Vector3 start = transform.position;
-            float elapsed = 0f;
-
-            while (elapsed < duration)
-            {
-                transform.position = Vector3.Lerp(start, originPosition, elapsed / duration);
-                elapsed += Time.deltaTime;
-                yield return null;
-            }
-
-            transform.position = originPosition;
+            return MoveToPosition(originPosition, desiredDuration);
         }
 
         internal void PlaySequenceAnimation(SkillViewStep step, int layer)
